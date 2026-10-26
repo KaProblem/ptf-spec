@@ -140,7 +140,8 @@ export class Library {
     };
     for (const d of this.docs.values()) {
       const m = d.meta;
-      const s = score([m.id, m.title, m.description, (m.tags ?? []).join(" ")]) * 2 + score([d.body]);
+      const about = (m.about ?? []).map((a) => `${a?.wikidata ?? ""} ${a?.label ?? ""}`).join(" ");
+      const s = score([m.id, m.title, m.description, (m.tags ?? []).join(" "), about]) * 2 + score([d.body]);
       if (s) hits.push({ kind: d.type === "Learning Path" ? "path" : "element", score: s, ...summary(d) });
     }
     for (const [id] of this.sims) {
@@ -255,6 +256,7 @@ export class Library {
 function summary(d) {
   const m = d.meta;
   return { id: m.id, title: m.title, description: m.description, levels: m.levels ?? m.audience, status: m.status,
+    ...(m.about ? { about: m.about } : {}),
     ...(m.steps ? { steps: m.steps.map((s) => s.element) } : {}),
     ...(m.simulators ? { simulators: m.simulators.map((s) => ({ ref: s.ref, station: s.station, levels: s.levels, role: s.role })) } : {}),
     ...(m.code ? { code: m.code.map((c) => ({ ref: c.ref, step: c.step, levels: c.levels })) } : {}) };

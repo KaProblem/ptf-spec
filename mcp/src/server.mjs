@@ -107,7 +107,8 @@ server.registerTool("list_library", {
 
 server.registerTool("search_library", {
   title: "Search the PTF library",
-  description: "Full-text search over learning elements, paths and simulators. Use it to find material for the learner's goal.",
+  description: "Full-text search over learning elements, paths and simulators. Use it to find material for the learner's goal. " +
+    "Elements carry `about` (Wikidata items, first = primary concept): elements from different bundles with the same primary concept are alternatives; pick by level, language, the learner's profile and status.",
   inputSchema: { query: z.string().min(1), limit: z.number().int().min(1).max(50).optional() },
   annotations: { readOnlyHint: true },
 }, guarded(async ({ query, limit }) => ok(lib().search(query, limit))));

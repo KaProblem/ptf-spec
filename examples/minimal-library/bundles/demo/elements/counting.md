@@ -6,6 +6,9 @@ title: Counting
 description: Each number is one more than the one before.
 lang: en
 levels: [child, highschool]
+about:
+  - wikidata: Q247154
+    label: counting
 simulators:
   - ref: ptf:sim/counter@^1.0.0
     station: count
