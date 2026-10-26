@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PTF simulator</title>
+<style>
+  :root { color-scheme: light dark; --bg: #ffffff; --surface: #f4f6f8; --ink: #18212e; --muted: #5b6573; --line: #d5dbe2;
+    --accent: #0e6e68; --warn: #a1460a; --f-body: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  [data-theme="dark"] { --bg: #16191d; --surface: #1f2329; --ink: #e8ebef; --muted: #a3acb8; --line: #343a42; --accent: #4fc1b8; --warn: #f0a060; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: transparent; color: var(--ink); font: 14px/1.4 var(--f-body); }
+  .frame { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg); }
+  header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .badge { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); border: 1px solid currentColor; border-radius: 999px; padding: 2px 8px; }
+  .title { font-weight: 600; flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .title small { color: var(--muted); font-weight: 400; margin-left: 4px; }
+  select, button { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; min-height: 44px; padding: 0 10px; }
+  select { max-width: 200px; }
+  button { cursor: pointer; }
+  button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .tools { display: flex; flex-wrap: wrap; gap: 6px; }
+  #stage { min-height: 120px; }
+  #status { padding: 24px 12px; color: var(--muted); text-align: center; }
+  #error { display: none; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 10px; color: var(--warn); border-top: 1px solid var(--line); }
+  footer { padding: 6px 10px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<div class="frame">
+  <header>
+    <span class="badge" data-i18n="badge">Simulator</span>
+    <span class="title" id="title">…</span>
+    <div class="tools">
+      <select id="level" aria-label="Level" hidden></select>
+      <select id="station" aria-label="Station" hidden></select>
+      <button id="stuck" type="button" data-i18n="stuck">I'm stuck</button>
+      <button id="broken" type="button" data-i18n="broken">Doesn't work</button>
+    </div>
+  </header>
+  <div id="stage"><div id="status" data-i18n="loading">Loading simulator…</div></div>
+  <div id="error"><span id="errorText"></span><button id="fix" type="button" data-i18n="report">Tell the tutor</button></div>
+  <footer data-i18n="footer">Runs on this device in a sandbox. Your progress stays in your local learner record.</footer>
+</div>
+
+<script>/*PTF_HOST_RUNTIME*/</script>
+<script>
+(function () {
+  "use strict";
+  // ---------- texts ----------
+  var TEXT = {
+    en: { badge: "Simulator", stuck: "I'm stuck", broken: "Doesn't work", report: "Tell the tutor", loading: "Loading simulator…",
+      footer: "Runs on this device in a sandbox. Your progress stays in your local learner record.",
+      level: "Level", station: "Station", allStations: "All stations", failed: "The simulator could not be loaded: ",
+      levels: { child: "Child", highschool: "High school", college: "College", expert: "Expert" },
+      stuckMsg: "I'm stuck in the simulator.", brokenMsg: "The simulator doesn't work for me.", errorMsg: "The simulator reported an error:",
+      seeing: "What I see right now:" },
+    de: { badge: "Simulator", stuck: "Ich hänge fest", broken: "Funktioniert nicht", report: "Dem Tutor melden", loading: "Simulator wird geladen…",
+      footer: "Läuft auf diesem Gerät in einer Sandbox. Dein Fortschritt bleibt in deinem lokalen Lernprofil.",
+      level: "Stufe", station: "Station", allStations: "Alle Stationen", failed: "Der Simulator konnte nicht geladen werden: ",
+      levels: { child: "Kind", highschool: "Schule", college: "Studium", expert: "Experte" },
+      stuckMsg: "Ich hänge im Simulator fest.", brokenMsg: "Der Simulator funktioniert bei mir nicht.", errorMsg: "Der Simulator hat einen Fehler gemeldet:",
+      seeing: "Was ich gerade sehe:" }
+  };
+  var t = TEXT.en;
+  function applyTexts(locale) {
+    t = TEXT[String(locale || "").slice(0, 2)] || TEXT.en;
+    document.documentElement.lang = String(locale || "en").slice(0, 2);
+    document.querySelectorAll("[data-i18n]").forEach(function (el) { el.textContent = t[el.dataset.i18n]; });
+    $("level").setAttribute("aria-label", t.level);
+    $("station").setAttribute("aria-label", t.station);
+  }
+  function $(id) { return document.getElementById(id); }
+
+  // ---------- MCP Apps transport (View side, JSON-RPC over postMessage) ----------
+  var nextId = 1, pending = {};
+  function send(msg) { msg.jsonrpc = "2.0"; window.parent.postMessage(msg, "*"); }
+  function notify(method, params) { send({ method: method, params: params || {} }); }
+  function request(method, params) {
+    var id = "ptf-" + nextId++;
+    return new Promise(function (resolve, reject) {
+      pending[id] = { resolve: resolve, reject: reject };
+      send({ id: id, method: method, params: params || {} });
+    });
+  }
+  function callTool(name, args) {
+    return request("tools/call", { name: name, arguments: args || {} }).then(function (r) {
+      if (r && r.isError) throw new Error(((r.content || [])[0] || {}).text || name + " failed");
+      return r;
+    });
+  }
+
+  var host = { capabilities: {}, context: {} };
+  var launch = null;      // structuredContent of show_simulator
+  var sim = null;         // PTFHost handle
+  var recent = [];        // recent learning events, for the model context
+  var lastState = null;
+
+  window.addEventListener("message", function (ev) {
+    if (ev.source !== window.parent) return;   // only the MCP host; the simulator iframe is handled by ptf-host.js
+    var m = ev.data;
+    if (!m || m.jsonrpc !== "2.0") return;
+    if (m.id != null && !m.method) {
+      var p = pending[m.id];
+      if (p) { delete pending[m.id]; if (m.error) p.reject(new Error(m.error.message || "error")); else p.resolve(m.result); }
+      return;
+    }
+    switch (m.method) {
+      case "ui/notifications/tool-result": onToolResult(m.params || {}); break;
+      case "ui/notifications/host-context-changed": onHostContext(m.params || {}); break;
+      case "ui/resource-teardown": flushState(); if (m.id != null) send({ id: m.id, result: {} }); break;
+      case "ping": if (m.id != null) send({ id: m.id, result: {} }); break;
+      default: if (m.id != null) send({ id: m.id, error: { code: -32601, message: "Method not found" } });
+    }
+  });
+
+  // ---------- theme: MCP host style variables -> PTF tokens (SIMULATOR-SPEC.md §4.5) ----------
+  var TOKEN_MAP = {
+    "--bg": "--color-background-primary", "--surface": "--color-background-secondary", "--ink": "--color-text-primary",
+    "--muted": "--color-text-secondary", "--line": "--color-border-primary", "--accent": "--color-text-info",
+    "--accent-soft": "--color-background-info", "--warn": "--color-text-warning",
+    "--f-body": "--font-sans", "--f-display": "--font-sans", "--f-mono": "--font-mono"
+  };
+  function ptfTheme() {
+    var vars = (host.context.styles && host.context.styles.variables) || {};
+    var tokens = {};
+    for (var k in TOKEN_MAP) if (vars[TOKEN_MAP[k]]) tokens[k] = String(vars[TOKEN_MAP[k]]);
+    return { mode: host.context.theme === "dark" ? "dark" : "light", tokens: tokens };
+  }
+  function onHostContext(ctx) {
+    for (var k in ctx) host.context[k] = ctx[k];
+    var theme = ptfTheme();
+    document.documentElement.setAttribute("data-theme", theme.mode);
+    for (var tk in theme.tokens) document.documentElement.style.setProperty(tk, theme.tokens[tk]);
+    if (sim) sim.setTheme(theme);
+  }
+
+  // ---------- size ----------
+  var lastHeight = 0;
+  new ResizeObserver(function () {
+    var h = Math.ceil(document.documentElement.scrollHeight);
+    if (Math.abs(h - lastHeight) > 1) { lastHeight = h; notify("ui/notifications/size-changed", { height: h }); }
+  }).observe(document.documentElement);
+
+  // ---------- simulator ----------
+  function onToolResult(result) {
+    var sc = result.structuredContent;
+    if (!sc || !sc.sim) { fail(((result.content || [])[0] || {}).text || "no simulator in tool result"); return; }
+    launch = sc;
+    var html = result._meta && result._meta["ptf/html"];
+    (typeof html === "string" ? Promise.resolve(html)
+      : callTool("ptf_sim_source", { sim: sc.sim.id + "@" + sc.sim.version }).then(function (r) { return r.structuredContent.html; }))
+      .then(mount, function (e) { fail(e.message); });
+  }
+
+  function fillSelect(sel, items, current, allLabel) {
+    sel.innerHTML = "";
+    if (allLabel) { var o0 = document.createElement("option"); o0.value = ""; o0.textContent = allLabel; sel.appendChild(o0); }
+    items.forEach(function (it) {
+      var o = document.createElement("option");
+      o.value = it.value; o.textContent = it.label; if (it.value === current) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.hidden = items.length < (allLabel ? 1 : 2);
+  }
+
+  function mount(html) {
+    var s = launch.sim;
+    $("title").textContent = s.title;
+    var small = document.createElement("small"); small.textContent = "v" + s.version; $("title").appendChild(small);
+    fillSelect($("level"), (s.levels || []).map(function (l) { return { value: l, label: t.levels[l] || l }; }), launch.level);
+    fillSelect($("station"), (s.stations || []).map(function (x) { return { value: x.id, label: x.title }; }), launch.station, t.allStations);
+    $("stage").innerHTML = "";
+    sim = PTFHost.mount($("stage"), {
+      srcdoc: html,
+      title: s.title,
+      init: { level: launch.level || null, station: launch.station || null, params: launch.params || {},
+        locale: host.context.locale || null, theme: ptfTheme(), state: launch.state || null,
+        prefs: launch.prefs || {} },
+      onReady: updateModelContext,
+      onEvent: onSimEvent,
+      onState: function (st) { lastState = st; scheduleStateSave(); },
+      onError: function (e) { showError(e.message); },
+      onHang: function () { showError("no response (hang)"); }
+    });
+    record({ verb: "experienced", station: launch.station });
+  }
+
+  function objectId(station) {
+    return launch.sim.id + "@" + launch.sim.version + (station ? "#" + station : "");
+  }
+
+  function record(e) {
+    var entry = { verb: e.verb, object: objectId(e.station), level: e.level || $("level").value || launch.level || undefined,
+      result: e.result, element: launch.element || undefined };
+    recent.push({ verb: entry.verb, station: e.station, result: e.result });
+    if (recent.length > 12) recent.shift();
+    callTool("ptf_record_event", entry).catch(function () { /* recording is best effort */ });
+  }
+
+  var ctxTimer = null;
+  function onSimEvent(e) {
+    if (e.verb === "level_changed" && e.level) $("level").value = e.level;
+    record(e);
+    clearTimeout(ctxTimer);
+    ctxTimer = setTimeout(updateModelContext, 1200);
+  }
+
+  function snapshot() {
+    return sim ? sim.snapshot().catch(function () { return ""; }) : Promise.resolve("");
+  }
+
+  function describe(snap) {
+    var s = launch.sim;
+    var lines = ["PTF simulator " + s.title + " (" + s.id + "@" + s.version + ") is open for the learner, level " + ($("level").value || launch.level || "default") + "."];
+    if (launch.element) lines.push("Opened for learning element " + launch.element + ".");
+    if (recent.length) lines.push("Recent learner activity: " + recent.map(function (r) {
+      return r.verb + (r.station ? "@" + r.station : "") + (r.result && typeof r.result.correct === "boolean" ? (r.result.correct ? " (correct)" : " (wrong" + (r.result.misconception ? ", " + r.result.misconception : "") + ")") : "");
+    }).join("; ") + ".");
+    if (snap) lines.push("Current view: " + snap);
+    return lines.join("\n");
+  }
+
+  function updateModelContext() {
+    if (!host.capabilities.updateModelContext) return;
+    snapshot().then(function (snap) {
+      request("ui/update-model-context", { content: [{ type: "text", text: describe(snap) }] }).catch(function () {});
+    });
+  }
+
+  function tellTutor(intro, verb) {
+    record({ verb: verb, station: $("station").value || undefined });
+    snapshot().then(function (snap) {
+      var text = intro + (snap ? "\n\n" + t.seeing + " " + snap : "");
+      if (host.capabilities.message) request("ui/message", { role: "user", content: [{ type: "text", text: text }] }).catch(function () {});
+    });
+  }
+
+  var stateTimer = null;
+  function scheduleStateSave() { clearTimeout(stateTimer); stateTimer = setTimeout(flushState, 2000); }
+  function flushState() {
+    clearTimeout(stateTimer);
+    if (lastState === null || !launch) return;
+    callTool("ptf_save_state", { sim: launch.sim.id, state: lastState }).catch(function () {});
+    lastState = null;
+  }
+
+  function showError(msg) {
+    $("errorText").textContent = msg;
+    $("error").style.display = "flex";
+  }
+  function fail(msg) {
+    $("stage").innerHTML = "";
+    var d = document.createElement("div"); d.id = "status"; d.textContent = t.failed + msg; $("stage").appendChild(d);
+  }
+
+  $("level").addEventListener("change", function () {
+    if (!sim) return;
+    sim.setLevel(this.value);
+    onSimEvent({ verb: "level_changed", level: this.value });
+  });
+  $("station").addEventListener("change", function () { if (sim && this.value) sim.goto(this.value); });
+  $("stuck").addEventListener("click", function () { tellTutor(t.stuckMsg, "stuck"); });
+  $("broken").addEventListener("click", function () { tellTutor(t.brokenMsg, "reported_broken"); });
+  $("fix").addEventListener("click", function () { tellTutor(t.errorMsg + " " + $("errorText").textContent, "reported_broken"); });
+
+  // ---------- handshake ----------
+  request("ui/initialize", {
+    appInfo: { name: "ptf-player", version: "0.1.0" },
+    appCapabilities: {},
+    protocolVersion: "2026-01-26"
+  }).then(function (r) {
+    host.capabilities = (r && r.hostCapabilities) || {};
+    onHostContext((r && r.hostContext) || {});
+    applyTexts(host.context.locale);
+    notify("ui/notifications/initialized", {});
+  }, function (e) { fail(e.message); });
+})();
+</script>
+</body>
+</html>

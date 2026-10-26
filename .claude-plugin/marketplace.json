@@ -1,0 +1,11 @@
+{
+  "name": "ptf",
+  "owner": { "name": "KaProblem" },
+  "plugins": [
+    {
+      "name": "ptf",
+      "source": "./mcp",
+      "description": "Learn from a Personal Tutor Format library: local MCP server, simulators as MCP Apps, tutor and author skills."
+    }
+  ]
+}

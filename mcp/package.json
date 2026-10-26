@@ -1,0 +1,27 @@
+{
+  "name": "ptf-mcp",
+  "version": "0.1.0",
+  "description": "Local MCP server for the Personal Tutor Format: serves a PTF library, shows simulators as MCP Apps, keeps the learner record on this device",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "ptf-mcp": "dist/ptf-mcp.mjs"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "build": "node build.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "semver": "^7.6.3",
+    "yaml": "^2.6.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
