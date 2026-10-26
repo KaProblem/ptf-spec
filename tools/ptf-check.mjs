@@ -277,6 +277,7 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
   const levels = new Set([...DEFAULT_LEVELS, ...(idx.data.levels ?? []).map((l) => l.id)]);
 
   const elementIds = new Set();
+  const primaries = new Map();   // primary Wikidata item -> element, within this bundle
   const elements = [];
   const paths = [];
 
@@ -298,6 +299,10 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
     const expected = `ptf:el/${bundleId}/${rel.replace(/\.md$/, "").split(sep).pop()}`;
     if (d.id && d.id !== expected) warn(f, `id ${d.id} differs from the expected ${expected}`);
     if (d.id) elementIds.add(d.id);
+    const primary = d.about?.[0]?.wikidata;
+    if (!primary && (d.status === "reviewed" || d.status === "proven")) warn(f, `status ${d.status} without \`about\` (SPEC.md §6.6)`);
+    if (primary && primaries.has(primary)) warn(f, `primary concept ${primary} is also the primary concept of ${primaries.get(primary)} (SPEC.md §6.6)`);
+    else if (primary) primaries.set(primary, d.id ?? rel);
     for (const l of d.levels ?? []) if (!levels.has(l)) err(f, `unknown level "${l}" (define it in index.md levels)`);
 
     const hs = headings(fm.body);

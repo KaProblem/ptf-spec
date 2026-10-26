@@ -50,6 +50,27 @@
         "type": "string"
       }
     },
+    "about": {
+      "description": "Concepts this element teaches, as Wikidata items; the first is the primary concept (SPEC.md §6.6).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "wikidata"
+        ],
+        "properties": {
+          "wikidata": {
+            "type": "string",
+            "pattern": "^Q[1-9][0-9]*$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "uniqueItems": true
+    },
     "requires": {
       "type": "array",
       "items": {

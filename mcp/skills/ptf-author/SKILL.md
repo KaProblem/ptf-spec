@@ -53,7 +53,8 @@ own notes instead of reading it yourself.
   `reviewed` or `proven` yourself.
 
 **New element**: frontmatter per SPEC.md §6.1 (`generated: { by, at }`,
-`sources` for grounding only), then `# Core`, `# Key facts`,
+`sources` for grounding only, `about` with Wikidata items looked up with
+`tools/ptf-wikidata.mjs`, never guessed; SPEC.md §6.6), then `# Core`, `# Key facts`,
 `# Misconceptions` (each `**<id>**: <wrong belief> → <correct view>`), and
 `# Questions` with at least one `check` question per level. Level texts are
 optional; if you write them, each starts with something to try. Add it to the

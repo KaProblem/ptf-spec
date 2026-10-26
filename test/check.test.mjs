@@ -124,3 +124,16 @@ test("accepts allowlisted vendored builds and rejects tampered or undeclared one
   assert.match(bad.stdout, /forbidden in simulators: network request \(fetch\)/);
   assert.match(bad.stdout, /script in vendor\/ that is not a declared, allowlisted build/);
 });
+
+test("checks Wikidata subject anchors", () => {
+  const lib = copyExample();
+  const el = join(lib, "bundles/demo/elements/counting.md");
+  const text = readFileSync(el, "utf8").replace(/^about:\n(  .*\n)+/m, "");
+  writeFileSync(el, text.replace("status: draft", "about:\n  - wikidata: X12\nstatus: draft"));
+  let r = run(lib);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /about\/0\/wikidata must match pattern/);
+  writeFileSync(el, text.replace("status: draft", "status: reviewed"));
+  r = run(lib);
+  assert.match(r.stdout, /status reviewed without `about`/);
+});

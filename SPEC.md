@@ -193,6 +193,9 @@ description: Turns arbitrary numbers into a probability distribution.   # REQUIR
 lang: en                                # REQUIRED, BCP 47
 levels: [highschool, college, expert]   # REQUIRED, at least 2
 tags: [llm, probability]
+about:                                  # what this is about, as Wikidata items (§6.6)
+  - wikidata: Q7554146                  # softmax function
+    label: softmax function
 requires:                               # prerequisites (global IDs)
   - ptf:el/llm-basics/logits
 leads_to:
@@ -291,6 +294,41 @@ them:
 
 - Links SHOULD point to stable, freely accessible resources. Hosts show
   them as ordinary links outside any simulator sandbox.
+
+### 6.6 Subject anchors (`about`)
+
+PTF does not define its own subject taxonomy. An element names the concepts
+it teaches as **Wikidata items** in `about`, so that elements from different
+bundles, authors and languages that teach the same concept can be found and
+compared, and so that external classifications linked from Wikidata (Dewey,
+MSC, ACM CCS and others) apply without being copied.
+
+```yaml
+about:
+  - wikidata: Q7554146        # REQUIRED in each entry: the item ID
+    label: softmax function   # RECOMMENDED: the item's English label, for humans
+```
+
+- The first entry is the **primary concept**: the one thing the element
+  teaches. Further entries are secondary concepts it also covers.
+- Use the most specific item that matches the element ("softmax function",
+  not "machine learning"). If no item fits, leave the concept out rather
+  than pick a broader one; an element MAY have no `about`.
+- `about` is RECOMMENDED for every element and SHOULD be present before an
+  element becomes `reviewed`. `ptf-check` warns when it is missing at
+  `reviewed` or `proven`, and when two elements of the same bundle share a
+  primary concept (one of them is probably redundant).
+- Elements in different bundles MAY share a primary concept. They are
+  alternatives; a tutor chooses between them by level, language, the
+  learner's profile and `status`.
+- IDs MUST be checked against Wikidata, not guessed:
+  `node tools/ptf-wikidata.mjs search "<concept>"` lists candidates,
+  `node tools/ptf-wikidata.mjs title "<English Wikipedia article>"` gives the
+  item of an article, and
+  `node tools/ptf-wikidata.mjs verify <library-dir>` checks every ID in a
+  library and compares the labels.
+- `requires` and `leads_to` stay the source of prerequisite order. Wikidata
+  says *what* a concept is, not in which order it is learned.
 
 ---
 
