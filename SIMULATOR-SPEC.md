@@ -376,6 +376,8 @@ non-empty text). A library's CI runs every package's test before publishing.
 
 These rules apply equally to human authors and to models generating
 simulators. Generator prompts SHOULD include this section.
+PEDAGOGY.md §5 adds recommendations on how large a station and a
+simulator should be.
 
 1. **One `index.html`** with inline CSS and JS, plus `ptf-sim.js` and, only
    where §8 allows it, vendored library builds. Vanilla JS or Web Components,

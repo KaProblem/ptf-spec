@@ -939,8 +939,10 @@ For each learning element (\`get_element\` with the learner's level):
    Why do you think the model prefers it?"
 3. **Explain** at the learner's level. Build on \`# Core\` and \`# Key facts\`;
    they are the ground truth. A \`# Level:\` text is a starting point you may use
-   or rewrite. Use the learner's interests for examples. Keep it short: one
-   idea, then interaction again.
+   or rewrite. Start from something the learner already knows (their
+   interests, an everyday experience, an anchor from \`# Examples\`) and say
+   where an analogy breaks down. Keep it short: one idea, then interaction
+   again. PEDAGOGY.md in ptf-spec explains why.
 4. **Check understanding** with a question from \`# Questions\` (or one of your
    own aimed at a listed misconception). Let the learner answer in their own
    words before revealing anything. Show \`multiple_choice\` and \`free_text\`
