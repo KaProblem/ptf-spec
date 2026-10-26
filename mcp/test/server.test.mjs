@@ -59,6 +59,34 @@ test("show_simulator returns launch data and inlined, verified HTML", async () =
   assert.ok(bad.isError);
 });
 
+test("show_question serves library questions and validates ad-hoc ones", async () => {
+  const { tools } = await client.listTools();
+  assert.equal(tools.find((t) => t.name === "show_question")._meta.ui.resourceUri, "ui://ptf/quiz.html");
+  const quiz = await client.readResource({ uri: "ui://ptf/quiz.html" });
+  assert.equal(quiz.contents[0].mimeType, "text/html;profile=mcp-app");
+
+  const r = await client.callTool({ name: "show_question", arguments: { element: "ptf:el/demo/counting", question_id: "q2" } });
+  assert.ok(!r.isError, r.content[0].text);
+  assert.equal(r.structuredContent.question.kind, "multiple_choice");
+  assert.equal(r.structuredContent.object, "ptf:el/demo/counting#q2");
+
+  const unsupported = await client.callTool({ name: "show_question", arguments: { element: "ptf:el/demo/counting", question_id: "q1" } });
+  assert.match(unsupported.content[0].text, /cannot be shown as a card yet/);
+  const missing = await client.callTool({ name: "show_question", arguments: { element: "ptf:el/demo/counting", question_id: "nope" } });
+  assert.match(missing.content[0].text, /q1 \(guess_next\), q2 \(multiple_choice\)/);
+
+  const own = await client.callTool({ name: "show_question", arguments: { question: { kind: "free_text", id: "why", level: "child",
+    question: "Why do we count?", rubric: ["Mentions how many"], explanation: "To know how many things there are." } } });
+  assert.ok(!own.isError, own.content[0].text);
+  assert.match(own.content[0].text, /Rubric:\n- Mentions how many/);
+  assert.equal(own.structuredContent.object, null);
+
+  const bad = await client.callTool({ name: "show_question", arguments: { question: { kind: "multiple_choice", id: "x", level: "child",
+    question: "?", options: [{ text: "a", correct: false, feedback: "f" }], explanation: "e" } } });
+  assert.ok(bad.isError);
+  assert.match(bad.content[0].text, /Not a valid PTF question block: \/options/);
+});
+
 test("records events and mastery in the learner record", async () => {
   await client.callTool({ name: "update_learner_profile", arguments: { preferred_lang: "de", interests: ["LLMs"] } });
   await client.callTool({ name: "ptf_record_event", arguments: { verb: "answered", object: "ptf:sim/counter@1.0.0#count",

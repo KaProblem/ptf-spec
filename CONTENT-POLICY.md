@@ -81,6 +81,33 @@ those, a human reads the source and the agent works from the human's notes.
 `sources` in the frontmatter list what the content was grounded in. They are
 provenance for maintainers, not citations in learner-facing text (SPEC.md §6.2).
 
+### 1.2 Contributor responsibility and license
+
+1. **Responsibility.** Contributors are responsible for what they submit. They
+   MUST hold the rights to it and MUST comply with copyright and all other
+   applicable law, including trademark, privacy and personality rights. The
+   automated gates (§2) reduce mistakes; they do not shift this
+   responsibility to the library.
+2. **License grant.** By submitting a contribution (a pull request or any
+   other channel the library accepts), the contributor licenses it under the
+   library's licenses, as stated in the library's `LICENSE` file (for
+   ptf-library: content CC BY-SA 4.0, simulators and tools MIT). Third-party
+   material adapted under §1.1 keeps its own license and attribution.
+3. **Agents.** An agent always contributes on behalf of a person. That person
+   is the contributor and makes the statements in this section.
+4. **Contributor statement.** Every pull request contains this statement, and
+   the contributor confirms it by submitting:
+
+   > I created this contribution myself or have the right to submit it. It
+   > does not copy text, questions, figures or code I may not license under
+   > this library's licenses, and it complies with applicable law. I license
+   > it under the licenses in this library's LICENSE file.
+
+5. **Removal.** Anyone who believes content infringes their rights or the law
+   can open an issue or contact the maintainers. Maintainers remove or fix
+   content they find infringing without delay, and MAY remove disputed
+   content while they check.
+
 ---
 
 ## 2. Review gates

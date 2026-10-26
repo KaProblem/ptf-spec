@@ -93,6 +93,9 @@ a pull request (with the GitHub tools or `gh pr create`). The PR body has:
 - **Rubric**: one line per CONTENT-POLICY.md §3 criterion with your own
   assessment.
 - **Sources**: what the content is grounded in.
+- **Contributor statement**: the statement from CONTENT-POLICY.md §1.2,
+  verbatim. The user is the contributor, not you: before opening the PR, show
+  them the statement and get their confirmation.
 
 Then watch the PR: fix what the automated review or CI reports, and answer
 review comments. Tell the user when it is merged or needs their decision.
