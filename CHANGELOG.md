@@ -6,6 +6,12 @@ before 1.0, minor versions may break compatibility.
 ## [Unreleased]
 
 ### Added
+- SIMULATOR-SPEC.md §7 rule 5 "Predict, observe, explain": a station that runs an experiment keeps its controls locked until the learner picks a prediction, gives no hint while picking, judges the prediction only after the result and reports it as `answered`.
+- SIMULATOR-SPEC.md §4.7: simulators start focused on their first station, also standalone, and show progress with direct go-to per station.
+- SIMULATOR-SPEC.md §4.5: canvas and WebGL simulators resolve theme tokens through the browser, because host values such as `light-dark()` turn canvas drawings black.
+
+### Fixed
+- MCP player: host colour tokens are resolved to plain `rgb()` before they reach a simulator.
 - CONTENT-POLICY.md §1.2 "Contributor responsibility and license": contributors are responsible for their content and its legal compliance, license each contribution under the library's licenses by submitting it, and are the human behind any agent; maintainers remove infringing content on notice. `ptf-author` adds the contributor statement to every PR.
 - CONTENT-POLICY.md §1.1 "Sources and original work": any material may be a source; content is written fresh (no copied or closely paraphrased text, no translated text, no reproduced exercises or figures); CC0/BY/BY-SA material may be adapted with attribution, NC/ND material only in private libraries; agents must not rewrite sources and must respect terms that forbid AI processing.
 - CODE-SPEC.md: code labs, versioned packages of runnable code in steps (`code/<name>/<version>/` with `lab.json`, README and one complete file per step) that learners copy into their own workspace, run and extend. Elements refer to them with `code: [{ ref, step }]`; `ptf.lock` pins them under `code`. Safety rules for hosts (never run automatically, copy before editing, show dependencies first) and for labs (no network, processes, string eval or unsafe deserialization).
