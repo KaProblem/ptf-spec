@@ -6,7 +6,7 @@
  *     init: { level: "highschool", station: null, params: {}, locale: "de", theme: {...}, state: null },
  *     onEvent(e) {}, onState(s) {}, onError(e) {}, onReady() {}, onHang() {}
  *   });
- *   sim.setLevel("college"); sim.goto("softmax"); await sim.snapshot(); sim.destroy();
+ *   sim.setLevel("college"); sim.goto("softmax", { focus: true }); await sim.snapshot(); sim.destroy();
  */
 (function (global) {
   "use strict";
@@ -54,7 +54,7 @@
       var params = (m.params && typeof m.params === "object") ? m.params : {};
       switch (m.method) {
         case "ptf/initialize":
-          if (m.id != null) post({ id: m.id, result: Object.assign({ level: null, station: null, params: {}, locale: null, theme: null, state: null, prefs: {} }, opts.init || {}) });
+          if (m.id != null) post({ id: m.id, result: Object.assign({ level: null, station: null, focus: false, params: {}, locale: null, theme: null, state: null, prefs: {} }, opts.init || {}) });
           break;
         case "ptf/ready": startPing(); cb("onReady", params); break;
         case "ptf/event": if (typeof params.verb === "string") cb("onEvent", params); break;
@@ -84,7 +84,11 @@
     return {
       iframe: iframe,
       setLevel: function (level) { post({ method: "ptf/setLevel", params: { level: level } }); },
-      goto: function (station) { post({ method: "ptf/goto", params: { station: station } }); },
+      goto: function (station, options) {
+        var params = { station: station };
+        if (options && typeof options.focus === "boolean") params.focus = options.focus;
+        post({ method: "ptf/goto", params: params });
+      },
       setTheme: function (theme) { post({ method: "ptf/theme", params: theme }); },
       snapshot: function () { return request("ptf/snapshot", {}).then(function (r) { return (r && r.text) || ""; }); },
       ping: function () { return request("ptf/ping", {}, PING_TIMEOUT_MS); },

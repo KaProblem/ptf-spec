@@ -226,10 +226,12 @@ The body uses these level-1 headings, in this order. Only `# Core` and
 | `# Misconceptions` | yes | List of `**<id>**: <wrong belief> → <correct view>`. |
 | `# Questions` | no | Question blocks (§7). |
 | `# Examples` | no | Worked examples, code, calculations. |
+| `# Further reading` | no | Optional deep-dive material for after the lesson (§6.5). |
 | `# Sources` | no | Footnotes keyed to `sources` (OKF §5.1). |
 
-Learner-facing text MUST NOT refer to the sources ("as shown in the video at
-4:12"). Timestamps and similar belong in `sources` or comments.
+Learner-facing text above `# Further reading` MUST NOT refer to the sources
+("as shown in the video at 4:12"). Timestamps and similar belong in
+`sources`, comments or `# Further reading`.
 
 ### 6.3 Level texts
 
@@ -252,6 +254,27 @@ as is or adapt it to the learner.
 Each misconception has a short ID (`softmax-makes-zeros`). Question blocks and
 learner events refer to these IDs, which turns wrong answers into data about
 where learners stumble.
+
+### 6.5 Further reading
+
+`# Further reading` lists material a learner MAY explore after the lesson,
+for example the video or paper the element was grounded in. It turns
+sources into an optional deep dive without making the lesson depend on
+them:
+
+- The element MUST be complete without it. A tutor offers it only once the
+  learner has worked through the element, or asks for more.
+- Each entry is a list item with a Markdown link, a one-line description of
+  what the learner will get from it, and optionally a timestamp range or
+  section and a level hint:
+
+  ```markdown
+  - [Let's build GPT: from scratch, in code, spelled out](https://www.youtube.com/watch?v=kCc8FmEb1nY&t=3720s):
+    builds a self-attention head in PyTorch step by step (video, 1:02–1:20; college).
+  ```
+
+- Links SHOULD point to stable, freely accessible resources. Hosts show
+  them as ordinary links outside any simulator sandbox.
 
 ---
 

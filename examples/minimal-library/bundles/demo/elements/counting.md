@@ -44,3 +44,7 @@ Put one apple on the table. Now another. How many are there?
   "explanation": "3 plus one is 4."
 }
 ```
+
+# Further reading
+
+- [Counting on Wikipedia](https://en.wikipedia.org/wiki/Counting): what counting is, from tally marks to number words (article, section "Counting in mathematics"; highschool).

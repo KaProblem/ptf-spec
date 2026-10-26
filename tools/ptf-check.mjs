@@ -225,7 +225,7 @@ function checkBundle(bundleDir, simIndex) {
       const lm = h.match(/^Level:\s*([a-z0-9-]+)/);
       if (lm && !(d.levels ?? []).includes(lm[1])) warn(f, `"# ${h}" is not in the element's levels`);
     }
-    if (/\b(im Video|in the video|bei \d+:\d\d|at \d+:\d\d)\b/i.test(fm.body.replace(/^# Sources[\s\S]*$/m, ""))) {
+    if (/\b(im Video|in the video|bei \d+:\d\d|at \d+:\d\d)\b/i.test(fm.body.replace(/^# (?:Further reading|Sources)[\s\S]*$/m, ""))) {
       warn(f, "body seems to refer to source material; lessons must be self-contained (SPEC.md §6.2)");
     }
 

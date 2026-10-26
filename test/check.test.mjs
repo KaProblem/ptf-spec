@@ -61,3 +61,13 @@ test("rejects invalid question blocks", () => {
   assert.equal(r.status, 1);
   assert.match(r.stdout, /#q1/);
 });
+
+test("allows source references only in Further reading and Sources", () => {
+  const lib = copyExample();
+  const el = join(lib, "bundles/demo/elements/counting.md");
+  const src = readFileSync(el, "utf8");
+  writeFileSync(el, src + "- [A video](https://example.org/v): counting songs (video, at 1:30).\n");
+  assert.match(run(lib).stdout, /0 error\(s\), 0 warning\(s\)/);
+  writeFileSync(el, src.replace("# Level: child\n", "# Level: child\n\nAs shown in the video at 1:30, count apples.\n"));
+  assert.match(run(lib).stdout, /refer to source material/);
+});
