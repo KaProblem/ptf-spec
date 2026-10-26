@@ -1,0 +1,33 @@
+{
+  "name": "ptf-spec",
+  "version": "0.1.0",
+  "description": "Personal Tutor Format: specification, JSON Schemas, simulator runtime and validator",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "ptf-check": "tools/ptf-check.mjs",
+    "ptf-selftest": "tools/ptf-selftest.mjs"
+  },
+  "scripts": {
+    "check": "node tools/ptf-check.mjs",
+    "selftest": "node tools/ptf-selftest.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "semver": "^7.6.3",
+    "yaml": "^2.6.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "SPEC.md",
+    "SIMULATOR-SPEC.md",
+    "LEARNER-RECORD.md",
+    "schemas/",
+    "runtime/",
+    "tools/"
+  ]
+}

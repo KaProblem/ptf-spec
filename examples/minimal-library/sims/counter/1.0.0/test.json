@@ -1,0 +1,10 @@
+{
+  "steps": [
+    { "init": { "level": "child" } },
+    { "expectText": "Count the apples" },
+    { "click": "#add" },
+    { "expectText": "1 apple" },
+    { "snapshot": true },
+    { "expectNoError": true }
+  ]
+}

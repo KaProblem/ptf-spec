@@ -1,0 +1,36 @@
+{
+  "ptf_sim": "0.1",
+  "id": "ptf:sim/counter",
+  "version": "1.0.0",
+  "title": "Apple counter",
+  "description": "Add apples one by one and count them.",
+  "lang": [
+    "en"
+  ],
+  "concepts": [
+    "counting"
+  ],
+  "levels": [
+    "child"
+  ],
+  "stations": [
+    {
+      "id": "count",
+      "title": "Count the apples",
+      "levels": [
+        "child"
+      ]
+    }
+  ],
+  "entry": "index.html",
+  "events": [
+    "station_completed"
+  ],
+  "capabilities": [],
+  "license": "MIT",
+  "authors": [
+    "claude/opus"
+  ],
+  "derived_from": null,
+  "integrity": "sha256-d8QfqG8xXisWGQZkGO7J8r75A56qUoLWEFWb82FgVJc="
+}

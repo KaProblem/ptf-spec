@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/KaProblem/ptf-spec/schemas/mastery.schema.json",
+  "title": "PTF mastery.json",
+  "type": "object",
+  "required": [
+    "ptf_version",
+    "concepts"
+  ],
+  "properties": {
+    "ptf_version": {
+      "type": "string"
+    },
+    "updated": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "concepts": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^ptf:el/[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "mastery"
+        ],
+        "properties": {
+          "level": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "mastery": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "last_seen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "next_review": {
+            "type": "string",
+            "format": "date"
+          },
+          "interval_days": {
+            "type": "number",
+            "minimum": 0
+          },
+          "open_misconceptions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]*$"
+            }
+          },
+          "versions_seen": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

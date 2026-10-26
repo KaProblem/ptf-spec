@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Counter</title>
+<style>
+:root{--bg:#fff;--ink:#18212e;--accent:#0e6e68;--f-body:system-ui,sans-serif}
+:root[data-theme="dark"]{--bg:#0f151c;--ink:#e6ebf0;--accent:#4fc2b8}
+body{background:var(--bg);color:var(--ink);font:17px/1.5 var(--f-body);margin:0;padding:16px}
+button{min-height:44px;min-width:44px;font:inherit;background:var(--accent);color:var(--bg);border:0;border-radius:8px;padding:8px 16px}
+</style>
+</head>
+<body>
+<section data-station="count">
+  <h1>Count the apples</h1>
+  <p id="n" aria-live="polite">0 apples</p>
+  <button id="add">Add an apple</button>
+</section>
+<script src="ptf-sim.js"></script>
+<script>
+let n = 0;
+const ptf = PTF.connect({
+  id: "ptf:sim/counter", version: "1.0.0",
+  onInit(ctx) { if (ctx.state && typeof ctx.state.n === "number") { n = ctx.state.n; render(); } },
+  snapshot() { return `The learner has counted ${n} apples.`; }
+});
+function render() { document.getElementById("n").textContent = `${n} apple${n === 1 ? "" : "s"}`; }
+document.getElementById("add").onclick = () => {
+  n++; render(); ptf.saveState({ n });
+  if (n === 10) ptf.stationCompleted("count");
+};
+</script>
+</body>
+</html>

@@ -1,1 +1,50 @@
-# ptf-spec
+# Personal Tutor Format (PTF)
+
+An open format for learning content that an AI tutor can teach from:
+concepts explained at four difficulty levels (child, high school, college,
+expert), question blocks, learning paths and versioned, sandboxed interactive
+simulators. The content is open and shareable; the explanation is always
+tailored to the learner. That is the "Personal" in the name.
+
+PTF is a profile of Google's [Open Knowledge Format (OKF)](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md):
+every PTF bundle is a plain directory of Markdown files with YAML frontmatter.
+
+**Status:** v0.1 draft. Expect breaking changes until 1.0.
+
+## Documents
+
+| File | What it specifies |
+| --- | --- |
+| [SPEC.md](SPEC.md) | Bundles, learning elements, levels, question blocks, learning paths, IDs, versioning, conformance |
+| [SIMULATOR-SPEC.md](SIMULATOR-SPEC.md) | Simulator packages, `sim.json`, the postMessage host contract, security, build rules |
+| [LEARNER-RECORD.md](LEARNER-RECORD.md) | The portable, private learner profile, progress and consent format |
+| [schemas/](schemas/) | JSON Schemas (2020-12) for everything machine-checkable |
+
+## Tools
+
+| Path | Purpose |
+| --- | --- |
+| [runtime/ptf-sim.js](runtime/ptf-sim.js) | Simulator-side runtime; copy it into every simulator package |
+| [runtime/ptf-host.js](runtime/ptf-host.js) | Host-side runtime: embeds a simulator in a sandboxed iframe and speaks the contract |
+| [tools/ptf-check.mjs](tools/ptf-check.mjs) | Validator for libraries, bundles and simulator packages |
+| [tools/ptf-selftest.mjs](tools/ptf-selftest.mjs) | Runs a simulator's `test.json` in Chromium under the production sandbox and CSP; `--serve` opens a dev host |
+| [examples/minimal-library/](examples/minimal-library/) | The smallest valid library (one bundle, one simulator) |
+
+```bash
+npm install
+node tools/ptf-check.mjs path/to/library          # validate
+node tools/ptf-check.mjs hash --write path/to/sims/<name>/<version>   # set integrity
+node tools/ptf-check.mjs lock path/to/library/bundles/<bundle> path/to/library   # write ptf.lock
+node tools/ptf-selftest.mjs path/to/sims/<name>/<version>              # needs Playwright
+node tools/ptf-selftest.mjs --serve path/to/sims/<name>/<version>      # try it by hand
+npm test
+```
+
+## Related
+
+- [ptf-library](https://github.com/KaProblem/ptf-library): the content library (bundles and simulators).
+
+## License
+
+Specification text (`*.md`): [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+Code and schemas: MIT, see [LICENSE](LICENSE).

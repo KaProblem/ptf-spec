@@ -1,0 +1,9 @@
+{
+  "lockfileVersion": 1,
+  "simulators": {
+    "ptf:sim/counter": {
+      "version": "1.0.0",
+      "integrity": "sha256-d8QfqG8xXisWGQZkGO7J8r75A56qUoLWEFWb82FgVJc="
+    }
+  }
+}
