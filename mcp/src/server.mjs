@@ -17,12 +17,14 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import Ajv2020 from "ajv/dist/2020.js";
 import * as z from "zod";
-import { PLAYER_HTML, TUTOR_GUIDE, VERSION } from "./assets.mjs";
+import { PLAYER_HTML, QUESTION_SCHEMA, QUIZ_HTML, TUTOR_GUIDE, VERSION } from "./assets.mjs";
 import { LearnerRecord } from "./learner.mjs";
 import { Library, onlyLevel, parseSimRef } from "./library.mjs";
 
 const PLAYER_URI = "ui://ptf/player.html";
+const QUIZ_URI = "ui://ptf/quiz.html";
 const APP_MIME = "text/html;profile=mcp-app";
 const DEFAULT_URL = "https://github.com/KaProblem/ptf-library.git";
 const LEVEL = z.string().regex(/^[a-z][a-z0-9-]*$/).describe("Level ID: child, highschool, college, expert or a bundle's custom level");
@@ -87,6 +89,13 @@ server.registerResource("ptf-player", PLAYER_URI, {
   _meta: { ui: { prefersBorder: false } },
 }, async (uri) => ({ contents: [{ uri: uri.href, mimeType: APP_MIME, text: PLAYER_HTML, _meta: { ui: { prefersBorder: false } } }] }));
 
+server.registerResource("ptf-quiz", QUIZ_URI, {
+  title: "PTF quiz",
+  description: "Renders one PTF question block (SPEC.md §7) and checks the learner's answer.",
+  mimeType: APP_MIME,
+  _meta: { ui: { prefersBorder: false } },
+}, async (uri) => ({ contents: [{ uri: uri.href, mimeType: APP_MIME, text: QUIZ_HTML, _meta: { ui: { prefersBorder: false } } }] }));
+
 // ---------- library ----------
 
 server.registerTool("list_library", {
@@ -127,6 +136,66 @@ server.registerTool("sync_library", {
   git(["pull", "--ff-only"], libraryDir);
   lib().reload();
   return ok({ before, after: libraryVersion() });
+}));
+
+// ---------- questions ----------
+
+// Kinds the quiz UI can render. The others are valid PTF but are asked in the chat for now.
+const QUIZ_KINDS = ["multiple_choice", "free_text"];
+const validQuestion = new Ajv2020({ allErrors: true, strict: false }).compile(QUESTION_SCHEMA);
+
+function questionErrors(q) {
+  if (validQuestion(q)) return [];
+  // oneOf reports every branch; keep the errors of the branch for the given kind.
+  const kinds = QUESTION_SCHEMA.oneOf.map((b) => b.properties.kind.const);
+  const branch = kinds.indexOf(q?.kind);
+  if (branch < 0) return [`kind must be one of ${kinds.join(", ")}`];
+  return (validQuestion.errors ?? []).filter((e) => e.schemaPath.startsWith(`#/oneOf/${branch}/`))
+    .map((e) => `${e.instancePath || "question"} ${e.message}`);
+}
+
+server.registerTool("show_question", {
+  title: "Show a quiz question",
+  description: "Shows one question to the learner as an interactive card inline in the chat, instead of asking it in plain text. " +
+    "Either take a question from a learning element (`element` + `question_id`, from its # Questions section) or write your own " +
+    "`question` as a PTF question block (SPEC.md §7, schema question-block.schema.json). Kinds shown as a card: " + QUIZ_KINDS.join(", ") + ". " +
+    "The card checks multiple_choice itself; for free_text you grade the answer with the rubric. The learner's answer arrives as their next message.",
+  inputSchema: {
+    element: z.string().regex(/^ptf:el\//).optional().describe("Learning element the question belongs to; answers count towards its mastery"),
+    question_id: z.string().optional().describe("ID of a question block in the element"),
+    question: z.record(z.string(), z.unknown()).optional().describe("A question block you wrote, e.g. {kind: multiple_choice, id, level, question, options[{text, correct, feedback}], explanation}"),
+  },
+  _meta: { ui: { resourceUri: QUIZ_URI }, "ui/resourceUri": QUIZ_URI },
+}, guarded(async ({ element, question_id, question }) => {
+  if (!question === !question_id) throw new Error("Pass either question_id (with element) or question.");
+  let q = question;
+  let lang = null;
+  if (element) {
+    const d = lib().doc(element);
+    if (!d) throw new Error(`Unknown element ${element}.`);
+    lang = d.meta.lang ?? null;
+  }
+  if (question_id) {
+    if (!element) throw new Error("question_id needs element.");
+    const all = lib().questions(element);
+    q = all.find((x) => x.id === question_id);
+    if (!q) throw new Error(`Element ${element} has no question ${question_id}. Questions: ${all.map((x) => `${x.id} (${x.kind})`).join(", ") || "none"}`);
+  }
+  const errors = questionErrors(q);
+  if (errors.length) throw new Error(`Not a valid PTF question block: ${errors.join("; ")}`);
+  if (!QUIZ_KINDS.includes(q.kind)) throw new Error(`Kind ${q.kind} cannot be shown as a card yet (${QUIZ_KINDS.join(", ")}). Ask it in the chat.`);
+  const object = element ? `${element}#${q.id}` : null;
+  const lines = [`Showing question ${q.id} (${q.kind}) to the learner. Do not give away the answer; wait for their reply.`];
+  if (q.kind === "multiple_choice") {
+    lines.push("The card checks the answer, shows the feedback and the explanation" + (object ? `, and records it as ${object}.` : "."),
+      "Then talk about the answer: why it is right or which misconception it shows.");
+  } else {
+    lines.push("Grade the answer the learner sends against this rubric, give short feedback, then show or summarise the sample answer if it helps.");
+    if (q.rubric?.length) lines.push(`Rubric:\n${q.rubric.map((r) => `- ${r}`).join("\n")}`);
+    if (q.sample_answer) lines.push(`Sample answer: ${q.sample_answer}`);
+    if (object) lines.push(`Then call record_progress with verb answered, object ${object} and result.score (0 to 1).`);
+  }
+  return { content: [text(lines.join("\n"))], structuredContent: { question: q, element: element ?? null, object, lang } };
 }));
 
 // ---------- simulators ----------
@@ -255,15 +324,16 @@ server.registerTool("ptf_sim_source", {
 }));
 
 server.registerTool("ptf_record_event", {
-  title: "Record a simulator event (player)",
-  description: "Used by the simulator player: appends a learning event to the local learner record.",
+  title: "Record a learning event (player, quiz)",
+  description: "Used by the simulator player and the quiz: appends a learning event to the local learner record.",
   inputSchema: {
     verb: z.string(), object: z.string(), level: LEVEL.optional(), element: z.string().optional(),
     result: z.object({ correct: z.boolean().optional(), score: z.number().min(0).max(1).optional(),
       response: z.string().max(2000).optional(), misconception: z.string().max(100).optional() }).optional(),
+    via: z.enum(["simulator", "quiz"]).optional(),
   },
   _meta: APP_ONLY,
-}, guarded(async (args) => ok(learner.record({ ...args, context: { via: "simulator" } }))));
+}, guarded(async ({ via, ...args }) => ok(learner.record({ ...args, context: { via: via ?? "simulator" } }))));
 
 server.registerTool("ptf_save_state", {
   title: "Save simulator state (player)",

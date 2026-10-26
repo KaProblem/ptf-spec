@@ -94,12 +94,13 @@ the Claude Code terminal does not (see above).
 | `list_library`, `search_library` | model | Find bundles, paths, elements, simulators |
 | `get_element` | model | Read an element or path (optionally one level only) |
 | `show_simulator` | model | Open a simulator in the chat (MCP App) |
+| `show_question` | model | Show a question block as a quiz card (MCP App): `multiple_choice`, `free_text` |
 | `export_simulator` | model | Standalone HTML file for clients without MCP Apps |
 | `get_code_lab` | model | Steps, run commands, dependencies and README of a code lab (CODE-SPEC.md); optionally one step's source |
 | `copy_code_lab` | model | Copies a verified code lab into `~/.ptf/workspace/<name>` for the learner to run and extend; never overwrites, never runs code |
 | `record_progress` | model | Log answers, "understood", "deeper", "stuck"; set mastery |
 | `sync_library` | model | `git pull` the library |
-| `ptf_sim_source`, `ptf_record_event`, `ptf_save_state` | player | Called by the simulator player; hidden from the model where the client supports it |
+| `ptf_sim_source`, `ptf_record_event`, `ptf_save_state` | player, quiz | Called by the simulator player and the quiz card; hidden from the model where the client supports it |
 
 Prompt: `ptf-tutor` (the tutor skill, for clients without skill support).
 
@@ -119,6 +120,17 @@ simulator, the server checks its `integrity` against `sim.json` and the
 bundle's `ptf.lock`. Events become `ptf_record_event` tool calls; snapshots
 become `ui/update-model-context`; the two buttons send `ui/message`.
 
+## How the quiz card works
+
+`show_question` takes a question block (SPEC.md §7) from a learning element, or
+one the model writes; the server validates it against
+`schemas/question-block.schema.json`. The model fills in a known component; it
+does not write UI. The card (`ui://ptf/quiz.html`) renders it in the client's
+sandbox. A `multiple_choice` answer is checked in the card, recorded with
+`ptf_record_event` and sent to the chat with `ui/message`. A `free_text` answer
+is sent to the chat, and the model grades it against the rubric. The other kinds
+are asked in the chat for now.
+
 ## Development
 
 ```bash
@@ -126,6 +138,7 @@ npm install
 npm test                                  # stdio end-to-end tests against examples/minimal-library
 node test/player.browser.mjs              # player in Chromium under a strict CSP (needs Playwright)
 node test/player.browser.mjs ../../ptf-library next-char-lab
+node test/quiz.browser.mjs                # quiz card in Chromium under a strict CSP (needs Playwright)
 npm run build                             # regenerate dist/ptf-mcp.mjs; commit it with src changes
 ```
 

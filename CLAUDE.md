@@ -12,6 +12,6 @@ the simulator/host runtimes and the validator. Content lives in the separate
 - Learner-facing content must be self-contained: never assume the learner saw the source material.
 - Run before committing: `npm test` and `node tools/ptf-check.mjs examples/minimal-library`.
   `node tools/ptf-selftest.mjs examples/minimal-library/sims/counter/1.0.0` needs Playwright.
-- `mcp/` is the local MCP server. After changing `mcp/src/`, `mcp/skills/ptf-tutor/` or `runtime/ptf-host.js`,
+- `mcp/` is the local MCP server. After changing `mcp/src/`, `mcp/skills/ptf-tutor/`, `runtime/ptf-host.js` or `schemas/question-block.schema.json`,
   run `npm run build --prefix mcp` and commit `mcp/dist/ptf-mcp.mjs`; run `npm test --prefix mcp`
-  and `node mcp/test/player.browser.mjs` (Playwright).
+  and `node mcp/test/player.browser.mjs` and `node mcp/test/quiz.browser.mjs` (Playwright).

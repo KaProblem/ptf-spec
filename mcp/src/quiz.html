@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PTF quiz</title>
+<style>
+  :root { color-scheme: light dark; --bg: #ffffff; --surface: #f4f6f8; --ink: #18212e; --muted: #5b6573; --line: #d5dbe2;
+    --accent: #0e6e68; --good: #1d7a3a; --bad: #b3261e; --f-body: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  [data-theme="dark"] { --bg: #16191d; --surface: #1f2329; --ink: #e8ebef; --muted: #a3acb8; --line: #343a42; --accent: #4fc1b8; --good: #6fcf8a; --bad: #f28b82; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: transparent; color: var(--ink); font: 15px/1.45 var(--f-body); }
+  .frame { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg); }
+  header { display: flex; gap: 8px; align-items: center; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .badge { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); border: 1px solid currentColor; border-radius: 999px; padding: 2px 8px; }
+  .hint { color: var(--muted); font-size: 13px; }
+  main { padding: 14px 12px; display: grid; gap: 12px; }
+  .q { font-weight: 600; font-size: 16px; margin: 0; }
+  .options { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
+  .opt { display: block; text-align: left; width: 100%; font: inherit; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; min-height: 44px; padding: 10px 12px; cursor: pointer; }
+  .opt[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .opt.right { border-color: var(--good); box-shadow: inset 0 0 0 1px var(--good); }
+  .opt.wrong { border-color: var(--bad); box-shadow: inset 0 0 0 1px var(--bad); }
+  .opt:disabled { cursor: default; }
+  .opt .fb { display: block; margin-top: 4px; font-size: 13px; color: var(--muted); }
+  .opt.right .mark { color: var(--good); } .opt.wrong .mark { color: var(--bad); }
+  .mark { font-weight: 600; margin-right: 8px; }
+  textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; min-height: 96px; resize: vertical; width: 100%; }
+  .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  button.primary { font: inherit; font-weight: 600; color: #fff; background: var(--accent); border: 0; border-radius: 8px; min-height: 44px; padding: 0 16px; cursor: pointer; }
+  [data-theme="dark"] button.primary { color: #0b1514; }
+  button.primary:disabled { opacity: .5; cursor: default; }
+  button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .result { font-weight: 600; }
+  .result.right { color: var(--good); } .result.wrong { color: var(--bad); }
+  .explain { background: var(--surface); border-radius: 8px; padding: 10px 12px; }
+  #status { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="frame">
+  <header><span class="badge" data-i18n="badge">Question</span><span class="hint" id="hint"></span></header>
+  <main id="main"><div id="status" data-i18n="loading">Loading question…</div></main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  // ---------- texts ----------
+  var TEXT = {
+    en: { badge: "Question", loading: "Loading question…", check: "Check", send: "Send answer", pickOne: "Pick one answer.",
+      pickMany: "Pick all answers that are true.", write: "Answer in your own words.", placeholder: "Your answer…",
+      right: "Correct!", wrong: "Not quite.", explanation: "Why:", sent: "Sent. Your tutor looks at your answer.",
+      failed: "The question could not be shown: ",
+      msgChoice: function (q, a, ok) { return "My answer to \u201c" + q + "\u201d: " + a + " (" + (ok ? "correct" : "wrong") + ")"; },
+      msgText: function (q, a) { return "My answer to \u201c" + q + "\u201d:\n\n" + a; } },
+    de: { badge: "Frage", loading: "Frage wird geladen…", check: "Prüfen", send: "Antwort senden", pickOne: "Wähle eine Antwort.",
+      pickMany: "Wähle alle Antworten, die stimmen.", write: "Antworte in eigenen Worten.", placeholder: "Deine Antwort…",
+      right: "Richtig!", wrong: "Nicht ganz.", explanation: "Warum:", sent: "Gesendet. Dein Tutor sieht sich deine Antwort an.",
+      failed: "Die Frage konnte nicht angezeigt werden: ",
+      msgChoice: function (q, a, ok) { return "Meine Antwort auf \u201e" + q + "\u201c: " + a + " (" + (ok ? "richtig" : "falsch") + ")"; },
+      msgText: function (q, a) { return "Meine Antwort auf \u201e" + q + "\u201c:\n\n" + a; } }
+  };
+  var t = TEXT.en;
+  function applyTexts(locale) {
+    t = TEXT[String(locale || "").slice(0, 2)] || TEXT.en;
+    document.documentElement.lang = String(locale || "en").slice(0, 2);
+    document.querySelectorAll("[data-i18n]").forEach(function (el) { el.textContent = t[el.dataset.i18n]; });
+  }
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, txt) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt != null) e.textContent = txt;
+    return e;
+  }
+
+  // ---------- MCP Apps transport (View side, JSON-RPC over postMessage) ----------
+  var nextId = 1, pending = {};
+  function send(msg) { msg.jsonrpc = "2.0"; window.parent.postMessage(msg, "*"); }
+  function notify(method, params) { send({ method: method, params: params || {} }); }
+  function request(method, params) {
+    var id = "ptf-" + nextId++;
+    return new Promise(function (resolve, reject) {
+      pending[id] = { resolve: resolve, reject: reject };
+      send({ id: id, method: method, params: params || {} });
+    });
+  }
+  function callTool(name, args) {
+    return request("tools/call", { name: name, arguments: args || {} }).then(function (r) {
+      if (r && r.isError) throw new Error(((r.content || [])[0] || {}).text || name + " failed");
+      return r;
+    });
+  }
+
+  var host = { capabilities: {}, context: {} };
+  var data = null;        // structuredContent of show_question
+  var initialized = false, queued = null;
+
+  window.addEventListener("message", function (ev) {
+    if (ev.source !== window.parent) return;
+    var m = ev.data;
+    if (!m || m.jsonrpc !== "2.0") return;
+    if (m.id != null && !m.method) {
+      var p = pending[m.id];
+      if (p) { delete pending[m.id]; if (m.error) p.reject(new Error(m.error.message || "error")); else p.resolve(m.result); }
+      return;
+    }
+    switch (m.method) {
+      case "ui/notifications/tool-result": if (initialized) onToolResult(m.params || {}); else queued = m.params || {}; break;
+      case "ui/notifications/host-context-changed": onHostContext(m.params || {}); break;
+      case "ui/resource-teardown": if (m.id != null) send({ id: m.id, result: {} }); break;
+      case "ping": if (m.id != null) send({ id: m.id, result: {} }); break;
+      default: if (m.id != null) send({ id: m.id, error: { code: -32601, message: "Method not found" } });
+    }
+  });
+
+  // ---------- theme ----------
+  var TOKEN_MAP = { "--bg": "--color-background-primary", "--surface": "--color-background-secondary", "--ink": "--color-text-primary",
+    "--muted": "--color-text-secondary", "--line": "--color-border-primary", "--accent": "--color-text-info",
+    "--good": "--color-text-success", "--bad": "--color-text-danger", "--f-body": "--font-sans" };
+  function onHostContext(ctx) {
+    for (var k in ctx) host.context[k] = ctx[k];
+    document.documentElement.setAttribute("data-theme", host.context.theme === "dark" ? "dark" : "light");
+    var vars = (host.context.styles && host.context.styles.variables) || {};
+    for (var tk in TOKEN_MAP) if (vars[TOKEN_MAP[tk]]) document.documentElement.style.setProperty(tk, String(vars[TOKEN_MAP[tk]]));
+  }
+
+  // ---------- size ----------
+  var lastHeight = 0;
+  new ResizeObserver(function () {
+    var h = Math.ceil(document.documentElement.scrollHeight);
+    if (Math.abs(h - lastHeight) > 1) { lastHeight = h; notify("ui/notifications/size-changed", { height: h }); }
+  }).observe(document.documentElement);
+
+  // ---------- talking to the tutor ----------
+  function record(result) {
+    if (!data.object) return;
+    callTool("ptf_record_event", { verb: "answered", object: data.object, level: data.question.level, result: result, via: "quiz" })
+      .catch(function () { /* recording is best effort */ });
+  }
+  function tellTutor(textForTutor) {
+    if (host.capabilities.message) {
+      return request("ui/message", { role: "user", content: [{ type: "text", text: textForTutor }] });
+    }
+    if (host.capabilities.updateModelContext) {
+      return request("ui/update-model-context", { content: [{ type: "text", text: textForTutor }] });
+    }
+    return Promise.reject(new Error("host cannot receive messages"));
+  }
+
+  // ---------- rendering ----------
+  function onToolResult(result) {
+    var sc = result.structuredContent;
+    if (!sc || !sc.question) { fail(((result.content || [])[0] || {}).text || "no question in tool result"); return; }
+    data = sc;
+    if (sc.lang) $("main").setAttribute("lang", sc.lang);
+    var main = $("main");
+    main.innerHTML = "";
+    var q = sc.question;
+    if (q.kind === "multiple_choice") renderChoice(main, q);
+    else if (q.kind === "free_text") renderFreeText(main, q);
+    else fail("unsupported kind " + q.kind);
+  }
+
+  function shuffled(list) {
+    var a = list.slice();
+    for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var x = a[i]; a[i] = a[j]; a[j] = x; }
+    return a;
+  }
+
+  function showExplanation(main, q) {
+    var box = el("div", "explain");
+    box.appendChild(el("strong", null, t.explanation + " "));
+    box.appendChild(document.createTextNode(q.explanation));
+    main.appendChild(box);
+  }
+
+  function renderChoice(main, q) {
+    var many = q.options.filter(function (o) { return o.correct; }).length > 1;
+    $("hint").textContent = many ? t.pickMany : t.pickOne;
+    main.appendChild(el("p", "q", q.question));
+    var list = el("div", "options");
+    list.setAttribute("role", "group");
+    var options = shuffled(q.options), buttons = [];
+    options.forEach(function (o) {
+      var b = el("button", "opt");
+      b.type = "button";
+      b.setAttribute("aria-pressed", "false");
+      b.appendChild(el("span", null, o.text));
+      b.addEventListener("click", function () {
+        if (!many) buttons.forEach(function (x) { x.setAttribute("aria-pressed", "false"); });
+        b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") === "true" && many ? "false" : "true");
+        check.disabled = !buttons.some(function (x) { return x.getAttribute("aria-pressed") === "true"; });
+      });
+      buttons.push(b);
+      list.appendChild(b);
+    });
+    main.appendChild(list);
+    var actions = el("div", "actions");
+    var check = el("button", "primary", t.check);
+    check.type = "button";
+    check.disabled = true;
+    actions.appendChild(check);
+    main.appendChild(actions);
+
+    check.addEventListener("click", function () {
+      var picked = [], ok = true;
+      buttons.forEach(function (b, i) {
+        var o = options[i], on = b.getAttribute("aria-pressed") === "true";
+        b.disabled = true;
+        if (on) picked.push(o.text);
+        if (on !== o.correct) ok = false;
+        if (o.correct) b.classList.add("right");
+        else if (on) b.classList.add("wrong");
+        if (on || o.correct) {
+          b.insertBefore(el("span", "mark", o.correct ? "\u2713" : "\u2717"), b.firstChild);
+          if (on) b.appendChild(el("span", "fb", o.feedback));
+        }
+      });
+      check.remove();
+      var res = el("div", "result " + (ok ? "right" : "wrong"), ok ? t.right : t.wrong);
+      actions.appendChild(res);
+      showExplanation(main, q);
+      var result = { correct: ok, response: picked.join(" | ").slice(0, 2000) };
+      if (!ok && q.misconception) result.misconception = q.misconception;
+      record(result);
+      tellTutor(t.msgChoice(q.question, picked.join(", "), ok)).catch(function () {});
+    });
+  }
+
+  function renderFreeText(main, q) {
+    $("hint").textContent = t.write;
+    main.appendChild(el("p", "q", q.question));
+    var area = el("textarea");
+    area.placeholder = t.placeholder;
+    area.setAttribute("aria-label", q.question);
+    main.appendChild(area);
+    var actions = el("div", "actions");
+    var btn = el("button", "primary", t.send);
+    btn.type = "button";
+    btn.disabled = true;
+    actions.appendChild(btn);
+    main.appendChild(actions);
+    area.addEventListener("input", function () { btn.disabled = !area.value.trim(); });
+    btn.addEventListener("click", function () {
+      var answer = area.value.trim();
+      if (!answer) return;
+      btn.disabled = true; area.disabled = true;
+      tellTutor(t.msgText(q.question, answer)).then(function () {
+        btn.remove();
+        actions.appendChild(el("span", "hint", t.sent));
+      }, function (e) { btn.disabled = false; area.disabled = false; actions.appendChild(el("span", "result wrong", e.message)); });
+    });
+  }
+
+  function fail(msg) {
+    var main = $("main");
+    main.innerHTML = "";
+    main.appendChild(el("div", null, t.failed + msg)).id = "status";
+  }
+
+  // ---------- handshake ----------
+  request("ui/initialize", {
+    appInfo: { name: "ptf-quiz", version: "0.1.0" },
+    appCapabilities: {},
+    protocolVersion: "2026-01-26"
+  }).then(function (r) {
+    host.capabilities = (r && r.hostCapabilities) || {};
+    onHostContext((r && r.hostContext) || {});
+    applyTexts(host.context.locale);
+    initialized = true;
+    notify("ui/notifications/initialized", {});
+    if (queued) { onToolResult(queued); queued = null; }
+  }, function (e) { fail(e.message); });
+})();
+</script>
+</body>
+</html>

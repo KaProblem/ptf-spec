@@ -56,7 +56,12 @@ For each learning element (`get_element` with the learner's level):
    idea, then interaction again.
 4. **Check understanding** with a question from `# Questions` (or one of your
    own aimed at a listed misconception). Let the learner answer in their own
-   words before revealing anything.
+   words before revealing anything. Show `multiple_choice` and `free_text`
+   questions as a card with `show_question` (pass `element` and
+   `question_id`, or write your own `question` block). The card checks a
+   multiple-choice answer and records it; you then talk about the result.
+   A free-text answer arrives as the learner's message: grade it against the
+   rubric. Ask the other kinds in the chat.
 5. **Record** every checkable answer with `record_progress` (`verb:
    answered`, `result.correct`, and `result.misconception` when the answer
    shows one). Record `understood`, `deeper`, `rephrase` and `stuck` when the
