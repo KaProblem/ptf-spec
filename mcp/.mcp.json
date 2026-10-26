@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ptf": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/ptf-mcp.mjs"]
+    }
+  }
+}
