@@ -45,9 +45,9 @@
       }
     }
 
-    function call(fn, arg) {
+    function call(fn, arg, extra) {
       if (typeof fn !== "function") return undefined;
-      try { return fn(arg); } catch (e) { reportError(e); }
+      try { return fn(arg, extra); } catch (e) { reportError(e); }
     }
 
     function reportError(e, extra) {
@@ -80,7 +80,7 @@
       var params = m.params || {};
       switch (m.method) {
         case "ptf/setLevel": call(opts.onSetLevel, params.level); break;
-        case "ptf/goto": call(opts.onGoto, params.station); break;
+        case "ptf/goto": call(opts.onGoto, params.station, { focus: params.focus === true }); break;
         case "ptf/theme": applyTheme(params); call(opts.onTheme, params); break;
         case "ptf/ping": if (m.id != null) respond(m.id, {}); break;
         case "ptf/snapshot":
@@ -96,7 +96,7 @@
 
     function defaults() {
       return {
-        level: opts.defaultLevel || null, station: null, params: {}, locale: null,
+        level: opts.defaultLevel || null, station: null, focus: false, params: {}, locale: null,
         theme: null, state: null, prefs: {}, standalone: true
       };
     }

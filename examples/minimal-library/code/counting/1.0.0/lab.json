@@ -1,0 +1,52 @@
+{
+  "ptf_code": "0.1",
+  "id": "ptf:code/counting",
+  "version": "1.0.0",
+  "title": "Counting lab",
+  "description": "Count to ten in code, then to any number in any step size.",
+  "lang": "en",
+  "language": "python",
+  "requires": {
+    "runtime": "python>=3.8",
+    "packages": []
+  },
+  "concepts": [
+    "counting"
+  ],
+  "levels": [
+    "highschool"
+  ],
+  "steps": [
+    {
+      "id": "count",
+      "title": "Count to ten",
+      "file": "steps/01_count.py",
+      "run": "python3 steps/01_count.py",
+      "expect": "counted to 10",
+      "try": [
+        "Change 10 to 100."
+      ]
+    },
+    {
+      "id": "count-to",
+      "title": "Count to any number",
+      "file": "steps/02_count_to.py",
+      "run": "python3 steps/02_count_to.py --to 20 --by 2",
+      "expect": "counted to 20 in steps of 2",
+      "try": [
+        "What happens with --to 7 --by 2? Why?"
+      ]
+    }
+  ],
+  "smoke": {
+    "env": {
+      "PTF_SMOKE": "1"
+    },
+    "timeout_s": 30
+  },
+  "license": "MIT",
+  "authors": [
+    "claude/opus"
+  ],
+  "integrity": "sha256-c+jlZezEulfsXuTM3UoR6Im2IuL+wpZOMrihggQMo9Q="
+}

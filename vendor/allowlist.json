@@ -1,0 +1,29 @@
+{
+  "allowlistVersion": 1,
+  "builds": {
+    "three-core@0.170.0": {
+      "package": "three",
+      "version": "0.170.0",
+      "license": "MIT",
+      "upstream": "https://github.com/mrdoob/three.js",
+      "purpose": "3D rendering with WebGL: scene, cameras, lights, basic geometries and materials, lines, raycasting. No loaders, no addons.",
+      "global": "THREE",
+      "dir": "three/0.170.0",
+      "file": "three-core-0.170.0.min.js",
+      "sha256": "b3c33d2ad2dc57c8351586787203b58c9401cd80bd0a0bce715f05fbcd972a2b",
+      "bytes": 522735
+    },
+    "planck@1.4.2": {
+      "package": "planck",
+      "version": "1.4.2",
+      "license": "MIT",
+      "upstream": "https://github.com/piqnt/planck.js",
+      "purpose": "2D rigid-body physics (Box2D port): collisions, contacts, friction, joints, stacking.",
+      "global": "planck",
+      "dir": "planck/1.4.2",
+      "file": "planck-1.4.2.min.js",
+      "sha256": "6910dd6bbd14637df81bdeaba5089188187ffbd71f694aff933752ffbe9cc3bd",
+      "bytes": 213964
+    }
+  }
+}

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// ptf-check: validator for Personal Tutor Format libraries, bundles and simulator packages.
+// ptf-check: validator for Personal Tutor Format libraries, bundles, simulator packages and code labs.
 //
 //   ptf-check [dir]              validate everything found under dir (default: .)
-//   ptf-check hash <sim-dir>     print the integrity hash of a simulator package
-//   ptf-check hash --write <sim-dir>   ... and write it into sim.json
+//   ptf-check hash <pkg-dir>     print the integrity hash of a simulator package or code lab
+//   ptf-check hash --write <pkg-dir>   ... and write it into sim.json / lab.json
 //   ptf-check lock <bundle-dir>  write ptf.lock with the highest version matching each range
 //
 // Exit code 1 if any error was found. Warnings do not fail the run.
@@ -21,6 +21,10 @@ const SPEC_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_LEVELS = ["child", "highschool", "college", "expert"];
 const MAX_PACKAGE_BYTES = 5 * 1024 * 1024;
 const WARN_PACKAGE_BYTES = 300 * 1024;
+const MAX_LAB_BYTES = 20 * 1024 * 1024;
+const WARN_LAB_BYTES = 5 * 1024 * 1024;
+const ALLOWLIST_FILE = join(SPEC_DIR, "vendor", "allowlist.json");
+const ALLOWLIST = existsSync(ALLOWLIST_FILE) ? JSON.parse(readFileSync(ALLOWLIST_FILE, "utf8")).builds : {};
 
 // Patterns forbidden in simulator code (SIMULATOR-SPEC.md §5.2).
 const FORBIDDEN = [
@@ -44,6 +48,20 @@ const FORBIDDEN = [
 // Allowed, but worth a warning.
 const DISCOURAGED = [
   [/<a\b[^>]*\bhref\s*=\s*["']\s*(?:https?:)?\/\//i, "external link: does nothing inside the sandbox, and lessons must be self-contained"],
+];
+
+// Patterns forbidden in code labs (CODE-SPEC.md §5). Labs run unsandboxed, so this is a first filter, not a review.
+const LAB_FORBIDDEN = [
+  [/\.(py)$/i, /^\s*(?:import|from)\s+(?:subprocess|socket|requests|httpx|ftplib|smtplib)\b/, "starting processes or network access"],
+  [/\.(py)$/i, /\b(?:urllib\.request|http\.client|urlopen)\b/, "network access"],
+  [/\.(py)$/i, /\bos\.(?:system|popen|exec\w*|spawn\w*)\s*\(/, "starting processes"],
+  [/\.(py)$/i, /(?<![\w.])(?:eval|exec|__import__)\s*\(/, "evaluating code from strings"],
+  [/\.(py)$/i, /\bpickle\.loads?\s*\(/, "loading pickled data (can run code)"],
+  [/\.(py)$/i, /\btorch\.load\s*\((?![^)]*weights_only\s*=\s*True)/, "torch.load without weights_only=True (can run code)"],
+  [/\.(py)$/i, /\bshutil\.rmtree\s*\(/, "deleting directory trees"],
+  [/\.(m?js|ts)$/i, /\b(?:child_process|node:child_process|node:net|node:http|node:https)\b|require\(\s*["'](?:net|http|https)["']\s*\)/, "starting processes or network access"],
+  [/\.(m?js|ts)$/i, /\bfetch\s*\(|\bXMLHttpRequest\b|\bnew\s+WebSocket\b/, "network access"],
+  [/\.(m?js|ts)$/i, /\beval\s*\(|\bnew\s+Function\s*\(/, "evaluating code from strings"],
 ];
 
 // ---------- helpers ----------
@@ -100,10 +118,10 @@ function sectionText(body, heading) {
 
 // ---------- integrity ----------
 
-export function integrityOf(simDir) {
+export function integrityOf(simDir, manifestName = existsSync(join(simDir, "lab.json")) ? "lab.json" : "sim.json") {
   const files = walk(simDir)
     .map((p) => relative(simDir, p).split(sep).join("/"))
-    .filter((p) => p !== "sim.json")
+    .filter((p) => p !== manifestName)
     .sort((a, b) => (Buffer.from(a) < Buffer.from(b) ? -1 : Buffer.from(a) > Buffer.from(b) ? 1 : 0));
   let text = "";
   for (const f of files) {
@@ -115,13 +133,13 @@ export function integrityOf(simDir) {
 
 // ---------- simulators ----------
 
-/** Map of sim id -> { version -> { dir, manifest } } for every sims/ directory given. */
-function indexSims(simRoots) {
+/** Map of package id -> { version -> { dir, manifest } } for every sims/ (or code/) directory given. */
+function indexSims(simRoots, manifestName = "sim.json") {
   const index = {};
   for (const root of simRoots) {
     if (!existsSync(root)) continue;
     for (const f of walk(root)) {
-      if (!f.endsWith(`${sep}sim.json`)) continue;
+      if (!f.endsWith(`${sep}${manifestName}`)) continue;
       const dir = dirname(f);
       let manifest;
       try { manifest = JSON.parse(readFileSync(f, "utf8")); } catch { continue; }
@@ -153,9 +171,26 @@ function checkSim(dir) {
     if (actual !== m.integrity) err(file, `integrity mismatch: sim.json has ${m.integrity}, files hash to ${actual} (run: ptf-check hash --write ${dir})`);
   }
 
-  let total = 0;
+  // Vendored libraries (SIMULATOR-SPEC.md §8): allowlisted builds, byte-identical, declared in sim.json.
+  const vendored = new Set();
+  for (const v of m.vendor ?? []) {
+    const p = join(dir, v.path ?? "");
+    const allowed = ALLOWLIST[v.build];
+    if (!v.path || !existsSync(p)) { err(file, `vendor ${v.build}: file ${v.path} missing`); continue; }
+    if (!allowed) { err(file, `vendor ${v.build} is not on the ptf-spec allowlist (SIMULATOR-SPEC.md §8.2)`); continue; }
+    const hex = createHash("sha256").update(readFileSync(p)).digest("hex");
+    if (hex !== v.sha256) err(file, `vendor ${v.build}: ${v.path} does not match its declared sha256`);
+    else if (hex !== allowed.sha256) err(file, `vendor ${v.build}: ${v.path} differs from the allowlisted build (copy it with ptf-vendor add)`);
+    else vendored.add(resolve(p));
+  }
+
+  let total = 0, own = 0;
   for (const f of walk(dir)) {
     total += statSync(f).size;
+    const rel = relative(dir, f).split(sep).join("/");
+    if (vendored.has(resolve(f))) continue;   // verified upstream code: not scanned, not counted towards the 300 KB recommendation
+    own += statSync(f).size;
+    if (rel.startsWith("vendor/") && /\.m?js$/i.test(rel)) err(`${relative(process.cwd(), f)}`, "script in vendor/ that is not a declared, allowlisted build (SIMULATOR-SPEC.md §8)");
     if (!/\.(html?|js|mjs|css|svg)$/i.test(f) || f.endsWith(`${sep}ptf-sim.js`)) continue;
     const src = readFileSync(f, "utf8");
     const lines = src.split("\n");
@@ -169,13 +204,59 @@ function checkSim(dir) {
     }
   }
   if (total > MAX_PACKAGE_BYTES) err(file, `package is ${(total / 1024).toFixed(0)} KB, limit is 5 MB`);
-  else if (total > WARN_PACKAGE_BYTES) warn(file, `package is ${(total / 1024).toFixed(0)} KB, recommended below 300 KB`);
+  else if (own > WARN_PACKAGE_BYTES) warn(file, `package is ${(own / 1024).toFixed(0)} KB without vendored libraries, recommended below 300 KB`);
 
   const html = existsSync(entry) ? readFileSync(entry, "utf8") : "";
   if (html && !/PTF\.connect\s*\(/.test(html)) warn(file, "entry does not call PTF.connect()");
+  if (/<script\b[^>]*\btype\s*=\s*["']module["']/i.test(html)) warn(file, "ES module scripts cannot resolve imports when a host inlines the package into srcdoc; use classic scripts and vendored IIFE builds (SIMULATOR-SPEC.md §8.3)");
   for (const st of m.stations ?? []) {
     if (html && !html.includes(`data-station="${st.id}"`)) warn(file, `station ${st.id} has no element with data-station="${st.id}"`);
   }
+}
+
+// ---------- code labs ----------
+
+function checkCode(dir) {
+  const file = join(dir, "lab.json");
+  let m;
+  try { m = JSON.parse(readFileSync(file, "utf8")); } catch (e) { return err(file, `invalid JSON: ${e.message}`); }
+  for (const e of schemaErrors("code-manifest", m)) err(file, e);
+
+  const dirVersion = dir.split(sep).pop();
+  if (m.version && dirVersion !== m.version) err(file, `version ${m.version} does not match directory name ${dirVersion}`);
+  const labName = dir.split(sep).slice(-2, -1)[0];
+  if (m.id && !m.id.endsWith(`/${labName}`)) warn(file, `id ${m.id} does not end with directory name ${labName}`);
+  if (!existsSync(join(dir, "README.md"))) err(file, "README.md missing (CODE-SPEC.md §1)");
+
+  const ids = new Set();
+  for (const st of m.steps ?? []) {
+    if (st.id && ids.has(st.id)) err(file, `duplicate step id "${st.id}"`);
+    ids.add(st.id);
+    if (st.file && !existsSync(join(dir, st.file))) err(file, `step ${st.id}: file ${st.file} missing`);
+    if (st.expect) { try { new RegExp(st.expect); } catch (e) { err(file, `step ${st.id}: expect is not a valid regular expression: ${e.message}`); } }
+  }
+  for (const d of m.data ?? []) if (d.path && !existsSync(join(dir, d.path))) err(file, `data file ${d.path} missing`);
+  for (const junk of ["out", "__pycache__", "node_modules"]) {
+    if (existsSync(join(dir, junk)) || walk(dir).some((f) => f.split(sep).includes(junk))) warn(file, `package contains ${junk}/; remove run outputs before hashing`);
+  }
+
+  if (m.integrity) {
+    const actual = integrityOf(dir, "lab.json");
+    if (actual !== m.integrity) err(file, `integrity mismatch: lab.json has ${m.integrity}, files hash to ${actual} (run: ptf-check hash --write ${dir})`);
+  }
+
+  let total = 0;
+  for (const f of walk(dir)) {
+    total += statSync(f).size;
+    const lines = LAB_FORBIDDEN.some(([ext]) => ext.test(f)) ? readFileSync(f, "utf8").split("\n") : [];
+    for (const [ext, re, what] of LAB_FORBIDDEN) {
+      if (!ext.test(f)) continue;
+      const i = lines.findIndex((l) => re.test(l) && !/^\s*(#|\/\/)/.test(l));
+      if (i >= 0) err(`${relative(process.cwd(), f)}:${i + 1}`, `forbidden in code labs: ${what}`);
+    }
+  }
+  if (total > MAX_LAB_BYTES) err(file, `lab is ${(total / 1024 / 1024).toFixed(1)} MB, limit is 20 MB`);
+  else if (total > WARN_LAB_BYTES) warn(file, `lab is ${(total / 1024 / 1024).toFixed(1)} MB, recommended below 5 MB`);
 }
 
 // ---------- bundles ----------
@@ -188,7 +269,7 @@ function resolveRef(ref, simIndex) {
   return { id, range, versions, best };
 }
 
-function checkBundle(bundleDir, simIndex) {
+function checkBundle(bundleDir, simIndex, codeIndex = {}) {
   const indexFile = join(bundleDir, "index.md");
   const idx = parseFrontmatter(readFileSync(indexFile, "utf8"));
   const bundleId = idx.data.id;
@@ -225,7 +306,7 @@ function checkBundle(bundleDir, simIndex) {
       const lm = h.match(/^Level:\s*([a-z0-9-]+)/);
       if (lm && !(d.levels ?? []).includes(lm[1])) warn(f, `"# ${h}" is not in the element's levels`);
     }
-    if (/\b(im Video|in the video|bei \d+:\d\d|at \d+:\d\d)\b/i.test(fm.body.replace(/^# Sources[\s\S]*$/m, ""))) {
+    if (/\b(im Video|in the video|bei \d+:\d\d|at \d+:\d\d)\b/i.test(fm.body.replace(/^# (?:Further reading|Sources)[\s\S]*$/m, ""))) {
       warn(f, "body seems to refer to source material; lessons must be self-contained (SPEC.md §6.2)");
     }
 
@@ -257,6 +338,16 @@ function checkBundle(bundleDir, simIndex) {
       if (s.station && !(m.stations ?? []).some((st) => st.id === s.station)) err(f, `simulator ${r.id}@${r.best} has no station "${s.station}"`);
       for (const l of s.levels ?? []) if (!(m.levels ?? []).includes(l)) warn(f, `simulator ${r.id}@${r.best} does not list level "${l}"`);
     }
+
+    for (const c of d.code ?? []) {
+      if (!c.ref || !c.ref.includes("@")) continue;
+      const r = resolveRef(c.ref, codeIndex);
+      if (!r.versions.length) { err(f, `code lab ${r.id} not found`); continue; }
+      if (!r.best) { err(f, `no version of ${r.id} satisfies ${r.range} (have ${r.versions.join(", ")})`); continue; }
+      const m = codeIndex[r.id][r.best].manifest;
+      if (c.step && !(m.steps ?? []).some((st) => st.id === c.step)) err(f, `code lab ${r.id}@${r.best} has no step "${c.step}"`);
+      for (const l of c.levels ?? []) if (!(m.levels ?? []).includes(l)) warn(f, `code lab ${r.id}@${r.best} does not list level "${l}"`);
+    }
   }
 
   for (const { f, rel, fm } of [...elements, ...paths]) {
@@ -283,6 +374,11 @@ function checkBundle(bundleDir, simIndex) {
       if (!found) { err(lockFile, `${id}@${entry.version} not found`); continue; }
       if (found.manifest.integrity !== entry.integrity) err(lockFile, `${id}@${entry.version} integrity differs from its sim.json`);
     }
+    for (const [id, entry] of Object.entries(lock.code ?? {})) {
+      const found = codeIndex[id]?.[entry.version];
+      if (!found) { err(lockFile, `${id}@${entry.version} not found`); continue; }
+      if (found.manifest.integrity !== entry.integrity) err(lockFile, `${id}@${entry.version} integrity differs from its lab.json`);
+    }
   }
   return elements.length + paths.length;
 }
@@ -297,11 +393,11 @@ function findBundles(root) {
   return bundles;
 }
 
-function simRootsFor(bundleDir, libraryRoot) {
-  const roots = [join(bundleDir, "sims")];
+function simRootsFor(bundleDir, libraryRoot, kind = "sims") {
+  const roots = [join(bundleDir, kind)];
   let d = bundleDir;
   while (true) {
-    roots.push(join(d, "sims"));
+    roots.push(join(d, kind));
     if (resolve(d) === resolve(libraryRoot) || dirname(d) === d) break;
     d = dirname(d);
   }
@@ -314,10 +410,13 @@ function cmdCheck(root) {
   root = resolve(root);
   const simDirs = walk(root).filter((f) => f.endsWith(`${sep}sim.json`)).map(dirname);
   for (const d of simDirs) checkSim(d);
+  const labDirs = walk(root).filter((f) => f.endsWith(`${sep}lab.json`)).map(dirname);
+  for (const d of labDirs) checkCode(d);
   const bundles = findBundles(root);
   let docs = 0;
-  for (const b of bundles) docs += checkBundle(b, indexSims(simRootsFor(b, root)));
-  console.log(`\nptf-check: ${bundles.length} bundle(s), ${docs} document(s), ${simDirs.length} simulator version(s) · ${results.errors} error(s), ${results.warnings} warning(s)`);
+  for (const b of bundles) docs += checkBundle(b, indexSims(simRootsFor(b, root)), indexSims(simRootsFor(b, root, "code"), "lab.json"));
+  const labs = labDirs.length ? `, ${labDirs.length} code lab version(s)` : "";
+  console.log(`\nptf-check: ${bundles.length} bundle(s), ${docs} document(s), ${simDirs.length} simulator version(s)${labs} · ${results.errors} error(s), ${results.warnings} warning(s)`);
   process.exit(results.errors ? 1 : 0);
 }
 
@@ -326,7 +425,7 @@ function cmdHash(args) {
   const dir = resolve(args.find((a) => a !== "--write") ?? ".");
   const h = integrityOf(dir);
   if (write) {
-    const file = join(dir, "sim.json");
+    const file = join(dir, existsSync(join(dir, "lab.json")) ? "lab.json" : "sim.json");
     const m = JSON.parse(readFileSync(file, "utf8"));
     m.integrity = h;
     writeFileSync(file, JSON.stringify(m, null, 2) + "\n");
@@ -336,26 +435,31 @@ function cmdHash(args) {
 
 function cmdLock(dir, libraryRoot) {
   dir = resolve(dir);
-  const simIndex = indexSims(simRootsFor(dir, resolve(libraryRoot ?? join(dir, "..", ".."))));
-  const lock = { lockfileVersion: 1, simulators: {} };
+  const root = resolve(libraryRoot ?? join(dir, "..", ".."));
+  const indexes = { simulators: indexSims(simRootsFor(dir, root)), code: indexSims(simRootsFor(dir, root, "code"), "lab.json") };
+  const lock = { simulators: {}, code: {} };
   for (const f of walk(dir)) {
     if (!f.endsWith(".md")) continue;
     const fm = parseFrontmatter(readFileSync(f, "utf8"));
-    for (const s of fm?.data?.simulators ?? []) {
-      const r = resolveRef(s.ref, simIndex);
-      if (!r.best) { console.error(`cannot resolve ${s.ref}`); process.exit(1); }
-      const prev = lock.simulators[r.id];
-      if (prev && prev.version !== r.best) { console.error(`conflicting versions for ${r.id}: ${prev.version} vs ${r.best}`); process.exit(1); }
-      lock.simulators[r.id] = { version: r.best, integrity: simIndex[r.id][r.best].manifest.integrity };
+    for (const kind of ["simulators", "code"]) {
+      for (const s of fm?.data?.[kind] ?? []) {
+        const r = resolveRef(s.ref, indexes[kind]);
+        if (!r.best) { console.error(`cannot resolve ${s.ref}`); process.exit(1); }
+        const prev = lock[kind][r.id];
+        if (prev && prev.version !== r.best) { console.error(`conflicting versions for ${r.id}: ${prev.version} vs ${r.best}`); process.exit(1); }
+        lock[kind][r.id] = { version: r.best, integrity: indexes[kind][r.id][r.best].manifest.integrity };
+      }
     }
   }
-  const sorted = Object.fromEntries(Object.entries(lock.simulators).sort());
-  writeFileSync(join(dir, "ptf.lock"), JSON.stringify({ ...lock, simulators: sorted }, null, 2) + "\n");
-  console.log(`wrote ${join(dir, "ptf.lock")} (${Object.keys(sorted).length} simulator(s))`);
+  const out = { lockfileVersion: 1, simulators: Object.fromEntries(Object.entries(lock.simulators).sort()) };
+  if (Object.keys(lock.code).length) out.code = Object.fromEntries(Object.entries(lock.code).sort());
+  writeFileSync(join(dir, "ptf.lock"), JSON.stringify(out, null, 2) + "\n");
+  const labs = out.code ? `, ${Object.keys(out.code).length} code lab(s)` : "";
+  console.log(`wrote ${join(dir, "ptf.lock")} (${Object.keys(out.simulators).length} simulator(s)${labs})`);
 }
 
 const [cmd, ...rest] = process.argv.slice(2);
 if (cmd === "hash") cmdHash(rest);
 else if (cmd === "lock") cmdLock(rest[0] ?? ".", rest[1]);
-else if (cmd === "-h" || cmd === "--help") console.log("usage: ptf-check [dir] | hash [--write] <sim-dir> | lock <bundle-dir> [library-root]");
+else if (cmd === "-h" || cmd === "--help") console.log("usage: ptf-check [dir] | hash [--write] <sim-or-lab-dir> | lock <bundle-dir> [library-root]");
 else cmdCheck(cmd ?? ".");

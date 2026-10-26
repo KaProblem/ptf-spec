@@ -13,13 +13,15 @@ personal.
 PTF is a **profile of the [Open Knowledge Format (OKF) v0.2](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)**.
 Every PTF bundle is a valid OKF bundle: a directory of Markdown files with
 YAML frontmatter. PTF fixes a small set of `type` values, frontmatter fields
-and body headings, and adds two things OKF does not cover: question blocks
-and simulator packages.
+and body headings, and adds three things OKF does not cover: question blocks,
+simulator packages and code labs.
 
 Companion documents:
 
 - [SIMULATOR-SPEC.md](SIMULATOR-SPEC.md): simulator packages, the host
   contract, build rules and security.
+- [CODE-SPEC.md](CODE-SPEC.md): code labs, runnable step-by-step code the
+  learner copies, runs and extends on their own machine.
 - [LEARNER-RECORD.md](LEARNER-RECORD.md): the portable, private learner
   profile and progress format.
 - [schemas/](schemas/): JSON Schemas for everything machine-checkable.
@@ -64,6 +66,7 @@ The key words MUST, SHOULD and MAY are used as in RFC 2119.
 | Learning Path | An ordered sequence of learning elements towards a goal. |
 | Question Block | One quiz item of a catalogued kind, as JSON. |
 | Simulator | A versioned, sandboxed HTML/JS package that lets the learner explore a concept. |
+| Code lab | A versioned package of runnable code in steps that the learner runs and extends locally (CODE-SPEC.md). |
 | Level | A difficulty level (§5). |
 | Host | Software that presents PTF content and runs simulators. |
 | Tutor | The agent (or person) teaching from PTF content. |
@@ -83,6 +86,12 @@ library/
         index.html
         ptf-sim.js
         test.json                 # optional self-test
+  code/                           # shared code labs (CODE-SPEC.md)
+    <lab-name>/
+      <version>/                  # immutable once published
+        lab.json
+        README.md
+        steps/…
   bundles/
     <bundle-name>/
       index.md                    # REQUIRED for PTF: bundle metadata
@@ -93,6 +102,7 @@ library/
       paths/
         <path>.md                 # type: Learning Path
       sims/                       # optional, bundle-local simulators
+      code/                       # optional, bundle-local code labs
 ```
 
 - A bundle MAY live on its own (outside a library); it then carries its
@@ -135,6 +145,8 @@ as in OKF §8.
 | Simulator | `<sim-name>` | `ptf:sim/<sim-name>` |
 | Simulator version | | `ptf:sim/<sim-name>@<semver>` |
 | Simulator station | | `ptf:sim/<sim-name>@<semver>#<station>` |
+| Code lab | `<lab-name>` | `ptf:code/<lab-name>` |
+| Code lab step | | `ptf:code/<lab-name>@<semver>#<step>` |
 | Question block | `id` field, unique within its element | `ptf:el/<bundle>/<name>#<question-id>` |
 | Level text | | `ptf:el/<bundle>/<name>#level/<level>` |
 
@@ -191,6 +203,10 @@ simulators:
     station: counted-probabilities      # optional entry point
     levels: [highschool, college]       # where it fits
     role: explore                       # explore | practice | check
+code:                                   # optional runnable code (CODE-SPEC.md §4)
+  - ref: ptf:code/gpt-from-scratch@^1.0.0
+    step: bigram
+    levels: [college, expert]
 sources:                                # OKF provenance; grounding only
   - id: karpathy-gpt
     resource: https://www.youtube.com/watch?v=kCc8FmEb1nY
@@ -226,10 +242,12 @@ The body uses these level-1 headings, in this order. Only `# Core` and
 | `# Misconceptions` | yes | List of `**<id>**: <wrong belief> → <correct view>`. |
 | `# Questions` | no | Question blocks (§7). |
 | `# Examples` | no | Worked examples, code, calculations. |
+| `# Further reading` | no | Optional deep-dive material for after the lesson (§6.5). |
 | `# Sources` | no | Footnotes keyed to `sources` (OKF §5.1). |
 
-Learner-facing text MUST NOT refer to the sources ("as shown in the video at
-4:12"). Timestamps and similar belong in `sources` or comments.
+Learner-facing text above `# Further reading` MUST NOT refer to the sources
+("as shown in the video at 4:12"). Timestamps and similar belong in
+`sources`, comments or `# Further reading`.
 
 ### 6.3 Level texts
 
@@ -252,6 +270,27 @@ as is or adapt it to the learner.
 Each misconception has a short ID (`softmax-makes-zeros`). Question blocks and
 learner events refer to these IDs, which turns wrong answers into data about
 where learners stumble.
+
+### 6.5 Further reading
+
+`# Further reading` lists material a learner MAY explore after the lesson,
+for example the video or paper the element was grounded in. It turns
+sources into an optional deep dive without making the lesson depend on
+them:
+
+- The element MUST be complete without it. A tutor offers it only once the
+  learner has worked through the element, or asks for more.
+- Each entry is a list item with a Markdown link, a one-line description of
+  what the learner will get from it, and optionally a timestamp range or
+  section and a level hint:
+
+  ```markdown
+  - [Let's build GPT: from scratch, in code, spelled out](https://www.youtube.com/watch?v=kCc8FmEb1nY&t=3720s):
+    builds a self-attention head in PyTorch step by step (video, 1:02–1:20; college).
+  ```
+
+- Links SHOULD point to stable, freely accessible resources. Hosts show
+  them as ordinary links outside any simulator sandbox.
 
 ---
 
@@ -353,6 +392,9 @@ usually need a break).
   "lockfileVersion": 1,
   "simulators": {
     "ptf:sim/next-char-lab": { "version": "2.0.0", "integrity": "sha256-…" }
+  },
+  "code": {
+    "ptf:code/gpt-from-scratch": { "version": "1.0.0", "integrity": "sha256-…" }
   }
 }
 ```
@@ -361,7 +403,8 @@ usually need a break).
   repeated later shows exactly the same simulator. It MAY propose a newer
   minor or patch version within the range, and MUST ask before moving to a
   new major version.
-- Simulator semver rules are in SIMULATOR-SPEC.md §3.
+- Simulator semver rules are in SIMULATOR-SPEC.md §3. Code labs follow the
+  same rules, with steps in place of stations (CODE-SPEC.md §4).
 
 ---
 
@@ -396,6 +439,8 @@ A PTF v0.1 bundle is conformant if:
 5. Every `simulators[].ref` resolves to an existing simulator version.
 6. Every simulator package validates against SIMULATOR-SPEC.md §2 and its
    `integrity` matches its files.
+7. Every `code[].ref` resolves to an existing code lab version that
+   validates against CODE-SPEC.md §2, and every `code[].step` exists in it.
 
 `tools/ptf-check` checks all of these.
 

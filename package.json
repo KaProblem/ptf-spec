@@ -6,7 +6,9 @@
   "type": "module",
   "bin": {
     "ptf-check": "tools/ptf-check.mjs",
-    "ptf-selftest": "tools/ptf-selftest.mjs"
+    "ptf-selftest": "tools/ptf-selftest.mjs",
+    "ptf-codetest": "tools/ptf-codetest.mjs",
+    "ptf-vendor": "tools/ptf-vendor.mjs"
   },
   "scripts": {
     "check": "node tools/ptf-check.mjs",
@@ -25,9 +27,11 @@
   "files": [
     "SPEC.md",
     "SIMULATOR-SPEC.md",
+    "CODE-SPEC.md",
     "LEARNER-RECORD.md",
     "schemas/",
     "runtime/",
-    "tools/"
+    "tools/",
+    "vendor/"
   ]
 }

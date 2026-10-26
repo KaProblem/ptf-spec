@@ -11,6 +11,11 @@ simulators:
     station: count
     levels: [child]
     role: explore
+code:
+  - ref: ptf:code/counting@^1.0.0
+    step: count
+    levels: [highschool]
+    note: Let the learner change the number and run it again.
 status: draft
 version: 0.1.0
 license: CC-BY-SA-4.0
@@ -61,3 +66,7 @@ Put one apple on the table. Now another. How many are there?
   "explanation": "When you count, the next number is always one more."
 }
 ```
+
+# Further reading
+
+- [Counting on Wikipedia](https://en.wikipedia.org/wiki/Counting): what counting is, from tally marks to number words (article, section "Counting in mathematics"; highschool).
