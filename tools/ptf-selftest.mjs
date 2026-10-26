@@ -110,7 +110,7 @@ async function runOne(chromium, simDir) {
         if (step.click) await frame.locator(step.click).first().click({ timeout: 3000 });
         if (step.type) await frame.locator(step.type.selector).first().fill(step.type.text, { timeout: 3000 });
         if (step.setLevel) await page.evaluate((l) => window.sim.setLevel(l), step.setLevel);
-        if (step.goto) await page.evaluate((s) => window.sim.goto(s), step.goto);
+        if (step.goto) await page.evaluate((s) => window.sim.goto(s.station || s, s.station ? { focus: !!s.focus } : undefined), step.goto);
         if (step.expectText) await frame.getByText(step.expectText, { exact: false }).first().waitFor({ state: "visible", timeout: 3000 });
         if (step.expectEvent) await page.waitForFunction((v) => window.__ptf.events.some((e) => e.verb === v), step.expectEvent, { timeout: 3000 });
         if (step.snapshot) { const t = await page.evaluate(() => window.sim.snapshot()); if (!t) throw new Error("empty snapshot"); }

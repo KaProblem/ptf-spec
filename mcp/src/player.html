@@ -174,7 +174,7 @@
     sim = PTFHost.mount($("stage"), {
       srcdoc: html,
       title: s.title,
-      init: { level: launch.level || null, station: launch.station || null, params: launch.params || {},
+      init: { level: launch.level || null, station: launch.station || null, focus: launch.focus === true, params: launch.params || {},
         locale: host.context.locale || null, theme: ptfTheme(), state: launch.state || null,
         prefs: launch.prefs || {} },
       onReady: updateModelContext,
@@ -259,7 +259,7 @@
     sim.setLevel(this.value);
     onSimEvent({ verb: "level_changed", level: this.value });
   });
-  $("station").addEventListener("change", function () { if (sim && this.value) sim.goto(this.value); });
+  $("station").addEventListener("change", function () { if (sim && this.value) sim.goto(this.value, { focus: launch.focus === true }); });
   $("stuck").addEventListener("click", function () { tellTutor(t.stuckMsg, "stuck"); });
   $("broken").addEventListener("click", function () { tellTutor(t.brokenMsg, "reported_broken"); });
   $("fix").addEventListener("click", function () { tellTutor(t.errorMsg + " " + $("errorText").textContent, "reported_broken"); });

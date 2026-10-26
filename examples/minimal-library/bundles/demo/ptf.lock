@@ -3,7 +3,13 @@
   "simulators": {
     "ptf:sim/counter": {
       "version": "1.0.0",
-      "integrity": "sha256-d8QfqG8xXisWGQZkGO7J8r75A56qUoLWEFWb82FgVJc="
+      "integrity": "sha256-JNsMG7zFQkTJZp8d1rqqbO2SNVedjdFraG2TDb6ZjPQ="
+    }
+  },
+  "code": {
+    "ptf:code/counting": {
+      "version": "1.0.0",
+      "integrity": "sha256-c+jlZezEulfsXuTM3UoR6Im2IuL+wpZOMrihggQMo9Q="
     }
   }
 }

@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/KaProblem/ptf-spec/schemas/code-manifest.schema.json",
+  "title": "PTF Code lab manifest (lab.json)",
+  "type": "object",
+  "required": [
+    "ptf_code",
+    "id",
+    "version",
+    "title",
+    "description",
+    "lang",
+    "language",
+    "requires",
+    "concepts",
+    "levels",
+    "steps",
+    "license",
+    "authors",
+    "integrity"
+  ],
+  "properties": {
+    "ptf_code": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^ptf:code/(@[a-z0-9][a-z0-9-]*/)?[a-z0-9][a-z0-9-]*$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z.-]+)?$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lang": {
+      "type": "string",
+      "minLength": 1
+    },
+    "language": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9+#-]*$"
+    },
+    "requires": {
+      "type": "object",
+      "required": [
+        "runtime"
+      ],
+      "properties": {
+        "runtime": {
+          "type": "string",
+          "minLength": 1
+        },
+        "packages": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "setup": {
+      "type": "string"
+    },
+    "concepts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "levels": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "file",
+          "run"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "file": {
+            "type": "string",
+            "minLength": 1
+          },
+          "run": {
+            "type": "string",
+            "minLength": 1
+          },
+          "concepts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "minutes": {
+            "type": "number",
+            "minimum": 0
+          },
+          "expect": {
+            "type": "string"
+          },
+          "try": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "license"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "smoke": {
+      "type": "object",
+      "properties": {
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "timeout_s": {
+          "type": "number",
+          "minimum": 1
+        }
+      }
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1
+    },
+    "authors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "derived_from": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^ptf:code/.+@.+$"
+        }
+      ]
+    },
+    "changelog": {
+      "type": "string"
+    },
+    "deprecated": {
+      "type": "string"
+    },
+    "integrity": {
+      "type": "string",
+      "pattern": "^sha256-[A-Za-z0-9+/]+=*$"
+    }
+  },
+  "additionalProperties": true
+}

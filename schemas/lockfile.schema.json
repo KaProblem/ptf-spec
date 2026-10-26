@@ -34,6 +34,30 @@
           }
         }
       }
+    },
+    "code": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^ptf:code/(@[a-z0-9][a-z0-9-]*/)?[a-z0-9][a-z0-9-]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "version",
+          "integrity"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z.-]+)?$"
+          },
+          "integrity": {
+            "type": "string",
+            "pattern": "^sha256-"
+          }
+        }
+      }
     }
   }
 }

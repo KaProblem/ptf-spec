@@ -66,7 +66,7 @@ sims/<name>/<version>/
 | `id` | yes | `ptf:sim/<name>` or `ptf:sim/@<scope>/<name>`. |
 | `version` | yes | Semver; MUST equal the directory name. |
 | `title`, `description` | yes | Human-readable. |
-| `lang` | yes | UI languages (BCP 47). |
+| `lang` | yes | UI languages (BCP 47); the first entry is the fallback (§4.6). |
 | `concepts` | yes | Free-form concept tags, used for search. |
 | `levels` | yes | Levels the simulator supports (SPEC.md §5). |
 | `stations` | no | Independently addressable parts. Each has `id`, `title`, optional `levels`. |
@@ -165,8 +165,9 @@ Init context (result of `ptf/initialize`):
 | --- | --- |
 | `level` | Level ID to start at. |
 | `station` | Station ID to open, or `null`. |
+| `focus` | `true`: show only `station`, one idea at a time (§4.7). Default `false`. |
 | `params` | Object valid against `sim.json` `params`. |
-| `locale` | Preferred UI language. |
+| `locale` | Preferred UI language (BCP 47), see §4.6. |
 | `theme` | `{ mode: "light" \| "dark", tokens: { "--bg": "#fff", … } }` (§4.5). |
 | `state` | State previously sent via `ptf/state`, or `null`. |
 | `prefs` | `{ reducedMotion, fontScale }` from the learner record, if shared. |
@@ -176,7 +177,7 @@ Init context (result of `ptf/initialize`):
 | Method | Kind | Params | Purpose |
 | --- | --- | --- | --- |
 | `ptf/setLevel` | notification | `{ level }` | Switch level (tutor says "go deeper"). |
-| `ptf/goto` | notification | `{ station }` | Scroll to / open a station. |
+| `ptf/goto` | notification | `{ station, focus? }` | Scroll to / open a station; with `focus: true` show only that station, with `focus: false` show all again (§4.7). |
 | `ptf/theme` | notification | `{ mode, tokens }` | Theme changed. |
 | `ptf/snapshot` | request | `{}` | Result `{ text }`: a short plain-text description of what the learner currently sees and has done, so the tutor can talk about it. |
 | `ptf/ping` | request | `{}` | Heartbeat. Result `{}`. |
@@ -219,6 +220,50 @@ Hosts SHOULD send these tokens; simulators SHOULD use them with their own
 fallbacks: `--bg`, `--surface`, `--ink`, `--muted`, `--line`, `--accent`,
 `--accent-soft`, `--warn`, `--f-body`, `--f-display`, `--f-mono`. The
 runtime also sets `data-theme="light|dark"` on `<html>`.
+
+### 4.6 UI languages
+
+PTF content is canonical in one language (English is RECOMMENDED, SPEC.md
+§6.3); the tutor adapts its own explanations to the learner. Simulator UIs
+cannot be rewritten on the fly, so a package declares the languages it ships
+in `sim.json` `lang` and picks one at runtime:
+
+1. The host SHOULD send `locale` in the init context, taken from the
+   learner record (`languages`, LEARNER-RECORD.md) or the host's UI.
+2. The simulator MUST choose the first entry of its `lang` list that
+   matches `locale` by primary language subtag (`de-AT` matches `de`). In
+   standalone mode it uses `navigator.language` instead.
+3. If nothing matches, it MUST fall back to the first entry of `lang`, which
+   SHOULD be the library's canonical language.
+4. The `lang` attribute of `<html>` SHOULD reflect the chosen language, and
+   number formatting SHOULD follow it (decimal comma in German).
+5. Snapshot texts (`ptf/snapshot`) and event payloads stay in English,
+   whatever the UI language, so tutors and analytics read one vocabulary.
+
+Adding a UI language to an existing simulator is a minor version (§3). A
+simple pattern for small simulators is to put both texts in the markup and
+hide the inactive one with CSS (`<i-en>…</i-en><i-de>…</i-de>` plus
+`html:not([lang="de"]) i-de, html[lang="de"] i-en { display: none }`), and to
+build dynamic strings with a helper such as `L(en, de)`.
+
+### 4.7 Focus mode
+
+Learners take in one idea at a time best. A simulator therefore keeps each
+station to **one idea** and supports a focus mode, so that a tutor can walk
+through it card by card instead of showing all stations at once:
+
+- In focus mode the simulator shows only the focused station (and the level
+  switch), hides the other stations and its intro text, and offers
+  **Back** and **Next** controls that move focus to the previous or next
+  station visible at the current level.
+- Focus is entered via the init context (`station` plus `focus: true`) or
+  `ptf/goto { station, focus: true }`, and left via `ptf/goto { focus: false }`
+  (with or without a station).
+- When the learner moves with Back or Next, the simulator emits
+  `experienced` with `data: { focus: "<station>" }`, so the tutor can follow.
+- Learning paths and learning elements SHOULD refer to single stations
+  (`simulators[].station`) rather than to a whole simulator.
+- Standalone (no host), a simulator MAY start unfocused.
 
 ---
 
@@ -308,6 +353,7 @@ the sandbox:
 ```
 
 Step types: `init`, `click` (CSS selector), `type` (`{selector, text}`),
+`setLevel` (level ID), `goto` (station ID, or `{station, focus}`),
 `expectText`, `expectEvent` (verb), `expectNoError`, `snapshot` (expects a
 non-empty text). A library's CI runs every package's test before publishing.
 
@@ -323,9 +369,9 @@ simulators. Generator prompts SHOULD include this section.
 2. **No network, no storage, no eval** (§5.2). Fonts: system font stacks,
    or a font file inside the package.
 3. **Stations.** Split the simulator into stations, each a
-   `<section data-station="<id>">`. Each station works on its own, can be
-   opened via `ptf/goto` and emits `station_completed` when its task is
-   done.
+   `<section data-station="<id>">` that teaches **one idea**. Each station
+   works on its own, can be opened via `ptf/goto` (also in focus mode,
+   §4.7) and emits `station_completed` when its task is done.
 4. **Levels.** Mark content per level (`data-levels="highschool college"`);
    switching level via `ptf/setLevel` shows and hides content without a
    reload.

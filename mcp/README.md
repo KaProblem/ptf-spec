@@ -83,6 +83,7 @@ the Claude Code terminal does not (see above).
 | `PTF_LIBRARY` | `~/.ptf/library` | Library directory. When set, it must exist and is never cloned. Use it for your own checkout while writing content. |
 | `PTF_LIBRARY_URL` | `https://github.com/KaProblem/ptf-library.git` | Where to clone from on first start. Only use libraries you trust (CONTENT-POLICY.md §4). |
 | `PTF_LEARNER` | `~/.ptf/learner` | Learner record directory. Use one per person, e.g. a second server entry for your child. |
+| `PTF_WORKSPACE` | `~/.ptf/workspace` | Where `copy_code_lab` puts code labs for the learner. |
 
 ## Tools
 
@@ -95,6 +96,8 @@ the Claude Code terminal does not (see above).
 | `show_simulator` | model | Open a simulator in the chat (MCP App) |
 | `show_question` | model | Show a question block as a quiz card (MCP App): `multiple_choice`, `free_text` |
 | `export_simulator` | model | Standalone HTML file for clients without MCP Apps |
+| `get_code_lab` | model | Steps, run commands, dependencies and README of a code lab (CODE-SPEC.md); optionally one step's source |
+| `copy_code_lab` | model | Copies a verified code lab into `~/.ptf/workspace/<name>` for the learner to run and extend; never overwrites, never runs code |
 | `record_progress` | model | Log answers, "understood", "deeper", "stuck"; set mastery |
 | `sync_library` | model | `git pull` the library |
 | `ptf_sim_source`, `ptf_record_event`, `ptf_save_state` | player, quiz | Called by the simulator player and the quiz card; hidden from the model where the client supports it |

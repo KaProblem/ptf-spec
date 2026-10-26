@@ -11,13 +11,14 @@ const here = new URL(".", import.meta.url).pathname;
 const LIB = resolve(here, "../../examples/minimal-library");
 const entry = process.env.PTF_MCP_ENTRY || resolve(here, "../src/server.mjs");
 const learnerDir = mkdtempSync(join(tmpdir(), "ptf-learner-"));
+const workspaceDir = mkdtempSync(join(tmpdir(), "ptf-workspace-"));
 let client;
 
 before(async () => {
   client = new Client({ name: "test", version: "0" });
   await client.connect(new StdioClientTransport({
     command: process.execPath, args: [entry], stderr: "ignore",
-    env: { ...process.env, PTF_LIBRARY: LIB, PTF_LEARNER: learnerDir },
+    env: { ...process.env, PTF_LIBRARY: LIB, PTF_LEARNER: learnerDir, PTF_WORKSPACE: workspaceDir },
   }));
 });
 after(() => client?.close());
@@ -57,6 +58,20 @@ test("show_simulator returns launch data and inlined, verified HTML", async () =
   assert.doesNotMatch(r._meta["ptf/html"], /src="ptf-sim\.js"/);
   const bad = await client.callTool({ name: "show_simulator", arguments: { sim: "nope" } });
   assert.ok(bad.isError);
+});
+
+test("reads code labs and copies them into the workspace without overwriting", async () => {
+  const o = json(await client.callTool({ name: "list_library", arguments: {} }));
+  assert.ok(o.code_labs.some((l) => l.id === "ptf:code/counting"));
+  const lab = json(await client.callTool({ name: "get_code_lab", arguments: { lab: "ptf:code/counting@^1.0.0", step: "count" } }));
+  assert.equal(lab.steps.length, 2);
+  assert.match(lab.source.text, /counted to/);
+  const copied = json(await client.callTool({ name: "copy_code_lab", arguments: { lab: "counting", element: "ptf:el/demo/counting" } }));
+  assert.equal(copied.path, join(workspaceDir, "counting"));
+  assert.ok(existsSync(join(copied.path, "steps/01_count.py")));
+  const again = await client.callTool({ name: "copy_code_lab", arguments: { lab: "counting" } });
+  assert.ok(again.isError);
+  assert.match(again.content[0].text, /already exists/);
 });
 
 test("show_question serves library questions and validates ad-hoc ones", async () => {

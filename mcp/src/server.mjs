@@ -9,9 +9,10 @@
 //   PTF_LIBRARY      library directory (default ~/.ptf/library, cloned on first start)
 //   PTF_LIBRARY_URL  git URL to clone from (default https://github.com/KaProblem/ptf-library.git)
 //   PTF_LEARNER      learner record directory (default ~/.ptf/learner)
+//   PTF_WORKSPACE    where code labs are copied for the learner (default ~/.ptf/workspace)
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -31,6 +32,7 @@ const LEVEL = z.string().regex(/^[a-z][a-z0-9-]*$/).describe("Level ID: child, h
 const ptfHome = join(homedir(), ".ptf");
 const libraryDir = resolve(process.env.PTF_LIBRARY || join(ptfHome, "library"));
 const learnerDir = resolve(process.env.PTF_LEARNER || join(ptfHome, "learner"));
+const workspaceDir = resolve(process.env.PTF_WORKSPACE || join(ptfHome, "workspace"));
 const libraryUrl = process.env.PTF_LIBRARY_URL || DEFAULT_URL;
 
 const log = (...a) => console.error("[ptf-mcp]", ...a);   // stdout belongs to the protocol
@@ -213,21 +215,22 @@ server.registerTool("show_simulator", {
     sim: z.string().describe("Simulator reference, e.g. ptf:sim/next-char-lab@^2.0.0"),
     level: LEVEL.optional(),
     station: z.string().optional().describe("Station ID to open"),
+    focus: z.boolean().optional().describe("Show only that station, one idea at a time, with Back/Next (SIMULATOR-SPEC.md §4.7). Default: true when a station is given"),
     element: z.string().regex(/^ptf:el\//).optional().describe("Learning element this simulator is used for; results count towards its mastery"),
     params: z.record(z.string(), z.unknown()).optional().describe("Parameters valid against the simulator's sim.json params schema"),
   },
   _meta: { ui: { resourceUri: PLAYER_URI }, "ui/resourceUri": PLAYER_URI },
-}, guarded(async ({ sim, level, station, element, params }) => {
+}, guarded(async ({ sim, level, station, focus, element, params }) => {
   const bundle = element?.split("/")[1];
   const hit = lib().resolveSim(sim, bundle);
   const info = simInfo(hit);
   if (station && !info.stations.some((s) => s.id === station)) throw new Error(`Unknown station ${station}. Stations: ${info.stations.map((s) => s.id).join(", ")}`);
   const state = learner.simState(info.id);
   const prefs = learner.profile()?.accessibility;
-  const launch = { sim: info, level: level ?? null, station: station ?? null, element: element ?? null, params: params ?? {}, state,
+  const launch = { sim: info, level: level ?? null, station: station ?? null, focus: station ? (focus ?? true) : false, element: element ?? null, params: params ?? {}, state,
     prefs: prefs ? { reducedMotion: !!prefs.reduced_motion, fontScale: prefs.font_scale ?? 1 } : {} };
   const lines = [
-    `Showing ${info.title} (${info.id}@${info.version}) to the learner${level ? ` at level ${level}` : ""}${station ? `, station ${station}` : ""}.`,
+    `Showing ${info.title} (${info.id}@${info.version}) to the learner${level ? ` at level ${level}` : ""}${station ? `, station ${station}${launch.focus ? " (focus mode)" : ""}` : ""}.`,
     `UI language: ${(info.lang ?? []).join(", ")}. Stations: ${info.stations.map((s) => s.id).join(", ") || "none"}.`,
     "Ask the learner what they notice before you explain. Their activity is recorded in the learner record.",
     "If the learner cannot see the simulator (host without MCP Apps support), call export_simulator and give them the file.",
@@ -246,6 +249,64 @@ server.registerTool("export_simulator", {
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, lib().inlineSim(hit));
   return ok({ file: out, sim: `${m.id}@${m.version}`, note: "Runs standalone with default level; it cannot report progress back." });
+}));
+
+// ---------- code labs (CODE-SPEC.md) ----------
+
+function labInfo(hit) {
+  const m = hit.manifest;
+  return { id: m.id, version: m.version, title: m.title, description: m.description, language: m.language, levels: m.levels,
+    requires: m.requires, setup: m.setup ?? null, data: m.data ?? [],
+    steps: m.steps.map((s) => ({ id: s.id, title: s.title, file: s.file, run: s.run, minutes: s.minutes, try: s.try ?? [] })) };
+}
+
+server.registerTool("get_code_lab", {
+  title: "Read a code lab",
+  description: "Returns a code lab (runnable code in steps, CODE-SPEC.md): its steps, run commands, dependencies and README; " +
+    "with `step`, also that step's source. Use it to explain the code; give it to the learner with copy_code_lab.",
+  inputSchema: {
+    lab: z.string().describe("Code lab reference, e.g. ptf:code/gpt-from-scratch@^1.0.0 (take it from the element's `code` list)"),
+    step: z.string().optional().describe("Step ID whose source to include"),
+  },
+  annotations: { readOnlyHint: true },
+}, guarded(async ({ lab, step }) => {
+  const hit = lib().resolveLab(lab);
+  const info = labInfo(hit);
+  const out = { ...info, readme: readFileSync(join(hit.dir, "README.md"), "utf8") };
+  if (step) {
+    const st = hit.manifest.steps.find((s) => s.id === step);
+    if (!st) throw new Error(`Unknown step ${step}. Steps: ${info.steps.map((s) => s.id).join(", ")}`);
+    out.source = { file: st.file, text: readFileSync(join(hit.dir, st.file), "utf8") };
+  }
+  return ok(out);
+}));
+
+server.registerTool("copy_code_lab", {
+  title: "Copy a code lab to the learner's workspace",
+  description: "Copies a verified code lab into a folder the learner owns (default ~/.ptf/workspace/<name>), so they can run, change and extend it. " +
+    "Never overwrites an existing folder. It does not install or run anything: show the learner the setup and run commands " +
+    "and let them run the code themselves, or ask each time before you run it for them (CODE-SPEC.md §5).",
+  inputSchema: {
+    lab: z.string().describe("Code lab reference, e.g. ptf:code/gpt-from-scratch@^1.0.0"),
+    element: z.string().regex(/^ptf:el\//).optional().describe("Learning element it is used for; its bundle's ptf.lock picks the version"),
+    path: z.string().optional().describe("Target folder; must not exist or be empty"),
+  },
+}, guarded(async ({ lab, element, path }) => {
+  const hit = lib().resolveLab(lab, element?.split("/")[1]);
+  const info = labInfo(hit);
+  const target = resolve(path || join(workspaceDir, info.id.split("/").pop()));
+  if (existsSync(target) && readdirSync(target).length) {
+    throw new Error(`${target} already exists and is not empty; it may hold the learner's changes. Pass another path, or ask the learner whether to keep working there.`);
+  }
+  mkdirSync(target, { recursive: true });
+  cpSync(hit.dir, target, { recursive: true });
+  const lines = [
+    `Copied ${info.id}@${info.version} to ${target}.`,
+    `Needs ${info.requires.runtime}${info.requires.packages?.length ? ` with ${info.requires.packages.join(", ")}` : ""}.`,
+    ...(info.setup ? [`Setup (show it to the learner first): cd ${target} && ${info.setup}`] : []),
+    "Do not run any step without the learner's go-ahead.",
+  ];
+  return ok({ message: lines.join("\n"), path: target, ...info });
 }));
 
 // App-only tools: called by the player, hidden from the model where the host supports visibility.
