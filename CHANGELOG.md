@@ -6,6 +6,8 @@ before 1.0, minor versions may break compatibility.
 ## [Unreleased]
 
 ### Added
+- CONTENT-POLICY.md §1.2 "Contributor responsibility and license": contributors are responsible for their content and its legal compliance, license each contribution under the library's licenses by submitting it, and are the human behind any agent; maintainers remove infringing content on notice. `ptf-author` adds the contributor statement to every PR.
+- CONTENT-POLICY.md §1.1 "Sources and original work": any material may be a source; content is written fresh (no copied or closely paraphrased text, no translated text, no reproduced exercises or figures); CC0/BY/BY-SA material may be adapted with attribution, NC/ND material only in private libraries; agents must not rewrite sources and must respect terms that forbid AI processing.
 - CODE-SPEC.md: code labs, versioned packages of runnable code in steps (`code/<name>/<version>/` with `lab.json`, README and one complete file per step) that learners copy into their own workspace, run and extend. Elements refer to them with `code: [{ ref, step }]`; `ptf.lock` pins them under `code`. Safety rules for hosts (never run automatically, copy before editing, show dependencies first) and for labs (no network, processes, string eval or unsafe deserialization).
 - `schemas/code-manifest.schema.json`; `learning-element` and `lockfile` schemas accept `code`.
 - `ptf-check` validates code labs (manifest, step files, data files, integrity, forbidden APIs) and code refs; `hash` and `lock` handle labs. New `tools/ptf-codetest.mjs` runs every step in smoke mode in a temporary copy.
