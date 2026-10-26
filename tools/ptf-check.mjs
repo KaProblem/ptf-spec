@@ -36,8 +36,14 @@ const FORBIDDEN = [
   [/\beval\s*\(/, "eval"],
   [/\bnew\s+Function\s*\(/, "new Function"],
   [/\bwindow\.open\s*\(/, "window.open"],
-  [/(?:src|href)\s*=\s*["']\s*(?:https?:)?\/\//i, "remote resource (src/href to another origin)"],
+  [/\bsrc\s*=\s*["']\s*(?:https?:)?\/\//i, "remote resource (src to another origin)"],
+  [/<link\b[^>]*\bhref\s*=\s*["']\s*(?:https?:)?\/\//i, "remote resource (<link href> to another origin)"],
   [/@import\s+url\(\s*["']?(?:https?:)?\/\//i, "remote stylesheet (@import)"],
+];
+
+// Allowed, but worth a warning.
+const DISCOURAGED = [
+  [/<a\b[^>]*\bhref\s*=\s*["']\s*(?:https?:)?\/\//i, "external link: does nothing inside the sandbox, and lessons must be self-contained"],
 ];
 
 // ---------- helpers ----------
@@ -156,6 +162,10 @@ function checkSim(dir) {
     for (const [re, what] of FORBIDDEN) {
       const i = lines.findIndex((l) => re.test(l));
       if (i >= 0) err(`${relative(process.cwd(), f)}:${i + 1}`, `forbidden in simulators: ${what}`);
+    }
+    for (const [re, what] of DISCOURAGED) {
+      const i = lines.findIndex((l) => re.test(l));
+      if (i >= 0) warn(`${relative(process.cwd(), f)}:${i + 1}`, what);
     }
   }
   if (total > MAX_PACKAGE_BYTES) err(file, `package is ${(total / 1024).toFixed(0)} KB, limit is 5 MB`);
