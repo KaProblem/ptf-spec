@@ -1,5 +1,5 @@
 // Read-only access to a PTF library on disk (SPEC.md §3): bundles, learning
-// elements, learning paths and simulator packages.
+// elements, learning paths, simulator packages and code labs.
 
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
@@ -27,11 +27,11 @@ export function parseFrontmatter(text) {
   return { data: YAML.parse(m[1]) ?? {}, body: m[2] };
 }
 
-/** SIMULATOR-SPEC.md §2.1, same algorithm as tools/ptf-check.mjs. */
-export function integrityOf(simDir) {
+/** SIMULATOR-SPEC.md §2.1, same algorithm as tools/ptf-check.mjs. Code labs hash the same way, without lab.json. */
+export function integrityOf(simDir, manifestName = "sim.json") {
   const files = walk(simDir)
     .map((p) => relative(simDir, p).split(sep).join("/"))
-    .filter((p) => p !== "sim.json")
+    .filter((p) => p !== manifestName)
     .sort((a, b) => Buffer.compare(Buffer.from(a), Buffer.from(b)));
   let text = "";
   for (const f of files) text += `${f}\n${createHash("sha256").update(readFileSync(join(simDir, f))).digest("hex")}\n`;
@@ -43,6 +43,14 @@ export function parseSimRef(ref) {
   let s = String(ref).trim();
   if (!s.startsWith("ptf:sim/")) s = "ptf:sim/" + s;
   const at = s.indexOf("@", "ptf:sim/".length + 1); // scoped names start with "@"
+  return at < 0 ? { id: s, range: null } : { id: s.slice(0, at), range: s.slice(at + 1) };
+}
+
+/** Splits "ptf:code/name@range" (or "name", "name@1.0.0") into id and range. */
+export function parseCodeRef(ref) {
+  let s = String(ref).trim();
+  if (!s.startsWith("ptf:code/")) s = "ptf:code/" + s;
+  const at = s.indexOf("@", "ptf:code/".length + 1);
   return at < 0 ? { id: s, range: null } : { id: s.slice(0, at), range: s.slice(at + 1) };
 }
 
@@ -65,11 +73,13 @@ export class Library {
     this.bundles = new Map();   // bundle id -> { id, dir, meta, body, lock }
     this.docs = new Map();      // global id -> { id, type, bundle, file, meta, body }
     this.sims = new Map();      // sim id -> Map(version -> { dir, manifest })
+    this.labs = new Map();      // code lab id -> Map(version -> { dir, manifest })
     for (const f of walk(this.root)) {
-      if (f.endsWith(`${sep}sim.json`)) this.#addSim(dirname(f));
+      if (f.endsWith(`${sep}sim.json`)) this.#addPackage(this.sims, dirname(f), "sim.json");
+      else if (f.endsWith(`${sep}lab.json`)) this.#addPackage(this.labs, dirname(f), "lab.json");
     }
     for (const f of walk(this.root)) {
-      if (!f.endsWith(".md") || f.includes(`${sep}sims${sep}`)) continue;
+      if (!f.endsWith(".md") || f.includes(`${sep}sims${sep}`) || f.includes(`${sep}code${sep}`)) continue;
       let fm;
       try { fm = parseFrontmatter(readFileSync(f, "utf8")); } catch { continue; }
       if (!fm) continue;
@@ -86,12 +96,12 @@ export class Library {
     }
   }
 
-  #addSim(dir) {
+  #addPackage(index, dir, manifestName) {
     let manifest;
-    try { manifest = JSON.parse(readFileSync(join(dir, "sim.json"), "utf8")); } catch { return; }
+    try { manifest = JSON.parse(readFileSync(join(dir, manifestName), "utf8")); } catch { return; }
     if (!manifest.id || !manifest.version) return;
-    if (!this.sims.has(manifest.id)) this.sims.set(manifest.id, new Map());
-    const versions = this.sims.get(manifest.id);
+    if (!index.has(manifest.id)) index.set(manifest.id, new Map());
+    const versions = index.get(manifest.id);
     if (!versions.has(manifest.version)) versions.set(manifest.version, { dir, manifest });
   }
 
@@ -111,7 +121,13 @@ export class Library {
         versions: [...versions.keys()].sort(semver.rcompare),
         latest: m.version, stations: (m.stations ?? []).map((s) => ({ id: s.id, title: s.title, levels: s.levels })) };
     });
-    return { bundles, simulators: sims };
+    const labs = [...this.labs.keys()].map((id) => {
+      const m = this.#pick(id, null, null, "code")?.manifest ?? {};
+      return { id, title: m.title, description: m.description, language: m.language, levels: m.levels,
+        versions: [...this.labs.get(id).keys()].sort(semver.rcompare), latest: m.version,
+        steps: (m.steps ?? []).map((s) => ({ id: s.id, title: s.title })) };
+    });
+    return { bundles, simulators: sims, code_labs: labs };
   }
 
   search(query, limit = 10) {
@@ -132,16 +148,21 @@ export class Library {
       const s = score([id, m.title, m.description, (m.concepts ?? []).join(" "), (m.stations ?? []).map((x) => x.title).join(" ")]) * 2;
       if (s) hits.push({ kind: "simulator", score: s, id, title: m.title, description: m.description, latest: m.version });
     }
+    for (const [id] of this.labs) {
+      const m = this.#pick(id, null, null, "code")?.manifest ?? {};
+      const s = score([id, m.title, m.description, (m.concepts ?? []).join(" "), (m.steps ?? []).map((x) => x.title).join(" ")]) * 2;
+      if (s) hits.push({ kind: "code_lab", score: s, id, title: m.title, description: m.description, latest: m.version });
+    }
     return hits.sort((a, b) => b.score - a.score).slice(0, limit);
   }
 
   doc(id) { return this.docs.get(id) ?? null; }
 
-  /** Picks the version for a simulator: lockfile of the given bundle, else highest match (non-deprecated first). */
-  #pick(id, range, bundleId) {
-    const versions = this.sims.get(id);
+  /** Picks the version for a simulator or code lab: lockfile of the given bundle, else highest match (non-deprecated first). */
+  #pick(id, range, bundleId, kind = "simulators") {
+    const versions = (kind === "code" ? this.labs : this.sims).get(id);
     if (!versions) return null;
-    const pinned = bundleId ? this.bundles.get(bundleId)?.lock?.simulators?.[id]?.version : null;
+    const pinned = bundleId ? this.bundles.get(bundleId)?.lock?.[kind]?.[id]?.version : null;
     if (pinned && versions.has(pinned) && (!range || semver.satisfies(pinned, range))) return versions.get(pinned);
     const all = [...versions.keys()].filter((v) => !range || semver.satisfies(v, range)).sort(semver.rcompare);
     const live = all.filter((v) => !versions.get(v).manifest.deprecated);
@@ -160,6 +181,23 @@ export class Library {
       throw new Error(`Integrity check failed for ${id}@${hit.manifest.version}: package files do not match sim.json. Refusing to run it.`);
     }
     const locked = bundleId ? this.bundles.get(bundleId)?.lock?.simulators?.[id] : null;
+    if (locked && locked.version === hit.manifest.version && locked.integrity !== actual) {
+      throw new Error(`Integrity check failed for ${id}@${hit.manifest.version}: does not match ptf.lock of bundle ${bundleId}.`);
+    }
+    return hit;
+  }
+
+  /** Resolves and verifies a code lab (CODE-SPEC.md §5: verify before copying). */
+  resolveLab(ref, bundleId) {
+    const { id, range } = parseCodeRef(ref);
+    if (!this.labs.has(id)) throw new Error(`Unknown code lab ${id}. Known: ${[...this.labs.keys()].join(", ") || "none"}`);
+    const hit = this.#pick(id, range, bundleId, "code");
+    if (!hit) throw new Error(`No version of ${id} matches ${range}. Available: ${[...this.labs.get(id).keys()].join(", ")}`);
+    const actual = integrityOf(hit.dir, "lab.json");
+    if (hit.manifest.integrity !== actual) {
+      throw new Error(`Integrity check failed for ${id}@${hit.manifest.version}: package files do not match lab.json. Refusing to hand it out.`);
+    }
+    const locked = bundleId ? this.bundles.get(bundleId)?.lock?.code?.[id] : null;
     if (locked && locked.version === hit.manifest.version && locked.integrity !== actual) {
       throw new Error(`Integrity check failed for ${id}@${hit.manifest.version}: does not match ptf.lock of bundle ${bundleId}.`);
     }
@@ -202,5 +240,6 @@ function summary(d) {
   const m = d.meta;
   return { id: m.id, title: m.title, description: m.description, levels: m.levels ?? m.audience, status: m.status,
     ...(m.steps ? { steps: m.steps.map((s) => s.element) } : {}),
-    ...(m.simulators ? { simulators: m.simulators.map((s) => ({ ref: s.ref, station: s.station, levels: s.levels, role: s.role })) } : {}) };
+    ...(m.simulators ? { simulators: m.simulators.map((s) => ({ ref: s.ref, station: s.station, levels: s.levels, role: s.role })) } : {}),
+    ...(m.code ? { code: m.code.map((c) => ({ ref: c.ref, step: c.step, levels: c.levels })) } : {}) };
 }

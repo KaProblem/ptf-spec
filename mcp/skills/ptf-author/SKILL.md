@@ -58,6 +58,11 @@ new version directory, set `version`, `derived_from` and `changelog`, then
 SIMULATOR-SPEC.md §7; prefer question blocks or new `params` for an existing
 simulator over new code (§7.1).
 
+**Code labs** (CODE-SPEC.md): same immutability rule for `code/<name>/<version>/`.
+Every step is a complete, runnable file with a smoke mode (`PTF_SMOKE=1`);
+no network, processes or string eval. Hash with `ptf-check hash --write`,
+reference with `code: [{ ref, step }]` and relock.
+
 Learner-facing text never mentions the sources. Write in English (simulator
 UIs may use another language, declared in `sim.json`).
 
@@ -68,6 +73,7 @@ Run in the library checkout and fix everything before opening the PR:
 ```bash
 node ../ptf-spec/tools/ptf-check.mjs .                        # must report 0 errors
 node ../ptf-spec/tools/ptf-selftest.mjs sims/<name>/<version>/  # for changed simulators
+node ../ptf-spec/tools/ptf-codetest.mjs code/<name>/<version>/  # for changed code labs
 ```
 
 Then review your own diff against the rubric in CONTENT-POLICY.md §3, with

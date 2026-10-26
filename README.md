@@ -17,6 +17,7 @@ every PTF bundle is a plain directory of Markdown files with YAML frontmatter.
 | --- | --- |
 | [SPEC.md](SPEC.md) | Bundles, learning elements, levels, question blocks, learning paths, IDs, versioning, conformance |
 | [SIMULATOR-SPEC.md](SIMULATOR-SPEC.md) | Simulator packages, `sim.json`, the postMessage host contract, security, build rules |
+| [CODE-SPEC.md](CODE-SPEC.md) | Code labs: runnable code in steps (`lab.json`), how hosts hand it to learners, smoke tests |
 | [LEARNER-RECORD.md](LEARNER-RECORD.md) | The portable, private learner profile, progress and consent format |
 | [CONTENT-POLICY.md](CONTENT-POLICY.md) | What shared libraries accept, the automated review gates and the quality rubric |
 | [schemas/](schemas/) | JSON Schemas (2020-12) for everything machine-checkable |
@@ -27,10 +28,11 @@ every PTF bundle is a plain directory of Markdown files with YAML frontmatter.
 | --- | --- |
 | [runtime/ptf-sim.js](runtime/ptf-sim.js) | Simulator-side runtime; copy it into every simulator package |
 | [runtime/ptf-host.js](runtime/ptf-host.js) | Host-side runtime: embeds a simulator in a sandboxed iframe and speaks the contract |
-| [tools/ptf-check.mjs](tools/ptf-check.mjs) | Validator for libraries, bundles and simulator packages |
+| [tools/ptf-check.mjs](tools/ptf-check.mjs) | Validator for libraries, bundles, simulator packages and code labs |
+| [tools/ptf-codetest.mjs](tools/ptf-codetest.mjs) | Runs every step of a code lab in smoke mode in a temporary copy |
 | [tools/ptf-selftest.mjs](tools/ptf-selftest.mjs) | Runs a simulator's `test.json` in Chromium under the production sandbox and CSP; `--serve` opens a dev host |
 | [mcp/](mcp/) | Local MCP server: serves a library, shows simulators as MCP Apps, keeps the learner record on the device; tutor and author skills; Claude Code plugin |
-| [examples/minimal-library/](examples/minimal-library/) | The smallest valid library (one bundle, one simulator) |
+| [examples/minimal-library/](examples/minimal-library/) | The smallest valid library (one bundle, one simulator, one code lab) |
 
 ```bash
 npm install
@@ -39,6 +41,7 @@ node tools/ptf-check.mjs hash --write path/to/sims/<name>/<version>   # set inte
 node tools/ptf-check.mjs lock path/to/library/bundles/<bundle> path/to/library   # write ptf.lock
 node tools/ptf-selftest.mjs path/to/sims/<name>/<version>              # needs Playwright
 node tools/ptf-selftest.mjs --serve path/to/sims/<name>/<version>      # try it by hand
+node tools/ptf-codetest.mjs path/to/code/<name>/<version>              # smoke-test a code lab
 npm test
 ```
 

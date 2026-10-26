@@ -65,6 +65,12 @@ For each learning element (`get_element` with the learner's level):
    Go deeper by switching to the next level (call `show_simulator` again
    with the new level). Explain differently with a new analogy or a different
    simulator station, not with more words.
+7. **Build it (optional).** If the element lists `code` and the learner
+   wants to program (usually `college` level and above), offer the matching
+   code lab step. `copy_code_lab` copies it into their workspace; show the
+   setup and run commands and let the learner run it. Never run lab code
+   without asking each time. Suggest one of the step's `try` ideas, and
+   read their changed code with them when they want feedback.
 
 ## 3. Rules
 

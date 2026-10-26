@@ -71,3 +71,34 @@ test("allows source references only in Further reading and Sources", () => {
   writeFileSync(el, src.replace("# Level: child\n", "# Level: child\n\nAs shown in the video at 1:30, count apples.\n"));
   assert.match(run(lib).stdout, /refer to source material/);
 });
+
+test("checks code labs: forbidden APIs, integrity, missing step files and step refs", () => {
+  const lib = copyExample();
+  const step = join(lib, "code/counting/1.0.0/steps/01_count.py");
+  writeFileSync(step, readFileSync(step, "utf8") + "\nimport subprocess\neval('1')\nmodel.eval()\n");
+  const manifest = join(lib, "code/counting/1.0.0/lab.json");
+  writeFileSync(manifest, readFileSync(manifest, "utf8").replace("steps/02_count_to.py\"", "steps/missing.py\""));
+  const el = join(lib, "bundles/demo/elements/counting.md");
+  writeFileSync(el, readFileSync(el, "utf8").replace("step: count\n", "step: nope\n"));
+  const r = run(lib);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /01_count\.py:\d+: forbidden in code labs: starting processes or network access/);
+  assert.match(r.stdout, /01_count\.py:\d+: forbidden in code labs: evaluating code from strings/);
+  assert.equal((r.stdout.match(/evaluating code from strings/g) ?? []).length, 1, "model.eval() must not be flagged");
+  assert.match(r.stdout, /step count-to: file steps\/missing\.py missing/);
+  assert.match(r.stdout, /code lab ptf:code\/counting@1\.0\.0 has no step "nope"/);
+  assert.match(r.stdout, /integrity mismatch: lab\.json/);
+});
+
+test("ptf-codetest runs every step and checks expect", () => {
+  const CODETEST = new URL("../tools/ptf-codetest.mjs", import.meta.url).pathname;
+  const ok = spawnSync(process.execPath, [CODETEST, join(EXAMPLE, "code/counting/1.0.0")], { encoding: "utf8" });
+  assert.equal(ok.status, 0, ok.stdout);
+  assert.match(ok.stdout, /ok {3}count-to/);
+  const lib = copyExample();
+  const manifest = join(lib, "code/counting/1.0.0/lab.json");
+  writeFileSync(manifest, readFileSync(manifest, "utf8").replace('"counted to 10"', '"counted to 11"'));
+  const bad = spawnSync(process.execPath, [CODETEST, join(lib, "code/counting/1.0.0")], { encoding: "utf8" });
+  assert.equal(bad.status, 1);
+  assert.match(bad.stdout, /FAIL count .*does not match/);
+});

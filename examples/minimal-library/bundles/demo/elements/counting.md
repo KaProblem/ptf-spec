@@ -11,6 +11,11 @@ simulators:
     station: count
     levels: [child]
     role: explore
+code:
+  - ref: ptf:code/counting@^1.0.0
+    step: count
+    levels: [highschool]
+    note: Let the learner change the number and run it again.
 status: draft
 version: 0.1.0
 license: CC-BY-SA-4.0

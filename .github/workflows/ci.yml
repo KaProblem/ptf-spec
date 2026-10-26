@@ -15,6 +15,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: node tools/ptf-check.mjs examples/minimal-library
+      - run: node tools/ptf-codetest.mjs examples/minimal-library/code/*/*/
       - name: MCP server tests
         run: |
           npm ci --prefix mcp
