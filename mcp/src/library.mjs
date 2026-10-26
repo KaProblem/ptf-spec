@@ -137,6 +137,22 @@ export class Library {
 
   doc(id) { return this.docs.get(id) ?? null; }
 
+  /** Question blocks of an element (SPEC.md §7): `ptf-question` fences in the body, then questions/<name>.json of its bundle. */
+  questions(id) {
+    const d = this.doc(id);
+    if (!d || d.type !== "Learning Element") return [];
+    const out = [];
+    for (const m of d.body.matchAll(/```ptf-question\s*\n([\s\S]*?)```/g)) {
+      try { out.push(JSON.parse(m[1])); } catch { /* ptf-check reports broken blocks */ }
+    }
+    const dir = this.bundles.get(d.bundle)?.dir;
+    const file = dir && join(dir, "questions", `${String(id).split("/").pop()}.json`);
+    if (file && existsSync(file)) {
+      try { const extra = JSON.parse(readFileSync(file, "utf8")); if (Array.isArray(extra)) out.push(...extra); } catch { /* ignore */ }
+    }
+    return out;
+  }
+
   /** Picks the version for a simulator: lockfile of the given bundle, else highest match (non-deprecated first). */
   #pick(id, range, bundleId) {
     const versions = this.sims.get(id);

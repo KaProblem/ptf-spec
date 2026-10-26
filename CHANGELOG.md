@@ -6,6 +6,8 @@ before 1.0, minor versions may break compatibility.
 ## [Unreleased]
 
 ### Added
+- `mcp/`: `show_question` tool and quiz card (MCP App) for `multiple_choice` and `free_text` question blocks, from a learning element or written by the model and validated against the question-block schema; the card checks multiple-choice answers, records them and sends them to the chat; free-text answers go to the chat for grading.
+- Minimal example: `multiple_choice` question in `demo/counting`.
 - `mcp/`: local MCP server (stdio, `dist/ptf-mcp.mjs` single file) that clones and serves a PTF library, shows simulators inline as MCP Apps (player page embeds the unmodified package via `ptf-host.js` in a `sandbox="allow-scripts"` srcdoc iframe, after an integrity check), and keeps the learner record in `~/.ptf/learner/` (events, mastery with spaced-review dates, profile, simulator resume state).
 - `ptf-tutor` skill and MCP prompt (teaching method, learning-goal check) and `ptf-author` skill (change or add content, run checks, open a pull request); Claude Code plugin and marketplace entry.
 - CONTENT-POLICY.md: what shared libraries accept, automated review gates and quality rubric for contributions without manual review.

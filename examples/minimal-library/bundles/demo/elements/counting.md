@@ -44,3 +44,20 @@ Put one apple on the table. Now another. How many are there?
   "explanation": "3 plus one is 4."
 }
 ```
+
+```ptf-question
+{
+  "kind": "multiple_choice",
+  "id": "q2",
+  "level": "child",
+  "purpose": "check",
+  "misconception": "counting-skips",
+  "question": "You count 5, 6, … Which number comes after 6?",
+  "options": [
+    { "text": "7", "correct": true, "feedback": "Yes: 6 plus one is 7." },
+    { "text": "8", "correct": false, "feedback": "That skips 7. Every number comes exactly once." },
+    { "text": "6", "correct": false, "feedback": "6 is the number you are at. Add one more." }
+  ],
+  "explanation": "When you count, the next number is always one more."
+}
+```
