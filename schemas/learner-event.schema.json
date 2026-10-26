@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/KaProblem/ptf-spec/schemas/learner-event.schema.json",
+  "title": "PTF Learner Event (one line of events.jsonl)",
+  "type": "object",
+  "required": [
+    "id",
+    "at",
+    "verb",
+    "object"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "verb": {
+      "enum": [
+        "experienced",
+        "attempted",
+        "answered",
+        "completed",
+        "station_completed",
+        "level_changed",
+        "understood",
+        "rephrase",
+        "deeper",
+        "stuck",
+        "asked",
+        "reported_broken"
+      ]
+    },
+    "object": {
+      "type": "string",
+      "pattern": "^ptf:(el|path|sim)/"
+    },
+    "level": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "correct": {
+          "type": "boolean"
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "response": {
+          "type": "string"
+        },
+        "misconception": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "duration_s": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "context": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

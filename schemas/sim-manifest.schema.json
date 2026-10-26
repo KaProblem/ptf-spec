@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/KaProblem/ptf-spec/schemas/sim-manifest.schema.json",
+  "title": "PTF Simulator manifest (sim.json)",
+  "type": "object",
+  "required": [
+    "ptf_sim",
+    "id",
+    "version",
+    "title",
+    "description",
+    "lang",
+    "concepts",
+    "levels",
+    "capabilities",
+    "license",
+    "authors",
+    "integrity"
+  ],
+  "properties": {
+    "ptf_sim": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^ptf:sim/(@[a-z0-9][a-z0-9-]*/)?[a-z0-9][a-z0-9-]*$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z.-]+)?$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lang": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "concepts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "levels": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      }
+    },
+    "stations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*$"
+            }
+          }
+        }
+      }
+    },
+    "entry": {
+      "type": "string",
+      "default": "index.html"
+    },
+    "params": {
+      "type": "object"
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "microphone",
+          "camera",
+          "llm"
+        ]
+      }
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1
+    },
+    "authors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "derived_from": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^ptf:sim/.+@.+$"
+        }
+      ]
+    },
+    "changelog": {
+      "type": "string"
+    },
+    "deprecated": {
+      "type": "string"
+    },
+    "integrity": {
+      "type": "string",
+      "pattern": "^sha256-[A-Za-z0-9+/]+=*$"
+    }
+  },
+  "additionalProperties": true
+}

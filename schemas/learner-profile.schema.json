@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/KaProblem/ptf-spec/schemas/learner-profile.schema.json",
+  "title": "PTF Learner Profile frontmatter",
+  "type": "object",
+  "required": [
+    "type",
+    "ptf_version",
+    "learner"
+  ],
+  "properties": {
+    "type": {
+      "const": "Learner Profile"
+    },
+    "ptf_version": {
+      "type": "string"
+    },
+    "learner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "display_name": {
+      "type": "string"
+    },
+    "languages": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "preferred_lang": {
+      "type": "string"
+    },
+    "age_band": {
+      "enum": [
+        "child",
+        "teen",
+        "adult"
+      ]
+    },
+    "style": {
+      "type": "object",
+      "properties": {
+        "modality": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "visual",
+              "hands-on",
+              "reading",
+              "listening",
+              "discussion"
+            ]
+          }
+        },
+        "pace": {
+          "enum": [
+            "slow",
+            "normal",
+            "fast"
+          ]
+        },
+        "default_level": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "likes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "dislikes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "accessibility": {
+      "type": "object",
+      "properties": {
+        "reduced_motion": {
+          "type": "boolean"
+        },
+        "font_scale": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 3
+        },
+        "screen_reader": {
+          "type": "boolean"
+        }
+      }
+    },
+    "strengths": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "concept"
+        ],
+        "properties": {
+          "concept": {
+            "type": "string",
+            "pattern": "^ptf:(el|path|sim)/"
+          },
+          "level": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "interests": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "goals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^ptf:path/[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*$"
+          }
+        }
+      }
+    },
+    "updated": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": true
+}

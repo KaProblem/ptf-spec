@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/KaProblem/ptf-spec/schemas/lockfile.schema.json",
+  "title": "PTF ptf.lock",
+  "type": "object",
+  "required": [
+    "lockfileVersion",
+    "simulators"
+  ],
+  "properties": {
+    "lockfileVersion": {
+      "const": 1
+    },
+    "simulators": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^ptf:sim/(@[a-z0-9][a-z0-9-]*/)?[a-z0-9][a-z0-9-]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "version",
+          "integrity"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z.-]+)?$"
+          },
+          "integrity": {
+            "type": "string",
+            "pattern": "^sha256-"
+          }
+        }
+      }
+    }
+  }
+}
