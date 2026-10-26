@@ -11,7 +11,7 @@
 
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -57,14 +57,20 @@ window.__ptf = { events: [], errors: [], states: [], ready: false, hang: false }
 const log = (t, o) => { const el = document.getElementById("log"); el.textContent = t + " " + JSON.stringify(o) + "\\n" + el.textContent; };
 const init = ${JSON.stringify(init)};
 document.getElementById("lvl").value = init.level || "highschool";
-window.sim = PTFHost.mount(document.getElementById("frame"), {
-  src: ${JSON.stringify(simUrl)}, init,
-  onReady() { __ptf.ready = true; log("ready", {}); },
-  onEvent(e) { __ptf.events.push(e); log("event", e); },
-  onState(s) { __ptf.states.push(s); log("state", s); },
-  onError(e) { __ptf.errors.push(e); log("ERROR", e); },
-  onHang() { __ptf.hang = true; log("HANG", {}); }
-});
+// Mount (or remount, to test resume) the simulator; a remount passes the last ptf/state back in.
+window.__mount = (state) => {
+  if (window.sim) window.sim.destroy();
+  __ptf.ready = false;
+  window.sim = PTFHost.mount(document.getElementById("frame"), {
+    src: ${JSON.stringify(simUrl)}, init: state === undefined ? init : Object.assign({}, init, { state }),
+    onReady() { __ptf.ready = true; log("ready", {}); },
+    onEvent(e) { __ptf.events.push(e); log("event", e); },
+    onState(s) { __ptf.states.push(s); log("state", s); },
+    onError(e) { __ptf.errors.push(e); log("ERROR", e); },
+    onHang() { __ptf.hang = true; log("HANG", {}); }
+  });
+};
+__mount();
 document.getElementById("lvl").onchange = (e) => sim.setLevel(e.target.value);
 document.getElementById("snap").onclick = async () => log("snapshot", await sim.snapshot());
 let dark = false;
@@ -89,6 +95,13 @@ async function startServers(simDir, init) {
   return { simServer, hostServer, hostUrl: hostOrigin + "/", manifest };
 }
 
+function newerVersion(simDir, version) {
+  const semver = createRequire(import.meta.url)("semver");
+  const parent = dirname(simDir);
+  const newer = readdirSync(parent).filter((v) => semver.valid(v) && semver.gt(v, version) && existsSync(join(parent, v, "sim.json")));
+  return newer.sort(semver.rcompare)[0] ?? null;
+}
+
 async function runOne(chromium, simDir) {
   simDir = resolve(simDir);
   const testFile = join(simDir, "test.json");
@@ -99,21 +112,54 @@ async function runOne(chromium, simDir) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   const blocked = [];
   page.on("console", (m) => { if (m.type() === "error" && /Content Security Policy|blocked/i.test(m.text())) blocked.push(m.text()); });
-  const failures = [];
+  const failures = [], contract = [], warnings = [];
   try {
     await page.goto(hostUrl);
     await page.waitForFunction(() => window.__ptf.ready, null, { timeout: 5000 }).catch(() => failures.push("simulator never sent ptf/ready"));
     const frame = page.frameLocator("iframe");
+    const simFrame = () => page.frames().find((f) => f !== page.mainFrame());
+    const visibleStations = () => simFrame().evaluate(() => [...document.querySelectorAll("[data-station]")]
+      .filter((el) => !el.parentElement.closest("[data-station]"))
+      .filter((el) => (el.checkVisibility ? el.checkVisibility() : el.offsetParent !== null))
+      .map((el) => el.dataset.station));
+    const snapshot = () => page.evaluate(() => window.sim.snapshot());
     for (const step of steps) {
       try {
         if (step.init) continue;
         if (step.click) await frame.locator(step.click).first().click({ timeout: 3000 });
         if (step.type) await frame.locator(step.type.selector).first().fill(step.type.text, { timeout: 3000 });
         if (step.setLevel) await page.evaluate((l) => window.sim.setLevel(l), step.setLevel);
-        if (step.goto) await page.evaluate((s) => window.sim.goto(s.station || s, s.station ? { focus: !!s.focus } : undefined), step.goto);
+        if (step.goto) await page.evaluate((s) => typeof s === "string" ? window.sim.goto(s) : window.sim.goto(s.station ?? null, { focus: !!s.focus }), step.goto);
         if (step.expectText) await frame.getByText(step.expectText, { exact: false }).first().waitFor({ state: "visible", timeout: 3000 });
-        if (step.expectEvent) await page.waitForFunction((v) => window.__ptf.events.some((e) => e.verb === v), step.expectEvent, { timeout: 3000 });
-        if (step.snapshot) { const t = await page.evaluate(() => window.sim.snapshot()); if (!t) throw new Error("empty snapshot"); }
+        if (step.expectEvent) {
+          const want = typeof step.expectEvent === "string" ? { verb: step.expectEvent } : step.expectEvent;
+          await page.waitForFunction((w) => window.__ptf.events.some((e) => e.verb === w.verb && (w.station === undefined || e.station === w.station)),
+            want, { timeout: 3000 });
+        }
+        if (step.expectStations) {
+          await page.waitForTimeout(100);
+          const shown = await visibleStations();
+          if (shown.join(",") !== step.expectStations.join(","))
+            throw new Error(`visible stations [${shown.join(", ")}], expected [${step.expectStations.join(", ")}]`);
+        }
+        if (step.snapshot) {
+          const t = await snapshot();
+          if (!t) throw new Error("empty snapshot");
+          const want = typeof step.snapshot === "object" ? [].concat(step.snapshot.contains ?? []) : [];
+          const missing = want.filter((w) => !t.includes(w));
+          if (missing.length) throw new Error(`snapshot lacks ${missing.map((m) => JSON.stringify(m)).join(", ")}: ${JSON.stringify(t)}`);
+        }
+        if (step.reload) {
+          // Resume round trip: remount with the last ptf/state; the learner must see the same thing again.
+          await page.waitForTimeout(200);
+          const before = await snapshot();
+          const state = await page.evaluate(() => window.__ptf.states.at(-1));
+          if (state === undefined) throw new Error("simulator sent no ptf/state to resume from");
+          await page.evaluate((st) => window.__mount(st), state);
+          await page.waitForFunction(() => window.__ptf.ready, null, { timeout: 5000 });
+          const after = await snapshot();
+          if (after !== before) throw new Error(`snapshot changed after resume:\n       before: ${before}\n       after:  ${after}`);
+        }
         if (step.expectNoError) {
           await page.waitForTimeout(200);
           const errors = await page.evaluate(() => window.__ptf.errors);
@@ -123,6 +169,22 @@ async function runOne(chromium, simDir) {
         failures.push(`${JSON.stringify(step)}: ${e.message.split("\n")[0]}`);
       }
     }
+    // Contract checks that every package must pass, whatever its test.json says (§6).
+    const seen = new Set(await page.evaluate(() => window.__ptf.events.map((e) => e.verb)));
+    for (const verb of manifest.events ?? [])
+      if (!seen.has(verb)) warnings.push(`declared event "${verb}" was never emitted; add steps to test.json that trigger it`);
+    if (!(manifest.events ?? []).length) contract.push(`sim.json declares no events, so the tutor never learns what the learner did (§7 rule 10)`);
+    for (const st of manifest.stations ?? []) {
+      try {
+        if (st.levels?.length) await page.evaluate((l) => window.sim.setLevel(l), st.levels[0]);
+        await page.evaluate((id) => window.sim.goto(id, { focus: true }), st.id);
+        await page.waitForTimeout(100);
+        const shown = await visibleStations();
+        if (shown.join(",") !== st.id) contract.push(`focus on "${st.id}" shows [${shown.join(", ")}] (§4.7)`);
+      } catch (e) { contract.push(`focus on "${st.id}": ${e.message.split("\n")[0]}`); }
+    }
+    const errors = await page.evaluate(() => window.__ptf.errors);
+    if (errors.length) contract.push("ptf/error during the contract checks: " + errors.map((e) => e.message).join("; "));
     const pong = await page.evaluate(() => window.sim.ping().then(() => true, () => false));
     if (!pong) failures.push("no answer to ptf/ping");
   } finally {
@@ -130,8 +192,13 @@ async function runOne(chromium, simDir) {
     simServer.close(); hostServer.close();
   }
   const label = `${manifest.id}@${manifest.version}`;
+  // Published versions are immutable (§3): contract gaps in a superseded version are reported, not failed.
+  const newer = newerVersion(simDir, manifest.version);
+  if (!newer) failures.push(...contract.map((c) => `contract: ${c}`));
   if (failures.length) { console.log(`FAIL ${label}`); for (const f of failures) console.log(`     ${f}`); }
   else console.log(`ok   ${label} (${steps.length} steps)`);
+  if (newer) for (const c of contract) console.log(`     note (superseded by ${newer}): ${c}`);
+  for (const w of warnings) console.log(`     warning: ${w}`);
   if (blocked.length) console.log(`     note: ${blocked.length} request(s) blocked by CSP, e.g. ${blocked[0].slice(0, 160)}`);
   return failures.length === 0;
 }
