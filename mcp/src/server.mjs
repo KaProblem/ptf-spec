@@ -144,21 +144,22 @@ server.registerTool("show_simulator", {
     sim: z.string().describe("Simulator reference, e.g. ptf:sim/next-char-lab@^2.0.0"),
     level: LEVEL.optional(),
     station: z.string().optional().describe("Station ID to open"),
+    focus: z.boolean().optional().describe("Show only that station, one idea at a time, with Back/Next (SIMULATOR-SPEC.md §4.7). Default: true when a station is given"),
     element: z.string().regex(/^ptf:el\//).optional().describe("Learning element this simulator is used for; results count towards its mastery"),
     params: z.record(z.string(), z.unknown()).optional().describe("Parameters valid against the simulator's sim.json params schema"),
   },
   _meta: { ui: { resourceUri: PLAYER_URI }, "ui/resourceUri": PLAYER_URI },
-}, guarded(async ({ sim, level, station, element, params }) => {
+}, guarded(async ({ sim, level, station, focus, element, params }) => {
   const bundle = element?.split("/")[1];
   const hit = lib().resolveSim(sim, bundle);
   const info = simInfo(hit);
   if (station && !info.stations.some((s) => s.id === station)) throw new Error(`Unknown station ${station}. Stations: ${info.stations.map((s) => s.id).join(", ")}`);
   const state = learner.simState(info.id);
   const prefs = learner.profile()?.accessibility;
-  const launch = { sim: info, level: level ?? null, station: station ?? null, element: element ?? null, params: params ?? {}, state,
+  const launch = { sim: info, level: level ?? null, station: station ?? null, focus: station ? (focus ?? true) : false, element: element ?? null, params: params ?? {}, state,
     prefs: prefs ? { reducedMotion: !!prefs.reduced_motion, fontScale: prefs.font_scale ?? 1 } : {} };
   const lines = [
-    `Showing ${info.title} (${info.id}@${info.version}) to the learner${level ? ` at level ${level}` : ""}${station ? `, station ${station}` : ""}.`,
+    `Showing ${info.title} (${info.id}@${info.version}) to the learner${level ? ` at level ${level}` : ""}${station ? `, station ${station}${launch.focus ? " (focus mode)" : ""}` : ""}.`,
     `UI language: ${(info.lang ?? []).join(", ")}. Stations: ${info.stations.map((s) => s.id).join(", ") || "none"}.`,
     "Ask the learner what they notice before you explain. Their activity is recorded in the learner record.",
     "If the learner cannot see the simulator (host without MCP Apps support), call export_simulator and give them the file.",
