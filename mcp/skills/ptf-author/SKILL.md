@@ -11,7 +11,8 @@ pull request. Nobody reviews by hand by default: automated gates decide
 
 Read first, from a checkout of ptf-spec: `SPEC.md` (§6 elements, §7
 questions, §8 paths, §9 versioning), `SIMULATOR-SPEC.md` §7 when touching
-simulators, and `CONTENT-POLICY.md`.
+simulators, `CONTENT-POLICY.md`, and `PEDAGOGY.md` for how to structure
+steps (anchors, try before tell, one idea per step, small simulator stations).
 
 ## 1. Policy check
 
