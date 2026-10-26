@@ -356,8 +356,25 @@ the sandbox:
 
 Step types: `init`, `click` (CSS selector), `type` (`{selector, text}`),
 `setLevel` (level ID), `goto` (station ID, or `{station, focus}`),
-`expectText`, `expectEvent` (verb), `expectNoError`, `snapshot` (expects a
-non-empty text). A library's CI runs every package's test before publishing.
+`expectText`, `expectEvent` (verb, or `{verb, station}`), `expectStations`
+(the exact list of station IDs that must be visible, e.g. after a focused
+`goto`), `expectNoError`, `snapshot` (`true` expects a non-empty text;
+`{contains: [...]}` also expects each string in it, so a test can check that
+the snapshot reports what the learner just did) and `reload` (resume round
+trip: the runner remounts the simulator with the last `ptf/state` in the init
+context and fails unless the snapshot is the same as before). A library's CI
+runs every package's test before publishing.
+
+Besides the listed steps, the runner checks the contract for every package:
+
+- `sim.json` declares at least one event verb (§7 rule 10); a declared verb
+  that the steps never trigger is reported as a warning.
+- For every station in `sim.json`, `ptf/goto { station, focus: true }` at the
+  station's first level shows exactly that station (§4.7).
+
+Published versions are immutable (§3), so contract gaps in a version that a
+newer version of the same simulator supersedes are reported as notes, not
+failures.
 
 ---
 
