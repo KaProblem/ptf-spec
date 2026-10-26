@@ -102,3 +102,25 @@ test("ptf-codetest runs every step and checks expect", () => {
   assert.equal(bad.status, 1);
   assert.match(bad.stdout, /FAIL count .*does not match/);
 });
+
+test("accepts allowlisted vendored builds and rejects tampered or undeclared ones", () => {
+  const lib = copyExample();
+  const sim = join(lib, "sims/counter/1.0.0");
+  const vendor = spawnSync(process.execPath, [new URL("../tools/ptf-vendor.mjs", import.meta.url).pathname, "add", sim, "planck@1.4.2"], { encoding: "utf8" });
+  assert.equal(vendor.status, 0, vendor.stderr);
+  run("hash", "--write", sim);
+  run("lock", join(lib, "bundles/demo"), lib);
+  const ok = run(lib);
+  assert.equal(ok.status, 0, ok.stdout);
+  assert.match(ok.stdout, /0 error\(s\), 0 warning\(s\)/);
+
+  const file = join(sim, "vendor/planck-1.4.2.min.js");
+  writeFileSync(file, readFileSync(file, "utf8") + "\nfetch('https://x');");
+  writeFileSync(join(sim, "vendor/extra.js"), "window.x = 1;");
+  run("hash", "--write", sim);
+  const bad = run(lib);
+  assert.equal(bad.status, 1);
+  assert.match(bad.stdout, /does not match its declared sha256/);
+  assert.match(bad.stdout, /forbidden in simulators: network request \(fetch\)/);
+  assert.match(bad.stdout, /script in vendor\/ that is not a declared, allowlisted build/);
+});

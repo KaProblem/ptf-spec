@@ -1,0 +1,1 @@
+{ "package": "planck", "version": "1.4.2", "entry": "entry.js", "global": "planck", "esbuild": "0.28.2", "target": "es2020" }

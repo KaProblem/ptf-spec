@@ -56,7 +56,10 @@ new version directory, set `version`, `derived_from` and `changelog`, then
 `node ../ptf-spec/tools/ptf-check.mjs hash --write sims/<name>/<version>` and
 `node ../ptf-spec/tools/ptf-check.mjs lock bundles/<bundle> .`. Follow
 SIMULATOR-SPEC.md §7; prefer question blocks or new `params` for an existing
-simulator over new code (§7.1).
+simulator over new code (§7.1). No libraries by default; if a simulator
+really needs 3D or a rigid-body engine, use only allowlisted builds via
+`node ../ptf-spec/tools/ptf-vendor.mjs add sims/<name>/<version> <build>@<version>`
+and follow §8 (WebGL fallback, physics checked against a closed-form value).
 
 **Code labs** (CODE-SPEC.md): same immutability rule for `code/<name>/<version>/`.
 Every step is a complete, runnable file with a smoke mode (`PTF_SMOKE=1`);

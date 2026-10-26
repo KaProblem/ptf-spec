@@ -30,6 +30,7 @@ every PTF bundle is a plain directory of Markdown files with YAML frontmatter.
 | [runtime/ptf-host.js](runtime/ptf-host.js) | Host-side runtime: embeds a simulator in a sandboxed iframe and speaks the contract |
 | [tools/ptf-check.mjs](tools/ptf-check.mjs) | Validator for libraries, bundles, simulator packages and code labs |
 | [tools/ptf-codetest.mjs](tools/ptf-codetest.mjs) | Runs every step of a code lab in smoke mode in a temporary copy |
+| [tools/ptf-vendor.mjs](tools/ptf-vendor.mjs) | Lists the allowlisted libraries, vendors one into a simulator package, reproduces a build ([SIMULATOR-SPEC.md §8](SIMULATOR-SPEC.md)) |
 | [tools/ptf-selftest.mjs](tools/ptf-selftest.mjs) | Runs a simulator's `test.json` in Chromium under the production sandbox and CSP; `--serve` opens a dev host |
 | [mcp/](mcp/) | Local MCP server: serves a library, shows simulators as MCP Apps, keeps the learner record on the device; tutor and author skills; Claude Code plugin |
 | [examples/minimal-library/](examples/minimal-library/) | The smallest valid library (one bundle, one simulator, one code lab) |

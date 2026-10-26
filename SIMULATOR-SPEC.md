@@ -17,7 +17,8 @@ sims/<name>/<version>/
   index.html      # REQUIRED entry point (name configurable via "entry")
   ptf-sim.js      # REQUIRED runtime, copied from ptf-spec/runtime/ (§4.4)
   test.json       # RECOMMENDED self-test (§6)
-  assets/…        # optional: images, fonts, vendored libraries
+  vendor/…        # optional: allowlisted third-party builds, byte-identical copies (§8)
+  assets/…        # optional: images, fonts
 ```
 
 - Everything the simulator needs MUST be inside the package. No CDN, no
@@ -74,6 +75,7 @@ sims/<name>/<version>/
 | `params` | no | JSON Schema for parameters the host may pass at init (H5P principle: code vs. content). |
 | `events` | no | Event verbs the simulator emits (§4.3). |
 | `capabilities` | yes | Extra powers it needs; empty for most simulators (§5.3). |
+| `vendor` | no | Third-party builds in the package: `{ build, path, sha256, license }` per library (§8.3). |
 | `license`, `authors` | yes | License (SPDX) and authors (OKF actor convention). |
 | `derived_from` | no | `ptf:sim/<name>@<version>` it was forked from. |
 | `changelog` | no | What changed in this version. |
@@ -364,8 +366,9 @@ non-empty text). A library's CI runs every package's test before publishing.
 These rules apply equally to human authors and to models generating
 simulators. Generator prompts SHOULD include this section.
 
-1. **One `index.html`** with inline CSS and JS, plus `ptf-sim.js`. Vanilla
-   JS or Web Components, ES2022. No build step required.
+1. **One `index.html`** with inline CSS and JS, plus `ptf-sim.js` and, only
+   where §8 allows it, vendored library builds. Vanilla JS or Web Components,
+   ES2022, classic `<script>` tags (no ES modules). No build step required.
 2. **No network, no storage, no eval** (§5.2). Fonts: system font stacks,
    or a font file inside the package.
 3. **Stations.** Split the simulator into stations, each a
@@ -388,7 +391,10 @@ simulators. Generator prompts SHOULD include this section.
 10. **Report.** Emit `answered` with `result.correct` and, where it applies,
     `result.misconception` for every checkable interaction. Implement
     `snapshot`.
-11. **Small.** Below 300 KB without media.
+11. **Small.** Below 300 KB without media and vendored libraries.
+12. **Correct.** For anything that claims to model the real world, follow
+    §8.5: SI units, a fixed time step, stated assumptions, and at least one
+    computed value checked against a closed-form result in `test.json`.
 
 ### 7.1 The ladder: from catalog to free code
 
@@ -399,3 +405,154 @@ Generate the simplest thing that teaches the concept:
    `params` (e.g. a different corpus). No new code.
 3. **Free simulator**: new code, following this spec. Needs the full review
    in §5.4 before it is shared.
+
+---
+
+## 8. Libraries and vendoring (proposal)
+
+> Status: proposal for v0.2, piloted by `ptf:sim/newton-einstein@1.0.0` in
+> ptf-library. Feedback welcome before it becomes normative.
+
+Most simulators need no library: a canvas, a few dozen lines of drawing code
+and, for physics, a small integrator are smaller, easier to review and more
+correct than a general engine. Libraries are for the cases where writing it
+yourself would be large and error-prone: 3D rendering and many interacting
+rigid bodies. To keep the library from growing wild, a simulator MAY use only
+libraries from one shared allowlist, in byte-identical builds, declared in its
+manifest.
+
+### 8.1 Choose the smallest tool
+
+| Need | Use |
+| --- | --- |
+| Charts, diagrams, 2D drawing, simple animation | Canvas 2D or SVG, no library. |
+| Motion with known equations (free fall, drag, inclined plane, pendulum, orbits, springs) | Own integrator in the page: semi-implicit Euler or RK4 with a fixed step, or the closed-form solution. |
+| Many bodies that collide, stack, slide or are joined | `planck` (2D rigid bodies). |
+| 3D scenes (surfaces, orbits in space, molecules, solids) | `three-core` (WebGL). |
+
+A physics engine is not automatically "more physical". Game engines trade
+accuracy for stability: they use fixed-step semi-implicit integration,
+damping, sleeping bodies, contact slop and restitution thresholds, and a 2D
+engine models a ball as a disc (moment of inertia ½ m r² instead of
+⅖ m r² for a sphere, so a "ball" rolls 7 % too slowly down a ramp). Use an
+engine when the interaction is the point, and say what it simplifies.
+
+### 8.2 The allowlist
+
+[`vendor/allowlist.json`](vendor/allowlist.json) in this repository lists the
+permitted builds. Each entry names the npm package and version, the license,
+the global it defines, the file name and its SHA-256. The recipe for each
+build lives next to it (`vendor/<package>/<version>/entry.js` and
+`build.json`), so anyone can rebuild it and get the same bytes.
+
+| Build | Global | Size (min) | Purpose |
+| --- | --- | --- | --- |
+| `three-core@0.170.0` | `THREE` | 511 KB (128 KB gzip) | 3D with WebGL: scene, cameras, lights, basic geometries and materials, lines, raycasting. No loaders, no addons. |
+| `planck@1.4.2` | `planck` | 209 KB | 2D rigid-body physics (Box2D port): shapes, contacts, friction, joints. |
+
+Considered and not on the list (yet):
+
+| Library | Why not |
+| --- | --- |
+| Rapier, other WebAssembly engines | Instantiating WebAssembly needs `'wasm-unsafe-eval'` in `script-src`, which the simulator CSP (§5.1) does not grant. Revisit only together with a CSP change. |
+| matter.js | Overlaps with planck; its position-based solver is less accurate for textbook mechanics. |
+| cannon-es, Ammo.js | 3D rigid bodies are rarely needed for teaching; Ammo is WebAssembly. Add when a simulator needs them. |
+| Full three.js with addons, loaders | Loaders contain network code (`fetch`), and addons are ES modules. `three-core` is tree-shaken to what simulators need. |
+| D3, Chart.js, Plotly | Charts for teaching are small enough to draw directly; revisit if a family of data simulators appears. |
+
+A new library or version is added by a pull request to this repository that
+adds the recipe and the build (`ptf-vendor build <build>@<version> --write`)
+and argues these criteria:
+
+1. **License** MIT, BSD, ISC or Apache-2.0; the build keeps the license
+   comment.
+2. **Classic script.** It builds into one IIFE or UMD file with one global
+   (`esbuild --format=iife`), because hosts inline packages into `srcdoc`
+   iframes where ES module imports cannot be resolved.
+3. **Inside the sandbox.** No network, storage, `eval`, workers from URLs or
+   WebAssembly on the code paths a simulator uses; `ptf-check`'s
+   forbidden-pattern scan passes on the build.
+4. **Needed.** A concrete simulator needs it, and drawing or integrating by
+   hand would be much larger or less correct.
+5. **Small enough.** Tree-shaken to what simulators use; the whole package
+   stays below the 5 MB limit.
+6. **Maintained.** An active upstream with a stable API. Versions are pinned;
+   a newer version is a new allowlist entry, old entries stay so published
+   simulators keep working.
+
+### 8.3 Vendoring a build into a package
+
+```bash
+node ../ptf-spec/tools/ptf-vendor.mjs list
+node ../ptf-spec/tools/ptf-vendor.mjs add sims/<name>/<version> three-core@0.170.0
+```
+
+`add` copies the file to `vendor/<file>` and declares it in `sim.json`:
+
+```json
+"vendor": [
+  { "build": "three-core@0.170.0", "path": "vendor/three-core-0.170.0.min.js",
+    "sha256": "b3c33d2a…", "license": "MIT" }
+]
+```
+
+The page loads it with a classic script tag before its own code and uses the
+global:
+
+```html
+<script src="ptf-sim.js"></script>
+<script src="vendor/three-core-0.170.0.min.js"></script>
+<script> /* uses THREE */ </script>
+```
+
+Rules:
+
+- The copy MUST be byte-identical to the allowlisted build. Never edit,
+  re-minify or concatenate it; a different build is a different allowlist
+  entry.
+- Only declared, allowlisted builds may live in `vendor/`.
+- No CDN, no `import` from URLs, no `<script type="module">`.
+- Vendored files count towards the 5 MB package limit and the integrity hash,
+  but not towards the 300 KB recommendation (§1, §7).
+
+`ptf-check` verifies each declaration (file present, SHA-256 matches the
+manifest and the allowlist), reports undeclared scripts in `vendor/`, skips
+its forbidden-pattern scan for verified builds (they were scanned when they
+were allowlisted; the sandbox and CSP still apply at runtime) and warns about
+module scripts.
+
+### 8.4 Using WebGL and engines
+
+- **Degrade gracefully.** WebGL can be missing (old devices, some remote
+  desktops, policy). Check the context, and if it fails show a short text or
+  a 2D picture of the same idea instead of throwing. The station must still
+  be usable and its test must still pass.
+- **Render on demand.** Render when something changes or while an animation
+  runs, not in an endless loop; stop animation loops when the station is
+  hidden.
+- **Touch.** Rotate by horizontal drag with `touch-action: pan-y`, so the page
+  still scrolls; offer buttons as an alternative to dragging.
+- **Theme.** Read colours from the theme tokens (§4.5) and update materials
+  when `data-theme` changes.
+- **Engine state is not learner state.** Save only what is needed to
+  recreate a scene (`ptf/state`), not engine internals.
+
+### 8.5 Physics that is right
+
+A simulator that claims to show how the world behaves is held to the same
+standard as a textbook:
+
+1. **SI units inside**, converted only for display. State the constants used
+   (g, air density, radii) in the UI.
+2. **Fixed time step** (for example 1/240 s), independent of the frame rate,
+   with interpolation for drawing. Never integrate with the frame time.
+3. **Prefer the closed form** where one exists; otherwise RK4 or semi-implicit
+   Euler. Explicit Euler only to teach why it drifts.
+4. **Name the model's limits** in an expert-level note (constant drag
+   coefficient, discs instead of spheres, first-order corrections).
+5. **Check a number.** `test.json` SHOULD contain at least one `expectText`
+   on a computed value that has a closed-form answer (a fall time, a period,
+   a GPS clock offset), so a refactoring that breaks the physics fails CI.
+6. **Exaggerate honestly.** If an effect is scaled up to be visible (e.g.
+   relativistic precession × 100 000), say so on screen and show the real
+   value next to it.

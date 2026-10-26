@@ -23,6 +23,8 @@ const MAX_PACKAGE_BYTES = 5 * 1024 * 1024;
 const WARN_PACKAGE_BYTES = 300 * 1024;
 const MAX_LAB_BYTES = 20 * 1024 * 1024;
 const WARN_LAB_BYTES = 5 * 1024 * 1024;
+const ALLOWLIST_FILE = join(SPEC_DIR, "vendor", "allowlist.json");
+const ALLOWLIST = existsSync(ALLOWLIST_FILE) ? JSON.parse(readFileSync(ALLOWLIST_FILE, "utf8")).builds : {};
 
 // Patterns forbidden in simulator code (SIMULATOR-SPEC.md §5.2).
 const FORBIDDEN = [
@@ -169,9 +171,26 @@ function checkSim(dir) {
     if (actual !== m.integrity) err(file, `integrity mismatch: sim.json has ${m.integrity}, files hash to ${actual} (run: ptf-check hash --write ${dir})`);
   }
 
-  let total = 0;
+  // Vendored libraries (SIMULATOR-SPEC.md §8): allowlisted builds, byte-identical, declared in sim.json.
+  const vendored = new Set();
+  for (const v of m.vendor ?? []) {
+    const p = join(dir, v.path ?? "");
+    const allowed = ALLOWLIST[v.build];
+    if (!v.path || !existsSync(p)) { err(file, `vendor ${v.build}: file ${v.path} missing`); continue; }
+    if (!allowed) { err(file, `vendor ${v.build} is not on the ptf-spec allowlist (SIMULATOR-SPEC.md §8.2)`); continue; }
+    const hex = createHash("sha256").update(readFileSync(p)).digest("hex");
+    if (hex !== v.sha256) err(file, `vendor ${v.build}: ${v.path} does not match its declared sha256`);
+    else if (hex !== allowed.sha256) err(file, `vendor ${v.build}: ${v.path} differs from the allowlisted build (copy it with ptf-vendor add)`);
+    else vendored.add(resolve(p));
+  }
+
+  let total = 0, own = 0;
   for (const f of walk(dir)) {
     total += statSync(f).size;
+    const rel = relative(dir, f).split(sep).join("/");
+    if (vendored.has(resolve(f))) continue;   // verified upstream code: not scanned, not counted towards the 300 KB recommendation
+    own += statSync(f).size;
+    if (rel.startsWith("vendor/") && /\.m?js$/i.test(rel)) err(`${relative(process.cwd(), f)}`, "script in vendor/ that is not a declared, allowlisted build (SIMULATOR-SPEC.md §8)");
     if (!/\.(html?|js|mjs|css|svg)$/i.test(f) || f.endsWith(`${sep}ptf-sim.js`)) continue;
     const src = readFileSync(f, "utf8");
     const lines = src.split("\n");
@@ -185,10 +204,11 @@ function checkSim(dir) {
     }
   }
   if (total > MAX_PACKAGE_BYTES) err(file, `package is ${(total / 1024).toFixed(0)} KB, limit is 5 MB`);
-  else if (total > WARN_PACKAGE_BYTES) warn(file, `package is ${(total / 1024).toFixed(0)} KB, recommended below 300 KB`);
+  else if (own > WARN_PACKAGE_BYTES) warn(file, `package is ${(own / 1024).toFixed(0)} KB without vendored libraries, recommended below 300 KB`);
 
   const html = existsSync(entry) ? readFileSync(entry, "utf8") : "";
   if (html && !/PTF\.connect\s*\(/.test(html)) warn(file, "entry does not call PTF.connect()");
+  if (/<script\b[^>]*\btype\s*=\s*["']module["']/i.test(html)) warn(file, "ES module scripts cannot resolve imports when a host inlines the package into srcdoc; use classic scripts and vendored IIFE builds (SIMULATOR-SPEC.md §8.3)");
   for (const st of m.stations ?? []) {
     if (html && !html.includes(`data-station="${st.id}"`)) warn(file, `station ${st.id} has no element with data-station="${st.id}"`);
   }

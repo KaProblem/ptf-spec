@@ -110,6 +110,38 @@
         ]
       }
     },
+    "vendor": {
+      "type": "array",
+      "description": "Allowlisted third-party builds shipped in the package (SIMULATOR-SPEC.md §8).",
+      "items": {
+        "type": "object",
+        "required": [
+          "build",
+          "path",
+          "sha256",
+          "license"
+        ],
+        "properties": {
+          "build": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*@[0-9]+\\.[0-9]+\\.[0-9]+$",
+            "description": "Allowlist key, e.g. three-core@0.170.0"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^vendor/[^/]+\\.js$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "license": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
     "license": {
       "type": "string",
       "minLength": 1
