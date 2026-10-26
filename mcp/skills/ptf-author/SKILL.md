@@ -20,6 +20,13 @@ violates the policy, do not write it; say why in one or two sentences and
 offer a legitimate angle. If the topic is sensitive but allowed, tag it
 `sensitive` and leave out the `child` level.
 
+Sources (CONTENT-POLICY.md §1.1): read sources to understand the topic, then
+write your own text, questions and figures. Never rewrite a source passage,
+translate it or reword its exercises. Only CC0, public domain, CC BY or
+CC BY-SA material may be adapted, with author, title, link and license in
+`sources`. If a source's terms forbid AI processing, ask the user for their
+own notes instead of reading it yourself.
+
 ## 2. Workspace
 
 1. Clone the library and the spec side by side (not the tutor's read-only

@@ -6,6 +6,7 @@ before 1.0, minor versions may break compatibility.
 ## [Unreleased]
 
 ### Added
+- CONTENT-POLICY.md §1.1 "Sources and original work": any material may be a source; content is written fresh (no copied or closely paraphrased text, no translated text, no reproduced exercises or figures); CC0/BY/BY-SA material may be adapted with attribution, NC/ND material only in private libraries; agents must not rewrite sources and must respect terms that forbid AI processing.
 - `mcp/`: local MCP server (stdio, `dist/ptf-mcp.mjs` single file) that clones and serves a PTF library, shows simulators inline as MCP Apps (player page embeds the unmodified package via `ptf-host.js` in a `sandbox="allow-scripts"` srcdoc iframe, after an integrity check), and keeps the learner record in `~/.ptf/learner/` (events, mastery with spaced-review dates, profile, simulator resume state).
 - `ptf-tutor` skill and MCP prompt (teaching method, learning-goal check) and `ptf-author` skill (change or add content, run checks, open a pull request); Claude Code plugin and marketplace entry.
 - CONTENT-POLICY.md: what shared libraries accept, automated review gates and quality rubric for contributions without manual review.

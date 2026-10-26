@@ -38,11 +38,48 @@ A library MUST NOT accept content that:
 6. **Collects personal data** or tries to reach the learner outside the
    lesson (links to sign-up pages, contact requests).
 7. **Infringes rights**: copies copyrighted text, images or code that the
-   contributor may not license under the library's licenses. Sources are for
-   grounding; the text is written fresh.
+   contributor may not license under the library's licenses (see §1.1).
 
 Content that touches a sensitive topic SHOULD say so in its frontmatter
 (`tags: [sensitive]`) and SHOULD set a minimum level (no `child` level).
+
+### 1.1 Sources and original work
+
+PTF content is an **original work**. Anything can serve as a source: a book,
+a course, a lecture video, a paper, a website, whatever its license. Facts,
+ideas, methods and the scope or order of a curriculum are not protected; the
+expression of them is. A contributor who learned from a source and then
+writes their own explanation, their own questions and their own simulator
+owns that work and may license it under the library's licenses.
+
+A contribution MUST NOT:
+
+1. Copy text from a source, or paraphrase it so closely that it follows the
+   source sentence by sentence. Short quotations are allowed when they are
+   marked as quotations and attributed.
+2. Translate copyrighted text. A translation is a derivative of the original.
+3. Reproduce a source's exercises or question sets, even reworded one to one.
+   Write new questions that test the same idea.
+4. Reproduce figures, diagrams, slides, photos or audio. Draw your own.
+5. Copy code, unless its license allows it in the target (MIT or compatible
+   for simulators) and the license notice is kept.
+
+Material under a license compatible with the library's (for CC BY-SA content:
+CC0, public domain, CC BY, CC BY-SA) MAY be adapted directly, with attribution
+in `sources` naming the author, title, link and license. Material under
+NonCommercial (NC) or NoDerivatives (ND) licenses, or with no license, MUST NOT
+be adapted into a public library; it can still be a source in the sense above.
+A private library MAY hold adapted material under any license the owner may
+use privately, if it declares that `license` and is never published.
+
+Agents writing content: use a source to understand the topic, then write from
+that understanding. Do not feed a source to a model with the task to rewrite
+it, since that produces close paraphrase. Respect a source's terms of use: some
+forbid automated access or processing by AI (for example scraping bans). For
+those, a human reads the source and the agent works from the human's notes.
+
+`sources` in the frontmatter list what the content was grounded in. They are
+provenance for maintainers, not citations in learner-facing text (SPEC.md §6.2).
 
 ---
 
@@ -77,7 +114,8 @@ Merged content keeps `status: draft` until learner data shows it works
    statements are not. Numbers and formulas are checked.
 2. **Self-contained.** Learner-facing text never refers to the source
    material ("as in the video"); a learner who never saw it can follow.
-3. **Policy.** Nothing in §1.
+3. **Policy.** Nothing in §1, including §1.1: no copied or closely
+   paraphrased text, questions or figures from sources.
 4. **Stable IDs.** Changes keep existing element, question and misconception
    IDs, or bump the major version and say why.
 
