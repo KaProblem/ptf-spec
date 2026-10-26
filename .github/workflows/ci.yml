@@ -15,8 +15,19 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: node tools/ptf-check.mjs examples/minimal-library
+      - name: MCP server tests
+        run: |
+          npm ci --prefix mcp
+          npm test --prefix mcp
+      - name: MCP server bundle is up to date
+        run: |
+          npm run build --prefix mcp
+          git diff --exit-code -- mcp/dist
+          PTF_MCP_ENTRY=$PWD/mcp/dist/ptf-mcp.mjs npm test --prefix mcp
       - name: Simulator self-test
         run: |
           npm install --no-save playwright
           npx playwright install --with-deps chromium
           node tools/ptf-selftest.mjs examples/minimal-library/sims/*/*/
+      - name: MCP App player in the browser
+        run: NODE_PATH=$PWD/node_modules node mcp/test/player.browser.mjs

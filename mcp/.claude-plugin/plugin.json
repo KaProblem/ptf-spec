@@ -1,0 +1,8 @@
+{
+  "name": "ptf",
+  "version": "0.1.0",
+  "description": "Personal Tutor Format: learn from a PTF library with a local MCP server, interactive simulators and a tutor skill; publish lessons with the author skill.",
+  "author": { "name": "KaProblem" },
+  "homepage": "https://github.com/KaProblem/ptf-spec/tree/main/mcp",
+  "license": "MIT"
+}
