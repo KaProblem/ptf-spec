@@ -13,3 +13,4 @@ before 1.0, minor versions may break compatibility.
 - `runtime/ptf-sim.js` (simulator side) and `runtime/ptf-host.js` (host side).
 - `tools/ptf-check.mjs` validator with `hash` and `lock` commands; `tools/ptf-selftest.mjs` sandboxed browser self-test and dev host.
 - Minimal example library and tests.
+- SIMULATOR-SPEC.md §4.6 UI languages: how a simulator picks its UI language from `locale`, fallback to the first `lang` entry, English snapshots and events, and a markup pattern for bilingual simulators.

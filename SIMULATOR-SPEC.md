@@ -66,7 +66,7 @@ sims/<name>/<version>/
 | `id` | yes | `ptf:sim/<name>` or `ptf:sim/@<scope>/<name>`. |
 | `version` | yes | Semver; MUST equal the directory name. |
 | `title`, `description` | yes | Human-readable. |
-| `lang` | yes | UI languages (BCP 47). |
+| `lang` | yes | UI languages (BCP 47); the first entry is the fallback (§4.6). |
 | `concepts` | yes | Free-form concept tags, used for search. |
 | `levels` | yes | Levels the simulator supports (SPEC.md §5). |
 | `stations` | no | Independently addressable parts. Each has `id`, `title`, optional `levels`. |
@@ -166,7 +166,7 @@ Init context (result of `ptf/initialize`):
 | `level` | Level ID to start at. |
 | `station` | Station ID to open, or `null`. |
 | `params` | Object valid against `sim.json` `params`. |
-| `locale` | Preferred UI language. |
+| `locale` | Preferred UI language (BCP 47), see §4.6. |
 | `theme` | `{ mode: "light" \| "dark", tokens: { "--bg": "#fff", … } }` (§4.5). |
 | `state` | State previously sent via `ptf/state`, or `null`. |
 | `prefs` | `{ reducedMotion, fontScale }` from the learner record, if shared. |
@@ -219,6 +219,31 @@ Hosts SHOULD send these tokens; simulators SHOULD use them with their own
 fallbacks: `--bg`, `--surface`, `--ink`, `--muted`, `--line`, `--accent`,
 `--accent-soft`, `--warn`, `--f-body`, `--f-display`, `--f-mono`. The
 runtime also sets `data-theme="light|dark"` on `<html>`.
+
+### 4.6 UI languages
+
+PTF content is canonical in one language (English is RECOMMENDED, SPEC.md
+§6.3); the tutor adapts its own explanations to the learner. Simulator UIs
+cannot be rewritten on the fly, so a package declares the languages it ships
+in `sim.json` `lang` and picks one at runtime:
+
+1. The host SHOULD send `locale` in the init context, taken from the
+   learner record (`languages`, LEARNER-RECORD.md) or the host's UI.
+2. The simulator MUST choose the first entry of its `lang` list that
+   matches `locale` by primary language subtag (`de-AT` matches `de`). In
+   standalone mode it uses `navigator.language` instead.
+3. If nothing matches, it MUST fall back to the first entry of `lang`, which
+   SHOULD be the library's canonical language.
+4. The `lang` attribute of `<html>` SHOULD reflect the chosen language, and
+   number formatting SHOULD follow it (decimal comma in German).
+5. Snapshot texts (`ptf/snapshot`) and event payloads stay in English,
+   whatever the UI language, so tutors and analytics read one vocabulary.
+
+Adding a UI language to an existing simulator is a minor version (§3). A
+simple pattern for small simulators is to put both texts in the markup and
+hide the inactive one with CSS (`<i-en>…</i-en><i-de>…</i-de>` plus
+`html:not([lang="de"]) i-de, html[lang="de"] i-en { display: none }`), and to
+build dynamic strings with a helper such as `L(en, de)`.
 
 ---
 
