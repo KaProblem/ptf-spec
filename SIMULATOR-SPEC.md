@@ -223,6 +223,13 @@ fallbacks: `--bg`, `--surface`, `--ink`, `--muted`, `--line`, `--accent`,
 `--accent-soft`, `--warn`, `--f-body`, `--f-display`, `--f-mono`. The
 runtime also sets `data-theme="light|dark"` on `<html>`.
 
+A token may hold any CSS value a host uses, such as `light-dark(…)`,
+`var(…)` or `color-mix(…)`. A 2D canvas or WebGL context cannot parse those
+and silently falls back to black. A simulator that draws with tokens MUST
+therefore resolve them through the browser first, for example by setting
+`color: var(--ink)` on a hidden element and reading its computed `color`.
+Hosts SHOULD send plain colour values where they can.
+
 ### 4.6 UI languages
 
 PTF content is canonical in one language (English is RECOMMENDED, SPEC.md
@@ -265,7 +272,11 @@ through it card by card instead of showing all stations at once:
   `experienced` with `data: { focus: "<station>" }`, so the tutor can follow.
 - Learning paths and learning elements SHOULD refer to single stations
   (`simulators[].station`) rather than to a whole simulator.
-- Standalone (no host), a simulator MAY start unfocused.
+- A simulator SHOULD start focused on its first station, also standalone,
+  and offer **Show all** to see every station at once for review.
+- A simulator SHOULD show progress: one step per station visible at the
+  current level, done stations marked, and each step opening its station
+  directly (go-to).
 
 ---
 
@@ -397,8 +408,14 @@ simulator should be.
 4. **Levels.** Mark content per level (`data-levels="highschool college"`);
    switching level via `ptf/setLevel` shows and hides content without a
    reload.
-5. **Start with an experience.** A station begins with something to try or
-   guess, then explains.
+5. **Predict, observe, explain.** A station begins with something to try or
+   guess, then explains. Where a station runs an experiment, the learner
+   first commits to a prediction: the controls that start or change the
+   experiment stay disabled until a prediction is chosen, picking one gives
+   no hint whether it is right, and the prediction is judged only after the
+   result is shown, then reported as `answered` (with `result.misconception`
+   for a wrong one). Explanations that give the answer away stay hidden until
+   then.
 6. **Self-contained.** No references to external videos or texts in the UI;
    the learner may never have seen them.
 7. **Theme tokens.** Use the CSS custom properties from §4.5 with fallbacks,

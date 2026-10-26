@@ -6,6 +6,9 @@ before 1.0, minor versions may break compatibility.
 ## [Unreleased]
 
 ### Added
+- SIMULATOR-SPEC.md §7 rule 5 "Predict, observe, explain": a station that runs an experiment keeps its controls locked until the learner picks a prediction, gives no hint while picking, judges the prediction only after the result and reports it as `answered`.
+- SIMULATOR-SPEC.md §4.7: simulators start focused on their first station, also standalone, and show progress with direct go-to per station.
+- SIMULATOR-SPEC.md §4.5: canvas and WebGL simulators resolve theme tokens through the browser, because host values such as `light-dark()` turn canvas drawings black.
 - `ptf-selftest` checks the tutor contract: new steps `expectStations` (exact visible stations, for focus mode), `snapshot: {contains}` (the snapshot reports what the learner did), `reload` (resume round trip with the last `ptf/state`) and `expectEvent: {verb, station}`. For every package it also fails when `sim.json` declares no events or a focused `goto` shows more than one station, and warns when a declared event is never triggered; superseded versions only get notes (SIMULATOR-SPEC.md §6).
 - SPEC.md §6.6 subject anchors: learning elements name the concepts they teach as Wikidata items in `about` (first entry = primary concept) instead of a PTF taxonomy. Schema field `about`; `ptf-check` warns when a `reviewed` or `proven` element has no `about` and when two elements of one bundle share a primary concept. New `tools/ptf-wikidata.mjs` (`search` for candidates, `verify` a library's IDs and labels against Wikidata). The MCP server lists `about` and searches its labels.
 - PEDAGOGY.md (recommendation, not conformance): evidence-based principles for course design (anchor in prior knowledge, try before tell, one idea per step, simple-then-honest explanations, concrete to abstract, dual coding, misconception confrontation, retrieval, spacing and interleaving, self-explanation, mastery), the arc of one step mapped to PTF fields, granularity rules for elements, paths and simulators, and the research behind each rule. Notes that matching "learning styles" is not supported by evidence. Referenced from SIMULATOR-SPEC.md §7 and the `ptf-author` and `ptf-tutor` skills.
@@ -35,3 +38,6 @@ before 1.0, minor versions may break compatibility.
 - SPEC.md §6.5 `# Further reading`: optional deep-dive links (e.g. the source video with timestamps) offered after the lesson; `ptf-check` no longer warns about source references in that section.
 - SIMULATOR-SPEC.md §4.7 focus mode: one idea per station, `focus` in the init context and in `ptf/goto`, Back/Next with `experienced` events; `ptf-sim.js` passes `{ focus }` to `onGoto`, `ptf-host.js` `goto(station, { focus })`, `ptf-selftest` accepts `goto: {station, focus}`; MCP `show_simulator` takes `focus` (default on when a station is given) and the tutor skill walks station by station and offers `# Further reading` after a step.
 - SIMULATOR-SPEC.md §4.6 UI languages: how a simulator picks its UI language from `locale`, fallback to the first `lang` entry, English snapshots and events, and a markup pattern for bilingual simulators.
+
+### Fixed
+- MCP player: host colour tokens are resolved to plain `rgb()` before they reach a simulator.

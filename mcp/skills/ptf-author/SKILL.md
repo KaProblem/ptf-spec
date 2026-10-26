@@ -69,6 +69,10 @@ simulator over new code (§7.1). No libraries by default; if a simulator
 really needs 3D or a rigid-body engine, use only allowlisted builds via
 `node ../ptf-spec/tools/ptf-vendor.mjs add sims/<name>/<version> <build>@<version>`
 and follow §8 (WebGL fallback, physics checked against a closed-form value).
+Every station with an experiment asks for a prediction first and keeps the
+controls locked until one is picked (§7 rule 5); start focused on station 1
+with a progress row (§4.7). For canvas or WebGL, resolve theme tokens through
+the browser (§4.5), never by parsing the raw custom property.
 
 **Code labs** (CODE-SPEC.md): same immutability rule for `code/<name>/<version>/`.
 Every step is a complete, runnable file with a smoke mode (`PTF_SMOKE=1`);

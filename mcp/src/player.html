@@ -121,11 +121,28 @@
     "--accent-soft": "--color-background-info", "--warn": "--color-text-warning",
     "--f-body": "--font-sans", "--f-display": "--font-sans", "--f-mono": "--font-mono"
   };
+  // Host values may be light-dark(), var() or color-mix(); canvas drawing in a simulator cannot parse those,
+  // so colours are resolved to plain rgb() here (SIMULATOR-SPEC.md §4.5).
+  var probe = document.createElement("i");
+  probe.hidden = true;
+  function plainColour(value, mode) {
+    if (!probe.isConnected) document.body.appendChild(probe);
+    probe.style.colorScheme = mode;
+    probe.style.color = "";
+    probe.style.color = value;
+    return probe.style.color ? getComputedStyle(probe).color : null;
+  }
   function ptfTheme() {
     var vars = (host.context.styles && host.context.styles.variables) || {};
-    var tokens = {};
-    for (var k in TOKEN_MAP) if (vars[TOKEN_MAP[k]]) tokens[k] = String(vars[TOKEN_MAP[k]]);
-    return { mode: host.context.theme === "dark" ? "dark" : "light", tokens: tokens };
+    var mode = host.context.theme === "dark" ? "dark" : "light", tokens = {};
+    for (var k in TOKEN_MAP) {
+      var v = vars[TOKEN_MAP[k]];
+      if (!v) continue;
+      v = String(v);
+      if (k.indexOf("--f-") === 0) tokens[k] = v;
+      else { var c = plainColour(v, mode); if (c) tokens[k] = c; }
+    }
+    return { mode: mode, tokens: tokens };
   }
   function onHostContext(ctx) {
     for (var k in ctx) host.context[k] = ctx[k];
