@@ -121,7 +121,10 @@ Rules:
 - A step MUST run on its own: no step imports another step's file. Shared
   helpers are allowed only as files inside `steps/` that every step may
   import; prefer copying the few lines instead, so each step reads top to
-  bottom.
+  bottom. A step MAY read what an earlier step wrote to `out/` (a trained
+  model, for example); if that is missing, it says which step to run first.
+  The smoke test runs steps in manifest order in one directory, so this
+  works there too.
 - Consecutive steps SHOULD differ only in what the step teaches, so that a
   diff of two steps is itself the lesson.
 - A step SHOULD print what it did in plain words (shapes, losses, samples)
