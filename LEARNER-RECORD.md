@@ -62,6 +62,13 @@ style:
   default_level: college
   likes: [technical analogies, numbers to calculate]
   dislikes: [long text without interaction]
+  explain:                       # how to explain (§3.1)
+    start_with: big_picture      # big_picture | example | question
+    analogies: often             # often | sometimes | rarely
+    formulas: when_useful        # avoid | when_useful | always
+    length: short                # short | medium | detailed
+    simulators: when_useful      # rarely | when_useful | often
+    notes: Show the numbers before the formula.
 accessibility:
   reduced_motion: false
   font_scale: 1.0
@@ -84,6 +91,25 @@ The profile steers both **content** (starting level, examples drawn from
 interests, which strengths to build on) and **presentation** (visual
 versus text, pace, accessibility). Schema:
 [schemas/learner-profile.schema.json](schemas/learner-profile.schema.json).
+
+### 3.1 Explanation preferences
+
+A learning element fixes *what* is taught (SPEC.md §6.7); `style.explain`
+says *how* this learner wants it explained. All fields are optional:
+
+| Field | Values | Meaning |
+| --- | --- | --- |
+| `start_with` | `big_picture`, `example`, `question` | Open a step with the overview, a concrete case, or a question to think about. |
+| `analogies` | `often`, `sometimes`, `rarely` | How much to lean on analogies. |
+| `formulas` | `avoid`, `when_useful`, `always` | Whether to show the maths. |
+| `length` | `short`, `medium`, `detailed` | Length of one explanation before the next interaction. |
+| `simulators` | `rarely`, `when_useful`, `often` | How readily to open a simulator. |
+| `notes` | text | Anything else, in the learner's words. |
+
+The tutor asks about these at the start of the first course instead of
+guessing, and updates them whenever the learner says so ("fewer
+simulators, explain more"). Tutor notes in the content (SPEC.md §6.7) take
+precedence where they are binding.
 
 ---
 

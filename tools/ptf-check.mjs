@@ -307,6 +307,7 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
 
     const hs = headings(fm.body);
     for (const req of ["Core", "Misconceptions"]) if (!hs.includes(req)) err(f, `missing required heading "# ${req}"`);
+    if (!d.objectives?.length) warn(f, "no `objectives`: say what the learner can do after this step (SPEC.md §6.1)");
     for (const h of hs) {
       const lm = h.match(/^Level:\s*([a-z0-9-]+)/);
       if (lm && !(d.levels ?? []).includes(lm[1])) warn(f, `"# ${h}" is not in the element's levels`);

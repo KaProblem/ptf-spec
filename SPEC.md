@@ -35,9 +35,11 @@ The key words MUST, SHOULD and MAY are used as in RFC 2119.
 1. **Plain files.** Readable without tooling, diffable in Git, portable.
 2. **Agent-first, human-reviewable.** Most content will be drafted by agents;
    provenance and review status are first-class (inherited from OKF).
-3. **Material, not a script.** A learning element gives the tutor facts,
+3. **Goals and material, not a script.** A learning element says what the
+   learner should be able to do afterwards and gives the tutor facts,
    anchors, misconceptions and questions. The tutor writes the actual
-   explanation for each learner. Ready-made texts are optional.
+   explanation for each learner. Ready-made texts are optional, and
+   simulators are aids the tutor reaches for, not mandatory stops (§6.7).
 4. **Levels everywhere.** Every concept can be explained to a child, a high
    school student, a college student and an expert.
 5. **Self-contained lessons.** Content MUST NOT assume the learner has seen
@@ -192,6 +194,9 @@ title: Softmax                          # REQUIRED
 description: Turns arbitrary numbers into a probability distribution.   # REQUIRED
 lang: en                                # REQUIRED, BCP 47
 levels: [highschool, college, expert]   # REQUIRED, at least 2
+objectives:                             # RECOMMENDED: what the learner can do afterwards
+  - Turn a list of scores into probabilities and explain why they sum to 1.
+  - Predict how a larger score changes the distribution.
 tags: [llm, probability]
 about:                                  # what this is about, as Wikidata items (§6.6)
   - wikidata: Q7554146                  # softmax function
@@ -206,6 +211,7 @@ simulators:
     station: counted-probabilities      # optional entry point
     levels: [highschool, college]       # where it fits
     role: explore                       # explore | practice | check
+    use_when: the learner wants to see probabilities change, not read about them
 code:                                   # optional runnable code (CODE-SPEC.md §4)
   - ref: ptf:code/gpt-from-scratch@^1.0.0
     step: bigram
@@ -221,6 +227,16 @@ version: 1.0.0                          # semver of this element
 license: CC-BY-SA-4.0
 ---
 ```
+
+`objectives` are two to four statements of what the learner can do after
+the step, written so a question can check them ("explain why…", "predict…",
+"compute…"). They are the target of the step: the tutor plans its
+explanation and its checks against them, and tells the learner at the start
+what they are working towards. Elements without `objectives` remain valid;
+`ptf-check` warns.
+
+`use_when` says in one line when a simulator helps, so the tutor can decide
+whether to open it at all (§6.7).
 
 The full schema is [schemas/learning-element.schema.json](schemas/learning-element.schema.json).
 Unknown keys MUST be preserved and MUST NOT cause rejection (OKF rule).
@@ -239,12 +255,14 @@ The body uses these level-1 headings, in this order. Only `# Core` and
 
 | Heading | Required | Content |
 | --- | --- | --- |
+| `# Introduction` | no | Points for opening the step: what it is about, why it matters, what comes out of it. The tutor says it in its own words. |
 | `# Core` | yes | One or two sentences that are true at every level. |
 | `# Key facts` | no | Numbers, definitions, formulas the tutor must get right. |
 | `# Level: <id>` | no | A ready-made explanation for that level (§6.3). |
 | `# Misconceptions` | yes | List of `**<id>**: <wrong belief> → <correct view>`. |
 | `# Questions` | no | Question blocks (§7). |
 | `# Examples` | no | Worked examples, code, calculations. |
+| `# Tutor notes` | no | How the author wants the step taught (§6.7). |
 | `# Further reading` | no | Optional deep-dive material for after the lesson (§6.5). |
 | `# Sources` | no | Footnotes keyed to `sources` (OKF §5.1). |
 
@@ -330,6 +348,25 @@ about:
 - `requires` and `leads_to` stay the source of prerequisite order. Wikidata
   says *what* a concept is, not in which order it is learned.
 
+### 6.7 Recommendations and binding parts
+
+A learning element is a set of recommendations around a fixed core:
+
+- **Binding:** `objectives`, `# Core`, `# Key facts` and `# Misconceptions`.
+  The tutor MUST teach towards the objectives and MUST NOT contradict the
+  core, the key facts or the correct views listed under misconceptions.
+- **Recommended:** level texts, `# Introduction`, `# Examples`, questions and
+  simulators. The tutor adapts or replaces them to fit the learner. A
+  simulator is opened when it helps this learner with this objective (see
+  `use_when` and the learner's preferences), not because it is listed.
+- **Author's choice:** an author who wants more control says so in
+  `# Tutor notes`, in plain words, for example "Follow the steps in this
+  order", "Use the college level text as written", "Always start with the
+  simulator station `guess`". The tutor MUST follow tutor notes, unless
+  they conflict with the learner's safety or the content policy.
+
+A host SHOULD pass `# Tutor notes` to the tutor unchanged.
+
 ---
 
 ## 7. Question Blocks
@@ -399,6 +436,9 @@ title: How GPT works, from scratch
 description: Eight steps from "predict the next character" to a transformer.
 lang: en
 goal: Understand how a GPT-style model is trained and generates text.
+objectives:
+  - Explain how a model turns text into numbers and predicts the next token.
+  - Describe what changes in the model during training and why.
 audience: [highschool, college]
 steps:
   - element: ptf:el/llm-basics/tokenizer
@@ -410,9 +450,17 @@ version: 0.1.0
 ---
 ```
 
-The body MAY describe the path in prose, list planned steps that have no
-element yet, and give the tutor guidance (typical pace, where learners
-usually need a break).
+`objectives` work as for elements (§6.1), for the course as a whole.
+
+The body uses these optional level-1 headings:
+
+| Heading | Content |
+| --- | --- |
+| `# Introduction` | What the course is about, what the learner will be able to do at the end, and how it is built. The tutor opens the course with it, in its own words, before the first step. |
+| `# Steps` | The steps in prose or a table, including planned steps that have no element yet. |
+| `# Tutor notes` | Pace, where learners usually need a break, and anything binding (§6.7). |
+
+Other headings MAY be added.
 
 ---
 

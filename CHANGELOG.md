@@ -6,6 +6,10 @@ before 1.0, minor versions may break compatibility.
 ## [Unreleased]
 
 ### Added
+- Learning goals in the content (SPEC.md §6.1, §6.7, §8): `objectives` for learning elements and paths (two to four checkable statements), optional `# Introduction` and `# Tutor notes` headings, and `use_when` on simulator entries. New §6.7 says what is binding (objectives, Core, Key facts, Misconceptions, tutor notes) and what is only a recommendation (level texts, examples, questions, simulators); authors who want a fixed sequence or fixed texts say so in `# Tutor notes`. `ptf-check` warns about elements without `objectives`.
+- Explanation preferences in the learner profile (LEARNER-RECORD.md §3.1): `style.explain` with `start_with`, `analogies`, `formulas`, `length`, `simulators` and `notes`.
+- PEDAGOGY.md: "Say where you are going" and "Guide the discovery" principles, an Orient phase at the start of each step and course, and simulators as aids rather than mandatory stations.
+- MCP server: `get_learner` returns `progress` (completed elements and completed simulator stations, from the whole event log); `show_simulator` tells the tutor which stations the learner already completed; `list_library` and `search_library` include `objectives` and `use_when`; profile updates merge nested objects, so a partial `style.explain` update keeps the other fields.
 - SIMULATOR-SPEC.md §7 rule 5 "Predict, observe, explain": a station that runs an experiment keeps its controls locked until the learner picks a prediction, gives no hint while picking, judges the prediction only after the result and reports it as `answered`.
 - SIMULATOR-SPEC.md §4.7: simulators start focused on their first station, also standalone, and show progress with direct go-to per station.
 - SIMULATOR-SPEC.md §4.5: canvas and WebGL simulators resolve theme tokens through the browser, because host values such as `light-dark()` turn canvas drawings black.
@@ -38,6 +42,9 @@ before 1.0, minor versions may break compatibility.
 - SPEC.md §6.5 `# Further reading`: optional deep-dive links (e.g. the source video with timestamps) offered after the lesson; `ptf-check` no longer warns about source references in that section.
 - SIMULATOR-SPEC.md §4.7 focus mode: one idea per station, `focus` in the init context and in `ptf/goto`, Back/Next with `experienced` events; `ptf-sim.js` passes `{ focus }` to `onGoto`, `ptf-host.js` `goto(station, { focus })`, `ptf-selftest` accepts `goto: {station, focus}`; MCP `show_simulator` takes `focus` (default on when a station is given) and the tutor skill walks station by station and offers `# Further reading` after a step.
 - SIMULATOR-SPEC.md §4.6 UI languages: how a simulator picks its UI language from `locale`, fallback to the first `lang` entry, English snapshots and events, and a markup pattern for bilingual simulators.
+
+### Changed
+- `ptf-tutor` skill: a session introduces the course (goal, what the learner will be able to do, where they are) before the first step; each step starts with its objective, opens a simulator only when it helps (`use_when`, `style.explain.simulators`), says what to look for and always debriefs what the learner saw; completed steps and stations are recapped instead of restarted; explanation preferences are asked once and updated whenever the learner states them. `ptf-author` asks for objectives, an introduction and `use_when`.
 
 ### Fixed
 - MCP player: host colour tokens are resolved to plain `rgb()` before they reach a simulator.
