@@ -53,6 +53,18 @@ test("detects broken content references", () => {
   assert.match(r.stdout, /misconception "nope" is not defined/);
 });
 
+test("warns about elements without objectives and checks their shape", () => {
+  const lib = copyExample();
+  const el = join(lib, "bundles/demo/elements/counting.md");
+  const src = readFileSync(el, "utf8");
+  writeFileSync(el, src.replace(/objectives:\n(  - .*\n)+/, ""));
+  const r = run(lib);
+  assert.equal(r.status, 0, r.stdout);
+  assert.match(r.stdout, /no `objectives`/);
+  writeFileSync(el, src.replace(/objectives:\n(  - .*\n)+/, "objectives: []\n"));
+  assert.equal(run(lib).status, 1);
+});
+
 test("rejects invalid question blocks", () => {
   const lib = copyExample();
   const el = join(lib, "bundles/demo/elements/counting.md");

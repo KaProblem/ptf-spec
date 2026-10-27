@@ -34,6 +34,15 @@ function writeAtomic(file, text) {
 }
 
 const day = (d) => d.toISOString().slice(0, 10);
+const isObject = (v) => v && typeof v === "object" && !Array.isArray(v);
+
+/** Merges nested objects (style.explain) so a partial update keeps the other fields; arrays and values replace. */
+function merge(old, v) {
+  if (!isObject(v) || !isObject(old)) return v;
+  const out = { ...old };
+  for (const [k, x] of Object.entries(v)) out[k] = merge(old[k], x);
+  return out;
+}
 
 export class LearnerRecord {
   constructor(dir) {
@@ -58,7 +67,7 @@ export class LearnerRecord {
     const { notes: oldNotes, ...data } = current;
     for (const [k, v] of Object.entries(rest)) {
       if (["type", "ptf_version", "learner"].includes(k)) continue;
-      data[k] = v && typeof v === "object" && !Array.isArray(v) && data[k] && typeof data[k] === "object" ? { ...data[k], ...v } : v;
+      data[k] = merge(data[k], v);
     }
     data.updated = new Date().toISOString();
     const body = (notes ?? oldNotes ?? "").trim();
@@ -133,6 +142,33 @@ export class LearnerRecord {
     m.concepts[elementId] = { ...(m.concepts[elementId] ?? {}), ...fields, last_seen: new Date().toISOString() };
     this.#saveMastery(m);
     return m.concepts[elementId];
+  }
+
+  /**
+   * What the learner has done so far, from the whole event log: completed
+   * elements and, per simulator, the stations completed. The tutor uses it
+   * to avoid restarting finished work.
+   */
+  progress() {
+    const f = this.#file("events.jsonl");
+    const out = { elements_completed: [], simulators: {} };
+    if (!existsSync(f)) return out;
+    const done = new Set();
+    for (const line of readFileSync(f, "utf8").split("\n")) {
+      if (!line.trim()) continue;
+      let ev;
+      try { ev = JSON.parse(line); } catch { continue; }
+      const object = String(ev.object ?? "");
+      if (ev.verb === "completed" && object.startsWith("ptf:el/")) done.add(object.split("#")[0]);
+      if (!object.startsWith("ptf:sim/")) continue;
+      const [ref, station] = object.split("#");
+      const id = ref.replace(/(.)@[^@/]+$/, "$1");
+      const sim = out.simulators[id] ??= { stations_completed: [], last_used: null };
+      sim.last_used = ev.at ?? sim.last_used;
+      if (ev.verb === "station_completed" && station && !sim.stations_completed.includes(station)) sim.stations_completed.push(station);
+    }
+    out.elements_completed = [...done];
+    return out;
   }
 
   #stateFile(simId) { return join(this.dir, "state", simId.replace(/[^a-z0-9@._-]+/gi, "_") + ".json"); }

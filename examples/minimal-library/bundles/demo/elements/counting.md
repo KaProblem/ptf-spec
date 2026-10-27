@@ -6,6 +6,9 @@ title: Counting
 description: Each number is one more than the one before.
 lang: en
 levels: [child, highschool]
+objectives:
+  - Count a small set of objects without skipping or repeating one.
+  - Explain why the next number is always one more.
 about:
   - wikidata: Q247154
     label: counting
@@ -14,6 +17,7 @@ simulators:
     station: count
     levels: [child]
     role: explore
+    use_when: the learner wants to see the apples instead of imagining them
 code:
   - ref: ptf:code/counting@^1.0.0
     step: count
@@ -23,6 +27,11 @@ status: draft
 version: 0.1.0
 license: CC-BY-SA-4.0
 ---
+
+# Introduction
+
+- Counting tells us how many things there are.
+- Afterwards the learner can count apples and say what comes next.
 
 # Core
 

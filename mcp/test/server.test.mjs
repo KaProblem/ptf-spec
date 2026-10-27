@@ -48,6 +48,9 @@ test("lists, searches and reads library content", async () => {
   const el = o.bundles[0].elements[0].id;
   const md = (await client.callTool({ name: "get_element", arguments: { id: el } })).content[0].text;
   assert.match(md, /# Core/);
+  const el0 = o.bundles[0].elements[0];
+  assert.equal(el0.objectives.length, 2);
+  assert.match(el0.simulators[0].use_when, /apples/);
 });
 
 test("show_simulator returns launch data and inlined, verified HTML", async () => {
@@ -116,7 +119,24 @@ test("records events and mastery in the learner record", async () => {
   assert.match(readFileSync(join(learnerDir, "profile.md"), "utf8"), /^---\ntype: Learner Profile/);
 });
 
+test("keeps explanation preferences on partial updates", async () => {
+  await client.callTool({ name: "update_learner_profile", arguments: { style: { pace: "fast", explain: { start_with: "example", length: "short" } } } });
+  const p = json(await client.callTool({ name: "update_learner_profile", arguments: { style: { explain: { simulators: "rarely" } } } }));
+  assert.deepEqual(p.style, { pace: "fast", explain: { start_with: "example", length: "short", simulators: "rarely" } });
+});
+
+test("reports completed simulator stations so the tutor does not restart them", async () => {
+  await client.callTool({ name: "ptf_record_event", arguments: { verb: "station_completed", object: "ptf:sim/counter@1.0.0#count",
+    element: "ptf:el/demo/counting" } });
+  await client.callTool({ name: "record_progress", arguments: { verb: "completed", object: "ptf:el/demo/counting" } });
+  const l = json(await client.callTool({ name: "get_learner", arguments: {} }));
+  assert.deepEqual(l.progress.simulators["ptf:sim/counter"].stations_completed, ["count"]);
+  assert.deepEqual(l.progress.elements_completed, ["ptf:el/demo/counting"]);
+  const r = await client.callTool({ name: "show_simulator", arguments: { sim: "counter", station: "count", element: "ptf:el/demo/counting" } });
+  assert.match(r.content[0].text, /already completed station\(s\) count of this simulator, including count: offer a short recap/);
+});
+
 test("offers the tutor prompt", async () => {
   const p = await client.getPrompt({ name: "ptf-tutor", arguments: { goal: "Zählen" } });
-  assert.match(p.messages[0].content.text, /Experience first/);
+  assert.match(p.messages[0].content.text, /Introduce the course/);
 });

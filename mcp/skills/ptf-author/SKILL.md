@@ -54,11 +54,15 @@ own notes instead of reading it yourself.
 
 **New element**: frontmatter per SPEC.md §6.1 (`generated: { by, at }`,
 `sources` for grounding only, `about` with Wikidata items looked up with
-`tools/ptf-wikidata.mjs`, never guessed; SPEC.md §6.6), then `# Core`, `# Key facts`,
+`tools/ptf-wikidata.mjs`, never guessed; SPEC.md §6.6), two to four
+checkable `objectives`, a `use_when` line for each simulator entry, then
+`# Introduction` (what it is about, why it matters), `# Core`, `# Key facts`,
 `# Misconceptions` (each `**<id>**: <wrong belief> → <correct view>`), and
-`# Questions` with at least one `check` question per level. Level texts are
-optional; if you write them, each starts with something to try. Add it to the
-bundle's `index.md` table and to a path's `steps`.
+`# Questions` with at least one `check` question per level and objective.
+Level texts are optional; if you write them, each starts with something to
+try. Put anything the tutor must do in a particular way into `# Tutor notes`
+(SPEC.md §6.7). Add it to the bundle's `index.md` table and to a path's
+`steps`; a path gets `objectives` and an `# Introduction` for the whole course.
 
 **Simulators**: never edit a published `sims/<name>/<version>/`. Copy it to a
 new version directory, set `version`, `derived_from` and `changelog`, then

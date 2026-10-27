@@ -256,8 +256,9 @@ export class Library {
 function summary(d) {
   const m = d.meta;
   return { id: m.id, title: m.title, description: m.description, levels: m.levels ?? m.audience, status: m.status,
+    ...(m.objectives ? { objectives: m.objectives } : {}),
     ...(m.about ? { about: m.about } : {}),
     ...(m.steps ? { steps: m.steps.map((s) => s.element) } : {}),
-    ...(m.simulators ? { simulators: m.simulators.map((s) => ({ ref: s.ref, station: s.station, levels: s.levels, role: s.role })) } : {}),
+    ...(m.simulators ? { simulators: m.simulators.map((s) => ({ ref: s.ref, station: s.station, levels: s.levels, role: s.role, use_when: s.use_when })) } : {}),
     ...(m.code ? { code: m.code.map((c) => ({ ref: c.ref, step: c.step, levels: c.levels })) } : {}) };
 }

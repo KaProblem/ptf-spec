@@ -76,6 +76,50 @@
           "items": {
             "type": "string"
           }
+        },
+        "explain": {
+          "type": "object",
+          "description": "How the learner wants things explained (LEARNER-RECORD.md §3.1).",
+          "properties": {
+            "start_with": {
+              "enum": [
+                "big_picture",
+                "example",
+                "question"
+              ]
+            },
+            "analogies": {
+              "enum": [
+                "often",
+                "sometimes",
+                "rarely"
+              ]
+            },
+            "formulas": {
+              "enum": [
+                "avoid",
+                "when_useful",
+                "always"
+              ]
+            },
+            "length": {
+              "enum": [
+                "short",
+                "medium",
+                "detailed"
+              ]
+            },
+            "simulators": {
+              "enum": [
+                "rarely",
+                "when_useful",
+                "often"
+              ]
+            },
+            "notes": {
+              "type": "string"
+            }
+          }
         }
       }
     },

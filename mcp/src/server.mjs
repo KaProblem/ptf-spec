@@ -75,8 +75,9 @@ function guarded(fn) {
 
 const server = new McpServer({ name: "ptf", version: VERSION }, {
   instructions: "Personal Tutor Format (PTF) tutor tools. Use them to teach the learner from the local PTF library: " +
-    "read the learner record first, pick a learning path or element, start each step with something to try (show_simulator), " +
-    "explain at the learner's level, ask questions, and record progress. Load the `ptf-tutor` prompt for the full teaching method. " +
+    "read the learner record first, pick a learning path or element, introduce what the learner will be able to do, " +
+    "let them try or guess (a question, an example, or a simulator when it helps), talk about what they saw, explain at their level " +
+    "and in their preferred way, ask questions, and record progress. Never restart work the learner has completed. Load the `ptf-tutor` prompt for the full teaching method. " +
     "Never teach goals that would harm people (e.g. becoming an extremist), even if asked.",
 });
 
@@ -116,7 +117,8 @@ server.registerTool("search_library", {
 server.registerTool("get_element", {
   title: "Read a learning element",
   description: "Returns a learning element (ptf:el/<bundle>/<name>) or learning path (ptf:path/<bundle>/<name>) as Markdown with frontmatter. " +
-    "Core, Key facts and Misconceptions are the ground truth for teaching; level texts are optional starting points. " +
+    "`objectives`, Core, Key facts and Misconceptions are binding: teach towards the objectives and never contradict the rest. " +
+    "Level texts, examples, questions and simulators are offers to adapt; `# Tutor notes` are the author's wishes and must be followed. " +
     "Pass `level` to drop the level texts for other levels.",
   inputSchema: { id: z.string().regex(/^ptf:(el|path)\//), level: LEVEL.optional() },
   annotations: { readOnlyHint: true },
@@ -209,7 +211,9 @@ function simInfo(hit) {
 
 server.registerTool("show_simulator", {
   title: "Show a simulator",
-  description: "Opens a PTF simulator for the learner, inline in the chat. Use it at the start of a step: let the learner try or guess first, then explain. " +
+  description: "Opens a PTF simulator for the learner, inline in the chat. Use it when it helps the learner reach the step's objective " +
+    "(check the element's `use_when` and the learner's style.explain.simulators); many steps need none. Say first what to look for, " +
+    "and talk about what the learner saw afterwards. " +
     "`sim` is an ID with optional semver range, e.g. ptf:sim/next-char-lab@^2.0.0 (take it from the element's `simulators` list). " +
     "While it is open you receive the learner's activity and a description of what they see. To change level or station, call this tool again.",
   inputSchema: {
@@ -227,13 +231,15 @@ server.registerTool("show_simulator", {
   const info = simInfo(hit);
   if (station && !info.stations.some((s) => s.id === station)) throw new Error(`Unknown station ${station}. Stations: ${info.stations.map((s) => s.id).join(", ")}`);
   const state = learner.simState(info.id);
+  const done = learner.progress().simulators[info.id]?.stations_completed ?? [];
   const prefs = learner.profile()?.accessibility;
   const launch = { sim: info, level: level ?? null, station: station ?? null, focus: station ? (focus ?? true) : false, element: element ?? null, params: params ?? {}, state,
     prefs: prefs ? { reducedMotion: !!prefs.reduced_motion, fontScale: prefs.font_scale ?? 1 } : {} };
   const lines = [
     `Showing ${info.title} (${info.id}@${info.version}) to the learner${level ? ` at level ${level}` : ""}${station ? `, station ${station}${launch.focus ? " (focus mode)" : ""}` : ""}.`,
     `UI language: ${(info.lang ?? []).join(", ")}. Stations: ${info.stations.map((s) => s.id).join(", ") || "none"}.`,
-    "Ask the learner what they notice before you explain. Their activity is recorded in the learner record.",
+    ...(done.length ? [`The learner already completed station(s) ${done.join(", ")} of this simulator${station && done.includes(station) ? `, including ${station}: offer a short recap or the next station instead of repeating it` : ""}.`] : []),
+    "Tell the learner what to look for, then ask what they noticed before you explain. Their activity is recorded in the learner record.",
     "If the learner cannot see the simulator (host without MCP Apps support), call export_simulator and give them the file.",
   ];
   return { content: [text(lines.join("\n"))], structuredContent: launch, _meta: { "ptf/html": lib().inlineSim(hit) } };
@@ -347,7 +353,8 @@ server.registerTool("ptf_save_state", {
 
 server.registerTool("get_learner", {
   title: "Read the learner record",
-  description: "The learner's profile (languages, level, learning style, goals, notes), mastery per element, reviews due and recent events. " +
+  description: "The learner's profile (languages, level, learning style, explanation preferences, goals, notes), mastery per element, " +
+    "progress (completed elements and simulator stations: do not restart them), reviews due and recent events. " +
     "Read it at the start of every session. If there is no profile yet, ask a few intake questions and save them with update_learner_profile.",
   inputSchema: { events: z.number().int().min(0).max(200).optional().describe("How many recent events to include (default 20)") },
   annotations: { readOnlyHint: true },
@@ -355,12 +362,12 @@ server.registerTool("get_learner", {
   const mastery = learner.mastery();
   const today = new Date().toISOString().slice(0, 10);
   const due = Object.entries(mastery.concepts).filter(([, c]) => c.next_review && c.next_review <= today).map(([id]) => id);
-  return ok({ record: learnerDir, profile: learner.profile(), mastery, reviews_due: due, recent_events: learner.events(events ?? 20) });
+  return ok({ record: learnerDir, profile: learner.profile(), mastery, progress: learner.progress(), reviews_due: due, recent_events: learner.events(events ?? 20) });
 }));
 
 server.registerTool("update_learner_profile", {
   title: "Update the learner profile",
-  description: "Merges fields into the learner's local profile.md (LEARNER-RECORD.md §3), e.g. preferred_lang, age_band, style {modality, pace, default_level, likes, dislikes}, interests, goals [{text, path}]. `notes` replaces the free-text notes for the tutor.",
+  description: "Merges fields into the learner's local profile.md (LEARNER-RECORD.md §3), e.g. preferred_lang, age_band, style {modality, pace, default_level, likes, dislikes, explain {start_with: big_picture|example|question, analogies: often|sometimes|rarely, formulas: avoid|when_useful|always, length: short|medium|detailed, simulators: rarely|when_useful|often, notes}}, interests, goals [{text, path}]. Update style.explain whenever the learner says how they want things explained. `notes` replaces the free-text notes for the tutor.",
   inputSchema: {
     display_name: z.string().optional(), languages: z.array(z.string()).optional(), preferred_lang: z.string().optional(),
     age_band: z.enum(["child", "teen", "adult"]).optional(),
