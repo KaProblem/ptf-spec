@@ -5,6 +5,7 @@
 //   ptf-check hash <pkg-dir>     print the integrity hash of a simulator package or code lab
 //   ptf-check hash --write <pkg-dir>   ... and write it into sim.json / lab.json
 //   ptf-check lock <bundle-dir>  write ptf.lock with the highest version matching each range
+//   ptf-check catalog [--write] <library-root>   regenerate the packages of ptf-catalog.json (CATALOG.md)
 //
 // Exit code 1 if any error was found. Warnings do not fail the run.
 
@@ -130,6 +131,9 @@ export function integrityOf(simDir, manifestName = existsSync(join(simDir, "lab.
   }
   return "sha256-" + createHash("sha256").update(text).digest("base64");
 }
+
+/** Tree digest of a whole package directory, manifest included (CATALOG.md §2.1). */
+export const digestOf = (dir) => integrityOf(dir, null);
 
 // ---------- simulators ----------
 
@@ -410,6 +414,66 @@ function simRootsFor(bundleDir, libraryRoot, kind = "sims") {
   return [...new Set(roots)];
 }
 
+// ---------- catalogs ----------
+
+const CATALOG_FILE = "ptf-catalog.json";
+
+/** Every package of a library as catalog entries (CATALOG.md §2), sorted. */
+function catalogPackages(root, onError = err) {
+  const bundles = findBundles(root);
+  const inBundle = (d) => bundles.some((b) => d.startsWith(b + sep));
+  const rel = (d) => relative(root, d).split(sep).join("/");
+  const out = [];
+  for (const b of bundles) {
+    const file = join(b, "index.md");
+    const fm = parseFrontmatter(readFileSync(file, "utf8"))?.data ?? {};
+    if (!fm.version) { onError(file, "a bundle needs a version to be listed in ptf-catalog.json"); continue; }
+    out.push({ kind: "bundle", id: fm.id, version: String(fm.version), title: fm.title, ...(fm.description ? { summary: fm.description } : {}), path: rel(b), digest: digestOf(b) });
+  }
+  for (const [kind, manifestName] of [["sim", "sim.json"], ["code", "lab.json"]]) {
+    for (const f of walk(root)) {
+      if (!f.endsWith(`${sep}${manifestName}`)) continue;
+      const d = dirname(f);
+      if (inBundle(d)) continue;
+      let m;
+      try { m = JSON.parse(readFileSync(f, "utf8")); } catch { continue; }
+      if (!m.id || !m.version) continue;
+      out.push({ kind, id: m.id, version: m.version, title: m.title ?? m.id, ...(m.description ? { summary: m.description } : {}), path: rel(d), digest: digestOf(d) });
+    }
+  }
+  const order = { bundle: 0, sim: 1, code: 2 };
+  return out.sort((a, b) => order[a.kind] - order[b.kind] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) || semver.compare(a.version, b.version));
+}
+
+function buildCatalog(root) {
+  const file = join(root, CATALOG_FILE);
+  const base = existsSync(file)
+    ? JSON.parse(readFileSync(file, "utf8"))
+    : { ptf_catalog: "0.1", id: `local.${root.split(sep).pop().toLowerCase().replace(/[^a-z0-9-]+/g, "-")}`, title: root.split(sep).pop(), publisher: "unknown", auth: { type: "none" }, cache: "shared" };
+  return { ...base, packages: catalogPackages(root, (f, m) => { console.error(`${f}: ${m}`); process.exitCode = 1; }) };
+}
+
+function checkCatalog(root) {
+  const file = join(root, CATALOG_FILE);
+  let c;
+  try { c = JSON.parse(readFileSync(file, "utf8")); } catch (e) { return err(file, `invalid JSON: ${e.message}`); }
+  for (const e of schemaErrors("catalog", c)) err(file, e);
+  if (!Array.isArray(c.packages)) return;
+  const key = (p) => `${p.kind} ${p.id}@${p.version}`;
+  const listed = new Map(c.packages.map((p) => [key(p), p]));
+  if (listed.size !== c.packages.length) err(file, "a package is listed twice");
+  const actual = catalogPackages(root, () => {});
+  const found = new Map(actual.map((p) => [key(p), p]));
+  for (const [k, p] of listed) {
+    if (!p.path) continue;
+    const a = found.get(k);
+    if (!a) err(file, `${k}: no such package in this library`);
+    else if (a.path !== p.path) err(file, `${k}: path is ${a.path}, not ${p.path}`);
+    else if (a.digest !== p.digest) err(file, `${k}: digest differs from the files (run: ptf-check catalog --write ${root})`);
+  }
+  for (const k of found.keys()) if (!listed.has(k)) err(file, `${k} is not listed (run: ptf-check catalog --write ${root})`);
+}
+
 // ---------- commands ----------
 
 function cmdCheck(root) {
@@ -421,6 +485,7 @@ function cmdCheck(root) {
   const bundles = findBundles(root);
   let docs = 0;
   for (const b of bundles) docs += checkBundle(b, indexSims(simRootsFor(b, root)), indexSims(simRootsFor(b, root, "code"), "lab.json"));
+  if (existsSync(join(root, CATALOG_FILE))) checkCatalog(root);
   const labs = labDirs.length ? `, ${labDirs.length} code lab version(s)` : "";
   console.log(`\nptf-check: ${bundles.length} bundle(s), ${docs} document(s), ${simDirs.length} simulator version(s)${labs} · ${results.errors} error(s), ${results.warnings} warning(s)`);
   process.exit(results.errors ? 1 : 0);
@@ -464,8 +529,19 @@ function cmdLock(dir, libraryRoot) {
   console.log(`wrote ${join(dir, "ptf.lock")} (${Object.keys(out.simulators).length} simulator(s)${labs})`);
 }
 
+function cmdCatalog(args) {
+  const write = args.includes("--write");
+  const root = resolve(args.find((a) => a !== "--write") ?? ".");
+  const text = JSON.stringify(buildCatalog(root), null, 2) + "\n";
+  if (write) {
+    writeFileSync(join(root, CATALOG_FILE), text);
+    console.log(`wrote ${join(root, CATALOG_FILE)}`);
+  } else process.stdout.write(text);
+}
+
 const [cmd, ...rest] = process.argv.slice(2);
 if (cmd === "hash") cmdHash(rest);
 else if (cmd === "lock") cmdLock(rest[0] ?? ".", rest[1]);
-else if (cmd === "-h" || cmd === "--help") console.log("usage: ptf-check [dir] | hash [--write] <sim-or-lab-dir> | lock <bundle-dir> [library-root]");
+else if (cmd === "catalog") cmdCatalog(rest);
+else if (cmd === "-h" || cmd === "--help") console.log("usage: ptf-check [dir] | hash [--write] <sim-or-lab-dir> | lock <bundle-dir> [library-root] | catalog [--write] <library-root>");
 else cmdCheck(cmd ?? ".");
