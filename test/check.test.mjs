@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -9,9 +9,11 @@ const CHECK = new URL("../tools/ptf-check.mjs", import.meta.url).pathname;
 const EXAMPLE = new URL("../examples/minimal-library", import.meta.url).pathname;
 const run = (...args) => spawnSync(process.execPath, [CHECK, ...args], { encoding: "utf8" });
 
-function copyExample() {
+// Without ptf-catalog.json unless asked: edits would otherwise also fail its digests.
+function copyExample({ catalog = false } = {}) {
   const dir = join(mkdtempSync(join(tmpdir(), "ptf-")), "lib");
   cpSync(EXAMPLE, dir, { recursive: true });
+  if (!catalog) rmSync(join(dir, "ptf-catalog.json"));
   return dir;
 }
 
@@ -148,4 +150,46 @@ test("checks Wikidata subject anchors", () => {
   writeFileSync(el, text.replace("status: draft", "status: reviewed"));
   r = run(lib);
   assert.match(r.stdout, /status reviewed without `about`/);
+});
+
+test("catalog lists every package with its digest and catches drift", () => {
+  const lib = copyExample({ catalog: true });
+  const file = join(lib, "ptf-catalog.json");
+  const catalog = JSON.parse(readFileSync(file, "utf8"));
+  assert.deepEqual(catalog.packages.map((p) => `${p.kind} ${p.id}@${p.version} ${p.path}`), [
+    "bundle demo@0.1.0 bundles/demo",
+    "sim ptf:sim/counter@1.0.0 sims/counter/1.0.0",
+    "code ptf:code/counting@1.0.0 code/counting/1.0.0",
+  ]);
+  const el = join(lib, "bundles/demo/elements/counting.md");
+  writeFileSync(el, readFileSync(el, "utf8") + "\nOne more line.\n");
+  cpSync(join(lib, "sims/counter/1.0.0"), join(lib, "sims/counter/1.0.1"), { recursive: true });
+  const sim = join(lib, "sims/counter/1.0.1/sim.json");
+  writeFileSync(sim, readFileSync(sim, "utf8").replace('"version": "1.0.0"', '"version": "1.0.1"'));
+  let r = run(lib);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /bundle demo@0\.1\.0: digest differs from the files/);
+  assert.match(r.stdout, /sim ptf:sim\/counter@1\.0\.1 is not listed/);
+
+  r = run("catalog", "--write", lib);
+  assert.equal(r.status, 0, r.stderr);
+  const rewritten = JSON.parse(readFileSync(file, "utf8"));
+  assert.equal(rewritten.title, catalog.title, "header fields are kept");
+  assert.equal(rewritten.packages.length, 4);
+  assert.match(run(lib).stdout, /0 error\(s\)/);
+});
+
+test("catalog schema rejects bad ids, auth and digests", () => {
+  const lib = copyExample({ catalog: true });
+  const file = join(lib, "ptf-catalog.json");
+  const catalog = JSON.parse(readFileSync(file, "utf8"));
+  catalog.id = "Not A Domain";
+  catalog.auth = { type: "oauth2" };
+  catalog.packages[0].digest = "md5-abc";
+  writeFileSync(file, JSON.stringify(catalog));
+  const r = run(lib);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /\/id must match pattern/);
+  assert.match(r.stdout, /\/auth must have required property 'authorization_endpoint'/);
+  assert.match(r.stdout, /\/packages\/0\/digest must match pattern/);
 });

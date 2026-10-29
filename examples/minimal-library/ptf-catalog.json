@@ -1,0 +1,40 @@
+{
+  "ptf_catalog": "0.1",
+  "id": "org.example.minimal-library",
+  "title": "Minimal example library",
+  "publisher": "PTF specification examples",
+  "description": "The smallest useful PTF library, used by the tests.",
+  "auth": {
+    "type": "none"
+  },
+  "cache": "shared",
+  "packages": [
+    {
+      "kind": "bundle",
+      "id": "demo",
+      "version": "0.1.0",
+      "title": "Demo bundle",
+      "summary": "The smallest useful PTF bundle, used by the tests.",
+      "path": "bundles/demo",
+      "digest": "sha256-nZaY6PlLYFlT/cpIKuyq7dojh3yPWO57AjXVk3FrjSw="
+    },
+    {
+      "kind": "sim",
+      "id": "ptf:sim/counter",
+      "version": "1.0.0",
+      "title": "Apple counter",
+      "summary": "Add apples one by one and count them.",
+      "path": "sims/counter/1.0.0",
+      "digest": "sha256-18d+BTKZIa06QcLzpVD64kKhtfOfwI27kvXPDKIYCzE="
+    },
+    {
+      "kind": "code",
+      "id": "ptf:code/counting",
+      "version": "1.0.0",
+      "title": "Counting lab",
+      "summary": "Count to ten in code, then to any number in any step size.",
+      "path": "code/counting/1.0.0",
+      "digest": "sha256-uT99Nzivl1Ae8iy4vcoKvSIvliLeFTHaO6gVZBYwMgE="
+    }
+  ]
+}
