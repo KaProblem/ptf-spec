@@ -44,6 +44,9 @@ before 1.0, minor versions may break compatibility.
 - SIMULATOR-SPEC.md §4.6 UI languages: how a simulator picks its UI language from `locale`, fallback to the first `lang` entry, English snapshots and events, and a markup pattern for bilingual simulators.
 
 ### Changed
+- Levels are depths, not parts (SPEC.md §5.2, new): every level of an element covers Core, every objective and the central misconceptions, so a learner who works through one level has the whole concept; higher levels add terms, formulas, limits and harder tasks but no missing piece. Level texts must stand on their own (§6.3). Simulator stations that teach part of a concept are available at every level and change depth inside; restricted station `levels` are only for stations of elements without the lower levels or for optional deepening (SIMULATOR-SPEC.md §2, §7 rule 4); offering a station at more levels is a minor version. Custom levels move to §5.3. PEDAGOGY.md, the `ptf-author` and `ptf-tutor` skills and the `get_element` description say the same ("go deeper" = the same concept one level up, never the next part).
+- `ptf-check` warns when a level of an element has no `check` question, and when an element has level texts for some of its levels but not for all.
+- Minimal example: `demo/counting` 0.2.0 gets a highschool level text and a highschool `check` question.
 - `ptf-tutor` skill: a session introduces the course (goal, what the learner will be able to do, where they are) before the first step; each step starts with its objective, opens a simulator only when it helps (`use_when`, `style.explain.simulators`), says what to look for and always debriefs what the learner saw; completed steps and stations are recapped instead of restarted; explanation preferences are asked once and updated whenever the learner states them. `ptf-author` asks for objectives, an introduction and `use_when`.
 
 ### Fixed

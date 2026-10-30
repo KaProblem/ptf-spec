@@ -41,8 +41,9 @@ sims/<name>/<version>/
   "concepts": ["tokenizer", "bigram", "softmax", "cross-entropy", "sampling", "temperature"],
   "levels": ["highschool", "college", "expert"],
   "stations": [
-    { "id": "guess", "title": "Guess the next character", "levels": ["highschool"] },
-    { "id": "softmax", "title": "Softmax", "levels": ["highschool", "college"] }
+    { "id": "guess", "title": "Guess the next character" },
+    { "id": "softmax", "title": "Softmax" },
+    { "id": "logits-derivation", "title": "Why e^x: the derivation", "levels": ["expert"] }
   ],
   "entry": "index.html",
   "params": {
@@ -70,7 +71,7 @@ sims/<name>/<version>/
 | `lang` | yes | UI languages (BCP 47); the first entry is the fallback (§4.6). |
 | `concepts` | yes | Free-form concept tags, used for search. |
 | `levels` | yes | Levels the simulator supports (SPEC.md §5). |
-| `stations` | no | Independently addressable parts. Each has `id`, `title`, optional `levels`. |
+| `stations` | no | Independently addressable parts. Each has `id`, `title`, optional `levels` (default: all of the simulator's levels; see below). |
 | `entry` | no | Entry file, default `index.html`. |
 | `params` | no | JSON Schema for parameters the host may pass at init (H5P principle: code vs. content). |
 | `events` | no | Event verbs the simulator emits (§4.3). |
@@ -80,6 +81,16 @@ sims/<name>/<version>/
 | `derived_from` | no | `ptf:sim/<name>@<version>` it was forked from. |
 | `changelog` | no | What changed in this version. |
 | `integrity` | yes | Hash over all package files except `sim.json` (§2.1). |
+
+**Station levels are depths, not parts** (SPEC.md §5.2). A station that
+teaches part of a concept is available at every level of the simulator, or
+at least at every level of the elements that use it, and changes its depth
+inside (labels, formulas, number of controls, harder tasks; §7 rule 4).
+Restricting a station's `levels` is for two cases only: the station belongs
+to an element that does not offer the lower levels, or it is optional
+deepening that the concept is complete without (a derivation, the numerical
+method behind the simulation, a variant). In focus mode the stations of one
+level, walked with Next, then always teach the whole concept.
 
 Schema: [schemas/sim-manifest.schema.json](schemas/sim-manifest.schema.json).
 
@@ -102,7 +113,7 @@ separators, byte order), each contributing:
 | Change | Bump |
 | --- | --- |
 | Remove or rename a station, parameter, event or supported level; change message semantics | major |
-| Add a station, optional parameter, event, level or UI language | minor |
+| Add a station, optional parameter, event, level or UI language; offer a station at more levels | minor |
 | Bug fix, wording, design, performance | patch |
 
 Old versions stay available. A deprecated version keeps working and is
@@ -407,7 +418,11 @@ simulator should be.
    §4.7) and emits `station_completed` when its task is done.
 4. **Levels.** Mark content per level (`data-levels="highschool college"`);
    switching level via `ptf/setLevel` shows and hides content without a
-   reload.
+   reload. Levels change the depth of a station, not which ideas are taught
+   (§2, SPEC.md §5.2): a lower level gets the same idea with plainer words,
+   fewer numbers and an easier task; a higher level adds the formula, the
+   terminology and a harder task. Do not split a concept into stations per
+   level ("beginner stations", "advanced stations").
 5. **Predict, observe, explain.** A station begins with something to try or
    guess, then explains. Where a station runs an experiment, the learner
    first commits to a prediction: the controls that start or change the

@@ -99,9 +99,12 @@ wishes and win over the defaults below.
    shows one). Record `understood`, `deeper`, `rephrase` and `stuck` when the
    learner says so, and `completed` when the step's objectives are met.
 7. **Check in**: offer "go deeper", "explain differently", or "next step".
-   Go deeper with the next level. Explain differently with a new analogy, an
-   example, a drawing in words, or a simulator station, not with more of
-   the same words.
+   Go deeper with the next level: the same concept again with more theory,
+   terms and harder questions. A level is a depth, not a part (SPEC.md §5.2):
+   the learner completes an element at their own level and never has to go
+   through the other levels to get the whole concept. Explain differently
+   with a new analogy, an example, a drawing in words, or a simulator
+   station, not with more of the same words.
 8. **Close the step** with one sentence on what the learner can now do
    (the objective, in their words if they said it) and what comes next.
 9. **Build it (optional).** If the element lists `code` and the learner
