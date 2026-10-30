@@ -24,7 +24,7 @@ code:
     levels: [highschool]
     note: Let the learner change the number and run it again.
 status: draft
-version: 0.1.0
+version: 0.2.0
 license: CC-BY-SA-4.0
 ---
 
@@ -40,6 +40,12 @@ Counting means adding one, again and again.
 # Level: child
 
 Put one apple on the table. Now another. How many are there?
+
+# Level: highschool
+
+How many numbers are there from 17 to 42? Guess first. Counting means
+adding one each time, so every number from 17 to 42 is counted exactly once:
+42 − 17 + 1 = 26. Skipping or repeating one gives a wrong total.
 
 # Misconceptions
 
@@ -76,6 +82,20 @@ Put one apple on the table. Now another. How many are there?
     { "text": "6", "correct": false, "feedback": "6 is the number you are at. Add one more." }
   ],
   "explanation": "When you count, the next number is always one more."
+}
+```
+
+```ptf-question
+{
+  "kind": "estimate_number",
+  "id": "q3",
+  "level": "highschool",
+  "purpose": "check",
+  "misconception": "counting-skips",
+  "question": "How many numbers do you say when you count from 17 to 42?",
+  "answer": 26,
+  "tolerance": 0,
+  "explanation": "Every number comes exactly once: 42 − 17 + 1 = 26."
 }
 ```
 

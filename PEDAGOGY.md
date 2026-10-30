@@ -99,9 +99,20 @@ elements).
   `requires`.
 - **Anchors and analogies** go into `# Examples`, each with a "breaks down
   when" line, so the tutor can choose one that fits the learner.
+- **Levels are depths, not parts** (SPEC.md §5.2). Each level teaches the
+  whole concept: the beginner level as simply as possible, higher levels the
+  same ideas with more terms, formulas, limits and harder tasks. Test it by
+  imagining a learner who only ever sees one level: can they reach every
+  objective? If temperature is an objective of softmax, the highschool text
+  needs it too ("the die gets more or less fair"), not only the college text
+  (`softmax(z / T)`). Concepts that build on each other become separate
+  elements connected by `requires`, not levels of one element.
 - **Level texts** start with something to try or picture (SPEC.md §6), use the
-  anchor that fits the level, and stay short. The tutor adapts them anyway.
-- **Questions.** At least one `warmup` and one `check` question per level.
+  anchor that fits the level, stand on their own (never "as above") and stay
+  short. The tutor adapts them anyway.
+- **Questions.** At least one `warmup` and one `check` question per level,
+  each asking about the concept at that level's depth (a beginner computes
+  with three numbers, an expert explains a limit).
   Wrong options in multiple-choice questions are real misconceptions with their
   IDs, not filler.
 

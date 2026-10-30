@@ -126,7 +126,7 @@ description: From next-character prediction to self-attention, built up step by 
 lang: en
 license: CC-BY-SA-4.0
 version: 0.1.0
-levels:                 # optional: custom levels in addition to the defaults (§5.2)
+levels:                 # optional: custom levels in addition to the defaults (§5.3)
   - id: practitioner
     rank: 2.5
     description: Working developers without a math background.
@@ -171,7 +171,34 @@ Scoped simulator names for personal forks MAY use `ptf:sim/@<scope>/<name>`.
 A learning element MUST cover at least two levels and SHOULD cover adjacent
 ones, so a tutor can step up or down.
 
-### 5.2 Custom levels
+### 5.2 Levels are depths, not parts
+
+A level says **how deep** a concept is taught, never **which part** of it.
+A learner who works through an element at any one of its levels has learned
+the whole concept at that depth and never needs another level to complete it.
+
+- Every level of an element covers `# Core`, every objective and the central
+  misconceptions. The lowest level explains them as simply as possible; a
+  higher level explains the same things with more terminology, formulas,
+  derivations, limits and harder tasks.
+- A higher level MAY add depth (a derivation, a variant, an edge case) that
+  lower levels leave out. It MUST NOT carry a piece of the concept that the
+  lower levels lack. If a piece is needed to reach an objective, every level
+  gets it, simplified where necessary.
+- Each level text stands on its own (§6.3). It never assumes that the
+  learner read another level's text ("as above", "building on the
+  highschool level").
+- Questions follow the same rule: every level SHOULD have at least one
+  `check` question that tests the objectives at that depth (§7).
+- Simulators follow it too (SIMULATOR-SPEC.md §2, §7 rule 4): a station
+  that teaches part of a concept is available at every level of the elements
+  that use it; stations offered only at higher levels are optional
+  deepening.
+
+"Go deeper" therefore means: the same concept again, one level up. It is an
+offer, not the next part of the lesson.
+
+### 5.3 Custom levels
 
 A bundle MAY define additional levels in its `index.md` under `levels`, each
 with an `id` and a numeric `rank`. Consumers MUST order unknown levels by
@@ -276,6 +303,9 @@ Level texts are **optional**. Without them, the tutor composes an explanation
 from Core, Key facts and Misconceptions. With them, the tutor MAY use the text
 as is or adapt it to the learner.
 
+- Each level text MUST be complete on its own: it reaches every objective
+  at its depth and does not build on another level text (§5.2). A tutor
+  usually receives only the text for the learner's level.
 - Each level text SHOULD start with something to try or guess, not with a
   definition.
 - A level text MAY carry a version marker on the line below the heading:

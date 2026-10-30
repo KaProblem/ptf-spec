@@ -59,8 +59,10 @@ checkable `objectives`, a `use_when` line for each simulator entry, then
 `# Introduction` (what it is about, why it matters), `# Core`, `# Key facts`,
 `# Misconceptions` (each `**<id>**: <wrong belief> → <correct view>`), and
 `# Questions` with at least one `check` question per level and objective.
+Levels are depths, not parts (SPEC.md §5.2): every level covers Core, all
+objectives and the central misconceptions, higher levels only go deeper.
 Level texts are optional; if you write them, each starts with something to
-try. Put anything the tutor must do in a particular way into `# Tutor notes`
+try and stands on its own, because the tutor usually sees only one of them. Put anything the tutor must do in a particular way into `# Tutor notes`
 (SPEC.md §6.7). Add it to the bundle's `index.md` table and to a path's
 `steps`; a path gets `objectives` and an `# Introduction` for the whole course.
 

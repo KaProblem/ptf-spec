@@ -119,7 +119,7 @@ server.registerTool("get_element", {
   description: "Returns a learning element (ptf:el/<bundle>/<name>) or learning path (ptf:path/<bundle>/<name>) as Markdown with frontmatter. " +
     "`objectives`, Core, Key facts and Misconceptions are binding: teach towards the objectives and never contradict the rest. " +
     "Level texts, examples, questions and simulators are offers to adapt; `# Tutor notes` are the author's wishes and must be followed. " +
-    "Pass `level` to drop the level texts for other levels.",
+    "Pass `level` to drop the level texts for other levels; every level covers the whole concept at its depth, so the learner never needs another level to complete the element.",
   inputSchema: { id: z.string().regex(/^ptf:(el|path)\//), level: LEVEL.optional() },
   annotations: { readOnlyHint: true },
 }, guarded(async ({ id, level }) => {
