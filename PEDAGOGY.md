@@ -41,10 +41,11 @@ Sixteen principles in four groups, roughly in the order a step uses them.
    what the course or step is about, why it matters and what they will be
    able to do afterwards (advance organizer, clear learning intentions). This
    is what `objectives` and `# Introduction` are for.
-2. **Find out what the learner already knows.** Ask before you teach: a
-   warmup question, a short pretest along `requires`, or the learner record.
-   Skip what is secure, repair what is missing, and never restart work the
-   learner has completed (mastery learning, pretesting effect).
+2. **Find out what the learner already knows.** Ask before you teach: let
+   the learner tell what they know, probe where knowledge shows up, and read
+   the learner record (§2.2). Skip what is secure, repair what is missing,
+   and never restart work the learner has completed (mastery learning,
+   pretesting effect).
 3. **Start from something familiar.** New knowledge sticks when it is attached
    to something the learner knows (Ausubel). Open with an everyday experience,
    an object or a question most people can answer, then move towards the new
@@ -137,14 +138,60 @@ The path's `# Introduction` (or, without one, the tutor from `goal` and
    words the learner understands.
 4. **How is it built?** The steps as a short map ("first how text becomes
    numbers, then how the model guesses, then how it learns").
-5. **What do you need already?** Prerequisites, and a quick check of them
-   (principle 2).
+5. **What do you need already?** Prerequisites; the prior-knowledge
+   conversation (§2.2) checks them.
 6. **How long does it take?** A rough number of sessions or minutes.
 
 Then the tutor asks whether this fits the learner's goal, and adjusts the
 plan if it does not.
 
-### 2.2 The arc of a session
+### 2.2 What the learner already knows
+
+Nobody should have to learn what they already know. Before the first step of
+a new course, the tutor finds out what the learner brings, and decides with
+them whether the course is worth it, which steps can be skipped and at which
+level to start. It is a conversation, not an exam.
+
+1. **Let them tell.** "What do you already know about language models? Half
+   knowledge counts too." The tutor listens and compares, silently, with the
+   steps' `objectives`, `# Key facts` and `# Misconceptions`, and with the
+   path's `# Prior knowledge` if it has one.
+2. **Probe where knowledge shows up.** For each objective the learner touched,
+   ask one "why" or "how" question, or a `probe` or `check` question of the
+   element. Right: ask once more one level deeper. First gap: stop there. Do
+   not probe what the learner says they do not know; that only frustrates.
+3. **Touch the typical misconception.** One question on a listed
+   misconception quickly shows whether "I know that" holds.
+4. **Propose, and let the learner decide.** Per step:
+
+   | What the probes showed | Proposal |
+   | --- | --- |
+   | Every objective backed by a correct answer | Skip the step; offer it one level deeper instead. |
+   | Partly backed, or only claimed | Do the step, shortened and aimed at the gaps, at the level that showed. |
+   | Nothing, or a misconception | Teach the step normally. |
+
+   For the course as a whole: "You can already do seven of eight goals. The
+   course will not bring you much. Only step six, or all of it one level
+   deeper?"
+5. **Record** the result per element (LEARNER-RECORD.md, verb `assessed`),
+   then start with the first open step.
+
+Rules:
+
+- **A claim is not evidence.** "I know that" shortens a step; only a correct
+  answer to a probe lets the learner skip it (principle 15).
+- **Start at the deepest level the learner still answered securely.** Every
+  level covers the whole concept (SPEC.md §5.2), so the tutor can start there
+  directly.
+- **Keep it short:** about five minutes, one or two probes per objective. The
+  learner can say "just start" at any time.
+- **Repair.** A skipped step comes up early in review (§8.3). When the learner
+  struggles with a step that `requires` a skipped one, the tutor goes back to
+  it briefly.
+- A course the learner has already started needs no new diagnosis: the
+  learner record shows where they are.
+
+### 2.3 The arc of a session
 
 | Phase | What happens |
 | --- | --- |
@@ -250,6 +297,10 @@ usually enough.
   Note in `# Tutor notes` where learners usually need a break.
 - **Check prerequisites.** A path that assumes earlier knowledge starts with a
   warmup that tests it, so the tutor can repair gaps before step one.
+- **Help the diagnosis.** A `# Prior knowledge` section says what learners
+  usually bring, which misconceptions to probe and which steps experienced
+  learners can often skip (§2.2). Mark the questions that sort "knows it" from
+  "sounds familiar" best with `purpose: probe`.
 - **Spiral.** Revisit earlier ideas in later steps, and plan review questions
   that mix elements.
 - **Capstone.** End a path with a step that applies several ideas together.
@@ -332,6 +383,8 @@ well is part of teaching.
 - A correct review lengthens the interval; a wrong one reopens the
   misconception and shortens it. Re-teach only what a review shows is
   missing.
+- A step skipped after the prior-knowledge conversation (§2.2) gets an early
+  first review, so a wrong placement shows up within days.
 
 ---
 
@@ -360,6 +413,7 @@ Short versions of the rules above, for authors, generators and reviewers.
 
 **Tutor session**
 - [ ] Reviews first, then where the learner is; course introduction in the first session.
+- [ ] New course: prior knowledge asked and probed; skip only with evidence (§2.2).
 - [ ] Each step: objective, try, debrief, explain, check, close.
 - [ ] Simulators only when they help (§4); never a completed station again.
 - [ ] Completion from correct check answers, not from "I got it".
