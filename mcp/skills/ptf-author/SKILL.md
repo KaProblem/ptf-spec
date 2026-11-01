@@ -65,6 +65,10 @@ Level texts are optional; if you write them, each starts with something to
 try and stands on its own, because the tutor usually sees only one of them. Put anything the tutor must do in a particular way into `# Tutor notes`
 (SPEC.md §6.7). Add it to the bundle's `index.md` table and to a path's
 `steps`; a path gets `objectives` and an `# Introduction` for the whole course.
+To help the tutor find out what a learner already knows (SPEC.md §8.1), mark
+the question that best separates "knows it" from "sounds familiar" with
+`purpose: probe`, and give a path a `# Prior knowledge` section when learners
+often bring part of the course with them.
 
 **Simulators**: never edit a published `sims/<name>/<version>/`. Copy it to a
 new version directory, set `version`, `derived_from` and `changelog`, then

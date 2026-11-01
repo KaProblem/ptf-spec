@@ -13,7 +13,7 @@ import { parseFrontmatter } from "./library.mjs";
 
 const PTF_VERSION = "0.1";
 const MAX_STATE_BYTES = 64 * 1024;
-const VERBS = new Set(["experienced", "attempted", "answered", "completed", "station_completed", "level_changed",
+const VERBS = new Set(["experienced", "attempted", "answered", "completed", "assessed", "station_completed", "level_changed",
   "understood", "rephrase", "deeper", "stuck", "asked", "reported_broken"]);
 
 // Crockford base32 ULID: sortable by time, no dependency.
@@ -121,9 +121,22 @@ export class LearnerRecord {
     c.last_seen = now.toISOString();
     if (ev.level) c.level = ev.level;
     const r = ev.result ?? {};
+    if (ev.verb === "assessed") {
+      // Prior-knowledge placement (LEARNER-RECORD.md §5): replaces mastery, early first review.
+      const score = typeof r.score === "number" ? r.score : r.correct === true ? 0.8 : 0;
+      c.mastery = Math.round(score * 100) / 100;
+      c.source = "diagnosis";
+      c.interval_days = c.mastery >= 0.8 ? 3 : 1;
+      c.next_review = day(new Date(now.getTime() + c.interval_days * 86400000));
+      if (r.misconception) c.open_misconceptions = [...new Set([...(c.open_misconceptions ?? []), r.misconception])];
+      m.concepts[elementId] = c;
+      this.#saveMastery(m);
+      return;
+    }
     const outcome = typeof r.score === "number" ? r.score : typeof r.correct === "boolean" ? (r.correct ? 1 : 0)
       : ev.verb === "understood" || ev.verb === "completed" ? 0.8 : null;
     if (outcome !== null) {
+      delete c.source;
       // Recent results weigh more (LEARNER-RECORD.md §5).
       c.mastery = Math.round((0.6 * (c.mastery ?? 0) + 0.4 * outcome) * 100) / 100;
       c.interval_days = c.mastery >= 0.8 ? Math.min(60, Math.max(1, (c.interval_days ?? 1) * 2)) : 1;

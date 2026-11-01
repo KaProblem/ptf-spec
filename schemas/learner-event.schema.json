@@ -24,6 +24,7 @@
         "attempted",
         "answered",
         "completed",
+        "assessed",
         "station_completed",
         "level_changed",
         "understood",

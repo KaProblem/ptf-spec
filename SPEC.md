@@ -412,7 +412,7 @@ Common fields (all kinds):
 | `kind` | yes | One of the kinds below. |
 | `id` | yes | Unique within the element. |
 | `level` | yes | Level ID. |
-| `purpose` | no | `warmup` (guess before learning), `check` (understanding, default), `transfer` (apply in a new situation). |
+| `purpose` | no | `warmup` (guess before learning), `check` (understanding, default), `transfer` (apply in a new situation), `probe` (finding out before a course what the learner already knows; also counts as a `check`, §8.1). |
 | `misconception` | no | Misconception ID this item targets. |
 | `explanation` | yes | Why the answer is right, shown after answering. |
 
@@ -489,8 +489,25 @@ The body uses these optional level-1 headings:
 | `# Introduction` | What the course is about, what the learner will be able to do at the end, and how it is built. The tutor opens the course with it, in its own words, before the first step. |
 | `# Steps` | The steps in prose or a table, including planned steps that have no element yet. |
 | `# Tutor notes` | Pace, where learners usually need a break, and anything binding (§6.7). |
+| `# Prior knowledge` | What learners usually bring to this course, which misconceptions to probe, and which steps experienced learners can often skip (§8.1). |
 
 Other headings MAY be added.
+
+### 8.1 Prior knowledge
+
+Before the first step of a new course, the tutor finds out what the learner
+already knows and proposes which steps to skip and at which level to start
+(PEDAGOGY.md §2.2). Content supports this but does not have to:
+
+- The tutor compares what the learner says with each step's `objectives`,
+  `# Key facts` and `# Misconceptions`, and probes with the steps' `probe`
+  questions, or with `check` questions when an element has none.
+- A path's `# Prior knowledge` section is binding like `# Tutor notes`
+  (§6.7) when present.
+- The result is recorded per element with the verb `assessed`
+  (LEARNER-RECORD.md §4, §5). A step is skipped only when every objective is
+  backed by a correct answer; a claim alone shortens a step but does not
+  skip it.
 
 ---
 

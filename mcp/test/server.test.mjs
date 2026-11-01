@@ -119,6 +119,20 @@ test("records events and mastery in the learner record", async () => {
   assert.match(readFileSync(join(learnerDir, "profile.md"), "utf8"), /^---\ntype: Learner Profile/);
 });
 
+test("records a prior-knowledge placement with an early first review", async () => {
+  const el = "ptf:el/demo/placement";
+  const r = json(await client.callTool({ name: "record_progress", arguments: { verb: "assessed", object: el, level: "highschool",
+    result: { score: 0.9 } } }));
+  assert.equal(r.mastery.mastery, 0.9);
+  assert.equal(r.mastery.source, "diagnosis");
+  assert.equal(r.mastery.interval_days, 3);
+  assert.equal(r.mastery.level, "highschool");
+  const after = json(await client.callTool({ name: "record_progress", arguments: { verb: "answered", object: `${el}#q1`,
+    result: { correct: true } } }));
+  assert.equal(after.mastery.source, undefined);
+  assert.equal(after.mastery.interval_days, 6);
+});
+
 test("keeps explanation preferences on partial updates", async () => {
   await client.callTool({ name: "update_learner_profile", arguments: { style: { pace: "fast", explain: { start_with: "example", length: "short" } } } });
   const p = json(await client.callTool({ name: "update_learner_profile", arguments: { style: { explain: { simulators: "rarely" } } } }));

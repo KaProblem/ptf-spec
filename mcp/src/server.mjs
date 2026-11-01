@@ -382,9 +382,11 @@ server.registerTool("record_progress", {
   title: "Record learning progress",
   description: "Logs what happened in the conversation: an answer to a question (verb answered with result.correct and result.misconception), " +
     "the learner saying they understood, asking to go deeper or to have it explained differently, or being stuck. Updates mastery for ptf:el/ objects. " +
+    "Before a new course, record the prior-knowledge placement of each element with verb assessed, result.score (0.8+ only when every objective " +
+    "is backed by a correct answer, at most 0.4 for a mere claim) and the level the learner answered securely. " +
     "Optionally sets `mastery` (0 to 1) directly after a conversational check.",
   inputSchema: {
-    verb: z.enum(["experienced", "attempted", "answered", "completed", "understood", "rephrase", "deeper", "stuck", "asked"]),
+    verb: z.enum(["experienced", "attempted", "answered", "completed", "assessed", "understood", "rephrase", "deeper", "stuck", "asked"]),
     object: z.string().regex(/^ptf:(el|path|sim)\//).describe("e.g. ptf:el/llm-basics/softmax or ptf:el/llm-basics/softmax#q1"),
     level: LEVEL.optional(),
     result: z.object({ correct: z.boolean().optional(), score: z.number().min(0).max(1).optional(), response: z.string().optional(),

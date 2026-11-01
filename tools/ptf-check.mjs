@@ -333,7 +333,7 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
       const where = `${f}#${q.id ?? "?"}`;
       for (const e of schemaErrors("question-block", q)) err(where, e);
       if (q.id) { if (qIds.has(q.id)) err(where, "duplicate question id"); qIds.add(q.id); }
-      if ((q.purpose ?? "check") === "check" && q.level) checkLevels.add(q.level);
+      if (["check", "probe"].includes(q.purpose ?? "check") && q.level) checkLevels.add(q.level);
       if (q.level && !(d.levels ?? []).includes(q.level)) warn(where, `question level "${q.level}" is not in the element's levels`);
       if (q.misconception && !misIds.has(q.misconception)) err(where, `misconception "${q.misconception}" is not defined under # Misconceptions`);
       if (q.kind === "cloze" && q.text && q.gaps) {
@@ -342,7 +342,7 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
       }
     }
 
-    for (const l of d.levels ?? []) if (!checkLevels.has(l)) warn(f, `level "${l}" has no \`check\` question; every level tests the whole concept at its depth (SPEC.md §5.2)`);
+    for (const l of d.levels ?? []) if (!checkLevels.has(l)) warn(f, `level "${l}" has no \`check\` or \`probe\` question; every level tests the whole concept at its depth (SPEC.md §5.2)`);
 
     for (const s of d.simulators ?? []) {
       if (!s.ref || !s.ref.includes("@")) continue;

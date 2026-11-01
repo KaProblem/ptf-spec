@@ -24,7 +24,7 @@ code:
     levels: [highschool]
     note: Let the learner change the number and run it again.
 status: draft
-version: 0.2.0
+version: 0.3.0
 license: CC-BY-SA-4.0
 ---
 
@@ -90,7 +90,7 @@ adding one each time, so every number from 17 to 42 is counted exactly once:
   "kind": "estimate_number",
   "id": "q3",
   "level": "highschool",
-  "purpose": "check",
+  "purpose": "probe",
   "misconception": "counting-skips",
   "question": "How many numbers do you say when you count from 17 to 42?",
   "answer": 26,

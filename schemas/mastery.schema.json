@@ -55,6 +55,11 @@
               "pattern": "^[a-z0-9][a-z0-9-]*$"
             }
           },
+          "source": {
+            "enum": [
+              "diagnosis"
+            ]
+          },
           "versions_seen": {
             "type": "object",
             "additionalProperties": {
