@@ -385,6 +385,10 @@ well is part of teaching.
   missing.
 - A step skipped after the prior-knowledge conversation (§2.2) gets an early
   first review, so a wrong placement shows up within days.
+- After a break of two weeks or more, start with a recap instead of a list of
+  questions: the learner retells what they remember (free recall is a strong
+  retrieval exercise), the tutor asks about what is missing, and records the
+  result as a placement (LEARNER-RECORD.md §6).
 
 ---
 

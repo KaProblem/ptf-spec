@@ -65,6 +65,15 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "keep": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "The learner's own explanation (LEARNER-RECORD.md §2)."
+          },
+          "completed": {
+            "type": "boolean",
+            "description": "A completed event was recorded for this element."
           }
         }
       }

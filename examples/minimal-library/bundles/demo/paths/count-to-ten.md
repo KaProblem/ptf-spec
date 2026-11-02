@@ -9,6 +9,10 @@ objectives:
   - Count from one to ten.
 steps:
   - element: ptf:el/demo/counting
+sharing:
+  with: author
+  areas: [progress]
+  mode: optional
 ---
 
 # Introduction

@@ -83,8 +83,32 @@
     "requires": {
       "type": "array",
       "items": {
-        "type": "string",
-        "pattern": "^ptf:el/[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*$"
+        "oneOf": [
+          {
+            "type": "string",
+            "pattern": "^ptf:el/[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*$"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "catalog"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^ptf:el/[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*$"
+              },
+              "catalog": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https://"
+              }
+            },
+            "additionalProperties": false
+          }
+        ],
+        "description": "An element ID, or { id, catalog } for an element in another library (SPEC.md §6.1)."
       }
     },
     "leads_to": {
