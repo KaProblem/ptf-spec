@@ -28,6 +28,7 @@
         "purpose": {
           "enum": [
             "warmup",
+            "probe",
             "check",
             "transfer"
           ]
@@ -110,6 +111,7 @@
         "purpose": {
           "enum": [
             "warmup",
+            "probe",
             "check",
             "transfer"
           ]
@@ -173,6 +175,7 @@
         "purpose": {
           "enum": [
             "warmup",
+            "probe",
             "check",
             "transfer"
           ]
@@ -241,6 +244,7 @@
         "purpose": {
           "enum": [
             "warmup",
+            "probe",
             "check",
             "transfer"
           ]
@@ -300,6 +304,7 @@
         "purpose": {
           "enum": [
             "warmup",
+            "probe",
             "check",
             "transfer"
           ]
@@ -355,6 +360,7 @@
         "purpose": {
           "enum": [
             "warmup",
+            "probe",
             "check",
             "transfer"
           ]
@@ -438,6 +444,7 @@
         "purpose": {
           "enum": [
             "warmup",
+            "probe",
             "check",
             "transfer"
           ]
