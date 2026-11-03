@@ -174,7 +174,15 @@ test("starts a course with consent, keeps notes and orders the overview by cours
   assert.equal(after.courses.find((x) => x.path === path).status, "left");
 });
 
+test("self-reports such as understood never change mastery", async () => {
+  const el = "ptf:el/demo/self-report";
+  const r = json(await client.callTool({ name: "record_progress", arguments: { verb: "understood", object: el } }));
+  assert.equal(r.mastery?.mastery ?? 0, 0);
+  const a = json(await client.callTool({ name: "record_progress", arguments: { verb: "answered", object: `${el}#q1`, result: { correct: true } } }));
+  assert.ok(a.mastery.mastery > 0);
+});
+
 test("offers the tutor prompt", async () => {
   const p = await client.getPrompt({ name: "ptf-tutor", arguments: { goal: "Zählen" } });
-  assert.match(p.messages[0].content.text, /Introduce the course/);
+  assert.match(p.messages[0].content.text, /Evidence, not claims/);
 });

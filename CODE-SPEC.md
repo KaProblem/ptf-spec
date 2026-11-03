@@ -176,6 +176,8 @@ Hosts and tutors MUST:
 2. Copy the lab into a learner-owned workspace (for example
    `~/.ptf/workspace/<name>/`) before the learner edits anything, and never
    overwrite changes there without asking. The library copy stays untouched.
+   A host that cannot reach the learner's machine (a remote server) shows the
+   files and commands instead, for the learner to copy.
 3. Verify `integrity` (and the locked version, if any) before copying.
 4. Show `requires` and `setup` before installing anything, and install only
    after the learner agrees.

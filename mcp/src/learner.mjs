@@ -130,7 +130,7 @@ export class LearnerRecord {
     if (ev.level) c.level = ev.level;
     const r = ev.result ?? {};
     if (ev.verb === "assessed") {
-      // Prior-knowledge placement (LEARNER-RECORD.md §5): replaces mastery, early first review.
+      // Placement (LEARNER-RECORD.md §6): replaces mastery, early first review.
       const score = typeof r.score === "number" ? r.score : r.correct === true ? 0.8 : 0;
       c.mastery = Math.round(score * 100) / 100;
       c.source = "diagnosis";
@@ -142,11 +142,13 @@ export class LearnerRecord {
       return;
     }
     if (ev.verb === "completed") c.completed = true;
-    const outcome = typeof r.score === "number" ? r.score : typeof r.correct === "boolean" ? (r.correct ? 1 : 0)
-      : ev.verb === "understood" || ev.verb === "completed" ? 0.8 : null;
+    // Only evidence changes mastery (LEARNER-RECORD.md §4); "understood" and other self-reports do not.
+    const evidence = ev.verb === "answered" || ev.verb === "completed" || ev.verb === "station_completed";
+    const outcome = !evidence ? null : typeof r.score === "number" ? r.score : typeof r.correct === "boolean" ? (r.correct ? 1 : 0)
+      : ev.verb === "completed" ? 0.8 : null;
     if (outcome !== null) {
       delete c.source;
-      // Recent results weigh more (LEARNER-RECORD.md §5).
+      // Recent results weigh more (LEARNER-RECORD.md §6).
       c.mastery = Math.round((0.6 * (c.mastery ?? 0) + 0.4 * outcome) * 100) / 100;
       c.interval_days = c.mastery >= 0.8 ? Math.min(60, Math.max(1, (c.interval_days ?? 1) * 2)) : 1;
       c.next_review = day(new Date(now.getTime() + c.interval_days * 86400000));
