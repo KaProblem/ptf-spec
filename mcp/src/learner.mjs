@@ -1,4 +1,5 @@
-// The learner record (LEARNER-RECORD.md): local, private, plain files.
+// The learner record (LEARNER-RECORD.md), kept in its export format: plain files.
+// Courses (§5) are derived from the events. A later version stores this in SQLite.
 //
 //   <dir>/profile.md      who the learner is and how they learn
 //   <dir>/mastery.json    state per learning element
@@ -11,9 +12,9 @@ import { join } from "node:path";
 import YAML from "yaml";
 import { parseFrontmatter } from "./library.mjs";
 
-const PTF_VERSION = "0.1";
+const PTF_VERSION = "0.2";
 const MAX_STATE_BYTES = 64 * 1024;
-const VERBS = new Set(["experienced", "attempted", "answered", "completed", "assessed", "station_completed", "level_changed",
+const VERBS = new Set(["started", "left", "experienced", "attempted", "answered", "completed", "assessed", "station_completed", "level_changed",
   "understood", "rephrase", "deeper", "stuck", "asked", "reported_broken"]);
 
 // Crockford base32 ULID: sortable by time, no dependency.
@@ -87,18 +88,22 @@ export class LearnerRecord {
     writeAtomic(this.#file("mastery.json"), JSON.stringify(m, null, 2) + "\n");
   }
 
-  events(limit = 20) {
+  #all() {
     const f = this.#file("events.jsonl");
     if (!existsSync(f)) return [];
-    const lines = readFileSync(f, "utf8").trim().split("\n").filter(Boolean);
-    return lines.slice(-limit).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+    return readFileSync(f, "utf8").split("\n").filter((l) => l.trim())
+      .map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+  }
+
+  events(limit = 20, filter = () => true) {
+    return this.#all().filter(filter).slice(-limit);
   }
 
   /**
    * Appends an event and updates mastery.json. `element` (a ptf:el/ ID) attributes
    * simulator and question results to the learning element they were used for.
    */
-  record({ verb, object, level, result, context, element }) {
+  record({ verb, object, level, result, context, element, path, note, keep }) {
     if (!VERBS.has(verb)) throw new Error(`Unknown verb ${verb}`);
     if (!/^ptf:(el|path|sim)\//.test(object ?? "")) throw new Error(`object must be a ptf:el/, ptf:path/ or ptf:sim/ ID, got ${object}`);
     this.#ensure();
@@ -106,12 +111,15 @@ export class LearnerRecord {
     const ev = { id: ulid(now.getTime()), at: now.toISOString(), verb, object };
     if (level) ev.level = level;
     if (result && Object.keys(result).length) ev.result = result;
-    const ctx = { host: "ptf-mcp", ...(context ?? {}), ...(element ? { element } : {}) };
+    if (note) ev.note = String(note).slice(0, 1000);
+    const coursePath = path ?? (verb === "started" || verb === "left" || object.startsWith("ptf:path/") ? object.split("#")[0] : undefined);
+    const ctx = { host: "ptf-mcp", ...(context ?? {}), ...(element ? { element } : {}), ...(coursePath ? { path: coursePath } : {}) };
     ev.context = ctx;
     appendFileSync(this.#file("events.jsonl"), JSON.stringify(ev) + "\n");
 
     const target = object.startsWith("ptf:el/") ? object.split("#")[0] : element;
     if (target?.startsWith("ptf:el/")) this.#updateMastery(target, ev, now);
+    if (keep && target?.startsWith("ptf:el/")) this.setMastery(target, { keep: String(keep).slice(0, 2000) });
     return ev;
   }
 
@@ -133,6 +141,7 @@ export class LearnerRecord {
       this.#saveMastery(m);
       return;
     }
+    if (ev.verb === "completed") c.completed = true;
     const outcome = typeof r.score === "number" ? r.score : typeof r.correct === "boolean" ? (r.correct ? 1 : 0)
       : ev.verb === "understood" || ev.verb === "completed" ? 0.8 : null;
     if (outcome !== null) {
@@ -182,6 +191,99 @@ export class LearnerRecord {
     }
     out.elements_completed = [...done];
     return out;
+  }
+
+  /**
+   * Courses (LEARNER-RECORD.md §5), derived from events with context.path.
+   * `pathInfo(id)` returns { steps: [{ element, optional }], requires(elementId) } from the library, or null.
+   */
+  courses(pathInfo = () => null) {
+    const out = new Map();
+    for (const ev of this.#all()) {
+      const path = ev.context?.path;
+      if (!path) continue;
+      const c = out.get(path) ?? { path, status: "active", last_activity: null, last_note: null };
+      if (ev.verb === "started") c.status = "active";
+      if (ev.verb === "left" && ev.object === path) c.status = "left";
+      if (ev.verb === "completed" && ev.object === path) c.status = "completed";
+      c.last_activity = ev.at;
+      if (ev.note) c.last_note = ev.note;
+      out.set(path, c);
+    }
+    for (const g of this.profile()?.goals ?? []) {
+      for (const path of [...(g.paths ?? []), ...(g.path ? [g.path] : [])]) {
+        if (!out.has(path)) out.set(path, { path, status: "planned", goal: g.text, last_activity: null, last_note: null });
+      }
+    }
+    const concepts = this.mastery().concepts;
+    for (const c of out.values()) {
+      const info = pathInfo(c.path);
+      if (!info) continue;
+      const open = info.steps.find((s) => !this.#stepDone(s.element, concepts));
+      c.current_step = open?.element ?? null;
+      c.steps_done = info.steps.filter((s) => this.#stepDone(s.element, concepts)).length;
+      c.steps_total = info.steps.length;
+    }
+    return [...out.values()];
+  }
+
+  #stepDone(elementId, concepts) {
+    const c = concepts[elementId];
+    return Boolean(c && (c.completed || (c.source === "diagnosis" && c.mastery >= 0.8)));
+  }
+
+  /** One course in detail (LEARNER-RECORD.md §2, get_learner({ course })). */
+  course(pathId, info) {
+    const concepts = this.mastery().concepts;
+    const elements = new Set((info?.steps ?? []).map((s) => s.element));
+    const inCourse = (ev) => ev.context?.path === pathId || elements.has(String(ev.object).split("#")[0]) || elements.has(ev.context?.element);
+    const events = this.#all().filter(inCourse);
+    const summary = this.courses(() => info).find((c) => c.path === pathId) ?? { path: pathId, status: "not started" };
+    const placement = events.filter((e) => e.verb === "assessed")
+      .map((e) => ({ element: e.object.split("#")[0], score: e.result?.score ?? null, level: e.level ?? null, reason: e.context?.reason ?? "placement" }));
+    const consent = [...events].reverse().find((e) => e.verb === "started")?.result?.consent ?? [];
+    return {
+      ...summary,
+      sharing: consent,
+      placement,
+      steps: (info?.steps ?? []).map((s) => {
+        const c = concepts[s.element];
+        return { element: s.element, optional: Boolean(s.optional), level: c?.level ?? null, mastery: c?.mastery ?? null,
+          done: this.#stepDone(s.element, concepts), ...(c?.keep ? { keep: c.keep } : {}) };
+      }),
+      open_misconceptions: [...new Set([...elements].flatMap((e) => concepts[e]?.open_misconceptions ?? []))],
+      simulators: this.#stations(events),
+      recent_events: events.slice(-20),
+    };
+  }
+
+  /** One element in detail. */
+  element(elementId) {
+    const events = this.#all().filter((ev) => String(ev.object).split("#")[0] === elementId || ev.context?.element === elementId);
+    return { element: elementId, mastery: this.mastery().concepts[elementId] ?? null, simulators: this.#stations(events), recent_events: events.slice(-20) };
+  }
+
+  /** Reviews due, at most `limit`: first what the next steps of active courses require, then the most overdue. */
+  reviewsDue(firstIds = [], limit = 10, today = new Date().toISOString().slice(0, 10)) {
+    const due = Object.entries(this.mastery().concepts).filter(([, c]) => c.next_review && c.next_review <= today)
+      .map(([id, c]) => ({ element: id, next_review: c.next_review, mastery: c.mastery }));
+    const first = new Set(firstIds);
+    due.sort((a, b) => (first.has(b.element) - first.has(a.element)) || a.next_review.localeCompare(b.next_review));
+    return due.slice(0, limit);
+  }
+
+  #stations(events) {
+    const sims = {};
+    for (const ev of events) {
+      const object = String(ev.object ?? "");
+      if (!object.startsWith("ptf:sim/")) continue;
+      const [ref, station] = object.split("#");
+      const id = ref.replace(/(.)@[^@/]+$/, "$1");
+      const sim = sims[id] ??= { stations_completed: [], last_used: null };
+      sim.last_used = ev.at ?? sim.last_used;
+      if (ev.verb === "station_completed" && station && !sim.stations_completed.includes(station)) sim.stations_completed.push(station);
+    }
+    return sims;
   }
 
   #stateFile(simId) { return join(this.dir, "state", simId.replace(/[^a-z0-9@._-]+/gi, "_") + ".json"); }

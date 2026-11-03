@@ -72,6 +72,12 @@
           },
           "note": {
             "type": "string"
+          },
+          "catalog": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://",
+            "description": "Catalog URL when the element lives in another library (SPEC.md §8.1)."
           }
         }
       }
@@ -122,6 +128,50 @@
           "format": "date-time"
         }
       }
+    },
+    "sharing": {
+      "type": "object",
+      "required": [
+        "with",
+        "areas",
+        "mode"
+      ],
+      "description": "Who sees the progress of this path's learners (SPEC.md §8.2).",
+      "properties": {
+        "with": {
+          "anyOf": [
+            {
+              "enum": [
+                "author",
+                "publisher"
+              ]
+            },
+            {
+              "type": "string",
+              "pattern": "^https://"
+            }
+          ]
+        },
+        "areas": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "progress",
+              "mastery",
+              "answers"
+            ]
+          }
+        },
+        "mode": {
+          "enum": [
+            "required",
+            "optional"
+          ]
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": true

@@ -351,28 +351,39 @@ server.registerTool("ptf_save_state", {
 
 // ---------- learner record ----------
 
+// Steps and prerequisites of a path, from the library (for courses and the order of reviews).
+function pathInfo(id) {
+  const d = library ? lib().doc(id) : null;
+  if (!d || d.type !== "Learning Path") return null;
+  return { steps: (d.meta.steps ?? []).filter((st) => !st.catalog).map((st) => ({ element: st.element, optional: Boolean(st.optional) })) };
+}
+const requiresOf = (id) => (library ? lib().doc(id)?.meta.requires ?? [] : []).map((r) => (typeof r === "string" ? r : r.id));
+
 server.registerTool("get_learner", {
   title: "Read the learner record",
-  description: "The learner's profile (languages, level, learning style, explanation preferences, goals, notes), mastery per element, " +
-    "progress (completed elements and simulator stations: do not restart them), reviews due and recent events. " +
-    "Read it at the start of every session. If there is no profile yet, ask a few intake questions and save them with update_learner_profile.",
-  inputSchema: { events: z.number().int().min(0).max(200).optional().describe("How many recent events to include (default 20)") },
+  description: "Without `course`: the learner's profile (languages, learning style, explanation preferences, goals, notes), their courses " +
+    "(path, status, current step, last activity, last note) and up to 10 reviews due. Read it at the start of every session; if there is no " +
+    "profile yet, ask a few intake questions and save them with update_learner_profile. " +
+    "With `course` (a ptf:path/ ID): that course in detail: placement, per step level, mastery and done, completed simulator stations " +
+    "(do not restart them), open misconceptions, the last note and the course's recent events. With a ptf:el/ ID: the same for one element.",
+  inputSchema: { course: z.string().regex(/^ptf:(path|el)\//).optional().describe("A ptf:path/ or ptf:el/ ID") },
   annotations: { readOnlyHint: true },
-}, guarded(async ({ events }) => {
-  const mastery = learner.mastery();
-  const today = new Date().toISOString().slice(0, 10);
-  const due = Object.entries(mastery.concepts).filter(([, c]) => c.next_review && c.next_review <= today).map(([id]) => id);
-  return ok({ record: learnerDir, profile: learner.profile(), mastery, progress: learner.progress(), reviews_due: due, recent_events: learner.events(events ?? 20) });
+}, guarded(async ({ course }) => {
+  if (course?.startsWith("ptf:el/")) return ok(learner.element(course));
+  if (course) return ok(learner.course(course, pathInfo(course)));
+  const courses = learner.courses(pathInfo);
+  const next = courses.filter((c) => c.status === "active" && c.current_step).flatMap((c) => requiresOf(c.current_step));
+  return ok({ record: learnerDir, profile: learner.profile(), courses, reviews_due: learner.reviewsDue(next) });
 }));
 
 server.registerTool("update_learner_profile", {
   title: "Update the learner profile",
-  description: "Merges fields into the learner's local profile.md (LEARNER-RECORD.md §3), e.g. preferred_lang, age_band, style {modality, pace, default_level, likes, dislikes, explain {start_with: big_picture|example|question, analogies: often|sometimes|rarely, formulas: avoid|when_useful|always, length: short|medium|detailed, simulators: rarely|when_useful|often, notes}}, interests, goals [{text, path}]. Update style.explain whenever the learner says how they want things explained. `notes` replaces the free-text notes for the tutor.",
+  description: "Merges fields into the learner's local profile.md (LEARNER-RECORD.md §3), e.g. preferred_lang, age_band, style {modality, pace, default_level, likes, dislikes, explain {start_with: big_picture|example|question, analogies: often|sometimes|rarely, formulas: avoid|when_useful|always, length: short|medium|detailed, simulators: rarely|when_useful|often, notes}}, interests, goals [{text, paths: [ptf:path/…, in order]}]. Update style.explain whenever the learner says how they want things explained. `notes` replaces the free-text notes for the tutor.",
   inputSchema: {
     display_name: z.string().optional(), languages: z.array(z.string()).optional(), preferred_lang: z.string().optional(),
     age_band: z.enum(["child", "teen", "adult"]).optional(),
     style: z.record(z.string(), z.unknown()).optional(), accessibility: z.record(z.string(), z.unknown()).optional(),
-    interests: z.array(z.string()).optional(), goals: z.array(z.object({ text: z.string(), path: z.string().optional() })).optional(),
+    interests: z.array(z.string()).optional(), goals: z.array(z.object({ text: z.string(), path: z.string().optional(), paths: z.array(z.string()).optional() })).optional(),
     strengths: z.array(z.object({ concept: z.string(), level: z.string().optional(), note: z.string().optional() })).optional(),
     notes: z.string().optional(),
   },
@@ -380,21 +391,30 @@ server.registerTool("update_learner_profile", {
 
 server.registerTool("record_progress", {
   title: "Record learning progress",
-  description: "Logs what happened in the conversation: an answer to a question (verb answered with result.correct and result.misconception), " +
+  description: "Logs what happened in the conversation, with `path` when it belongs to a course. Start a course with verb started " +
+    "(object: the path) and, if the path has `sharing`, result.consent [{with, areas, required}] after the learner agreed; never start " +
+    "a course with required sharing without consent. verb left ends a course. Logs an answer to a question (verb answered with result.correct and result.misconception), " +
     "the learner saying they understood, asking to go deeper or to have it explained differently, or being stuck. Updates mastery for ptf:el/ objects. " +
     "Before a new course, record the prior-knowledge placement of each element with verb assessed, result.score (0.8+ only when every objective " +
     "is backed by a correct answer, at most 0.4 for a mere claim) and the level the learner answered securely. " +
+    "After a break of two weeks or more, record the recap per element with verb assessed and context_reason recap. " +
+    "`note`: two or three sentences for the next session. `keep`: the learner's own explanation of an element that made it click. " +
     "Optionally sets `mastery` (0 to 1) directly after a conversational check.",
   inputSchema: {
-    verb: z.enum(["experienced", "attempted", "answered", "completed", "assessed", "understood", "rephrase", "deeper", "stuck", "asked"]),
+    verb: z.enum(["started", "left", "experienced", "attempted", "answered", "completed", "assessed", "understood", "rephrase", "deeper", "stuck", "asked"]),
+    path: z.string().regex(/^ptf:path\//).optional().describe("The course this belongs to"),
     object: z.string().regex(/^ptf:(el|path|sim)\//).describe("e.g. ptf:el/llm-basics/softmax or ptf:el/llm-basics/softmax#q1"),
     level: LEVEL.optional(),
     result: z.object({ correct: z.boolean().optional(), score: z.number().min(0).max(1).optional(), response: z.string().optional(),
-      misconception: z.string().optional() }).optional(),
+      misconception: z.string().optional(),
+      consent: z.array(z.object({ with: z.string(), areas: z.array(z.enum(["progress", "mastery", "answers"])), required: z.boolean().optional() })).optional() }).optional(),
+    context_reason: z.enum(["placement", "recap"]).optional(),
+    note: z.string().max(1000).optional(),
+    keep: z.string().max(2000).optional(),
     mastery: z.number().min(0).max(1).optional(),
   },
-}, guarded(async ({ mastery, ...ev }) => {
-  const event = learner.record({ ...ev, context: { via: "tutor" } });
+}, guarded(async ({ mastery, context_reason, ...ev }) => {
+  const event = learner.record({ ...ev, context: { via: "tutor", ...(context_reason ? { reason: context_reason } : {}) } });
   const el = ev.object.split("#")[0];
   const state = mastery !== undefined && el.startsWith("ptf:el/") ? learner.setMastery(el, { mastery }) : learner.mastery().concepts[el];
   return ok({ event, mastery: state ?? null });

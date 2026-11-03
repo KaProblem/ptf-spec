@@ -20,10 +20,12 @@
     },
     "verb": {
       "enum": [
+        "started",
         "experienced",
         "attempted",
         "answered",
         "completed",
+        "left",
         "assessed",
         "station_completed",
         "level_changed",
@@ -64,11 +66,45 @@
         "duration_s": {
           "type": "number",
           "minimum": 0
+        },
+        "consent": {
+          "type": "array",
+          "description": "Sharing agreed to when starting a course (LEARNER-RECORD.md §7).",
+          "items": {
+            "type": "object",
+            "required": [
+              "with",
+              "areas"
+            ],
+            "properties": {
+              "with": {
+                "type": "string"
+              },
+              "areas": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "progress",
+                    "mastery",
+                    "answers"
+                  ]
+                }
+              },
+              "required": {
+                "type": "boolean"
+              }
+            }
+          }
         }
       }
     },
     "context": {
       "type": "object"
+    },
+    "note": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "The tutor's note for the next session (LEARNER-RECORD.md §2)."
     }
   },
   "additionalProperties": true

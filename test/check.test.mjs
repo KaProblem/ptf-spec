@@ -152,6 +152,23 @@ test("checks Wikidata subject anchors", () => {
   assert.match(r.stdout, /status reviewed without `about`/);
 });
 
+test("accepts prerequisites from other libraries and checks path sharing", () => {
+  const lib = copyExample();
+  const el = join(lib, "bundles/demo/elements/counting.md");
+  const src = readFileSync(el, "utf8");
+  writeFileSync(el, src.replace("\n---\n", "\nrequires:\n  - id: ptf:el/math/numbers\n    catalog: https://example.org/ptf-catalog.json\n---\n"));
+  let r = run(lib);
+  assert.equal(r.status, 0, r.stdout);
+
+  const path = join(lib, "bundles/demo/paths/count-to-ten.md");
+  writeFileSync(path, readFileSync(path, "utf8").replace("mode: optional", "mode: always"));
+  writeFileSync(el, src.replace("\n---\n", "\nrequires:\n  - id: ptf:el/math/numbers\n---\n"));
+  r = run(lib);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /count-to-ten\.md.*sharing/s);
+  assert.match(r.stdout, /counting\.md.*requires/s);
+});
+
 test("catalog lists every package with its digest and catches drift", () => {
   const lib = copyExample({ catalog: true });
   const file = join(lib, "ptf-catalog.json");

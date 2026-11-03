@@ -89,7 +89,7 @@ the Claude Code terminal does not (see above).
 
 | Tool | For | Purpose |
 | --- | --- | --- |
-| `get_learner` | model | Profile, mastery, reviews due, recent events |
+| `get_learner` | model | Overview (profile, courses, up to 10 reviews due); with `course`, one path or element in detail |
 | `update_learner_profile` | model | Save intake answers, goals, notes |
 | `list_library`, `search_library` | model | Find bundles, paths, elements, simulators |
 | `get_element` | model | Read an element or path (optionally one level only) |
@@ -98,7 +98,7 @@ the Claude Code terminal does not (see above).
 | `export_simulator` | model | Standalone HTML file for clients without MCP Apps |
 | `get_code_lab` | model | Steps, run commands, dependencies and README of a code lab (CODE-SPEC.md); optionally one step's source |
 | `copy_code_lab` | model | Copies a verified code lab into `~/.ptf/workspace/<name>` for the learner to run and extend; never overwrites, never runs code |
-| `record_progress` | model | Log answers, "understood", "deeper", "stuck"; set mastery |
+| `record_progress` | model | Log answers, "understood", "deeper", "stuck"; start (with consent) and leave courses; `note` for the next session, `keep` for the learner's own explanation; set mastery |
 | `sync_library` | model | `git pull` the library |
 | `ptf_sim_source`, `ptf_record_event`, `ptf_save_state` | player, quiz | Called by the simulator player and the quiz card; hidden from the model where the client supports it |
 

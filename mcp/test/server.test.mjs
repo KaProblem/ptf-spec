@@ -114,7 +114,9 @@ test("records events and mastery in the learner record", async () => {
   assert.deepEqual(r.mastery.open_misconceptions, ["off-by-one"]);
   const l = json(await client.callTool({ name: "get_learner", arguments: {} }));
   assert.equal(l.profile.preferred_lang, "de");
-  assert.equal(l.recent_events.length, 2);
+  assert.equal(l.mastery, undefined, "the overview stays small");
+  const detail = json(await client.callTool({ name: "get_learner", arguments: { course: "ptf:el/demo/counting" } }));
+  assert.equal(detail.recent_events.length, 2);
   assert.ok(existsSync(join(learnerDir, "events.jsonl")));
   assert.match(readFileSync(join(learnerDir, "profile.md"), "utf8"), /^---\ntype: Learner Profile/);
 });
@@ -143,11 +145,33 @@ test("reports completed simulator stations so the tutor does not restart them", 
   await client.callTool({ name: "ptf_record_event", arguments: { verb: "station_completed", object: "ptf:sim/counter@1.0.0#count",
     element: "ptf:el/demo/counting" } });
   await client.callTool({ name: "record_progress", arguments: { verb: "completed", object: "ptf:el/demo/counting" } });
-  const l = json(await client.callTool({ name: "get_learner", arguments: {} }));
-  assert.deepEqual(l.progress.simulators["ptf:sim/counter"].stations_completed, ["count"]);
-  assert.deepEqual(l.progress.elements_completed, ["ptf:el/demo/counting"]);
+  const l = json(await client.callTool({ name: "get_learner", arguments: { course: "ptf:path/demo/count-to-ten" } }));
+  assert.deepEqual(l.simulators["ptf:sim/counter"].stations_completed, ["count"]);
+  assert.equal(l.steps[0].done, true);
   const r = await client.callTool({ name: "show_simulator", arguments: { sim: "counter", station: "count", element: "ptf:el/demo/counting" } });
   assert.match(r.content[0].text, /already completed station\(s\) count of this simulator, including count: offer a short recap/);
+});
+
+test("starts a course with consent, keeps notes and orders the overview by course", async () => {
+  const path = "ptf:path/demo/count-to-ten";
+  await client.callTool({ name: "record_progress", arguments: { verb: "started", object: path,
+    result: { consent: [{ with: "author", areas: ["progress"], required: false }] } } });
+  await client.callTool({ name: "record_progress", arguments: { verb: "answered", object: "ptf:el/demo/counting#q3", path,
+    result: { correct: true }, note: "Counted across ten without help.", keep: "Ten is one more than nine, like the last finger." } });
+  const o = json(await client.callTool({ name: "get_learner", arguments: {} }));
+  const c = o.courses.find((x) => x.path === path);
+  assert.equal(c.status, "active");
+  assert.equal(c.last_note, "Counted across ten without help.");
+  assert.ok(Array.isArray(o.reviews_due) && o.reviews_due.length <= 10);
+  const d = json(await client.callTool({ name: "get_learner", arguments: { course: path } }));
+  assert.deepEqual(d.sharing, [{ with: "author", areas: ["progress"], required: false }]);
+  assert.match(d.steps[0].keep, /last finger/);
+  const recap = json(await client.callTool({ name: "record_progress", arguments: { verb: "assessed", object: "ptf:el/demo/counting", path,
+    result: { score: 0.4 }, context_reason: "recap" } }));
+  assert.equal(recap.event.context.reason, "recap");
+  await client.callTool({ name: "record_progress", arguments: { verb: "left", object: path } });
+  const after = json(await client.callTool({ name: "get_learner", arguments: {} }));
+  assert.equal(after.courses.find((x) => x.path === path).status, "left");
 });
 
 test("offers the tutor prompt", async () => {

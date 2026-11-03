@@ -22,8 +22,8 @@ Companion documents:
   contract, build rules and security.
 - [CODE-SPEC.md](CODE-SPEC.md): code labs, runnable step-by-step code the
   learner copies, runs and extends on their own machine.
-- [LEARNER-RECORD.md](LEARNER-RECORD.md): the portable, private learner
-  profile and progress format.
+- [LEARNER-RECORD.md](LEARNER-RECORD.md): what a host does with a learner's
+  profile and progress (operations, sharing, export).
 - [schemas/](schemas/): JSON Schemas for everything machine-checkable.
 
 The key words MUST, SHOULD and MAY are used as in RFC 2119.
@@ -46,8 +46,9 @@ The key words MUST, SHOULD and MAY are used as in RFC 2119.
    the source material (a video, a paper). Sources are grounding only.
 6. **Reproducible interactivity.** Simulators are immutable, versioned
    packages that content refers to by ID and version range.
-7. **Learner owns their data.** Progress lives in a learner record that is
-   local and private by default (see LEARNER-RECORD.md).
+7. **Learner owns their data.** Progress lives in a learner record that the
+   learner can export and delete, and that leaves the host only as a course
+   says and the learner agrees (LEARNER-RECORD.md).
 
 ### Non-goals
 
@@ -234,6 +235,8 @@ about:                                  # what this is about, as Wikidata items 
     label: softmax function
 requires:                               # prerequisites (global IDs)
   - ptf:el/llm-basics/logits
+  - id: ptf:el/math/probability         # from another library
+    catalog: https://example.org/ptf-catalog.json
 leads_to:
   - ptf:el/llm-basics/cross-entropy
 duration_min: { highschool: 10, college: 20 }
@@ -265,6 +268,12 @@ the step, written so a question can check them ("explain why…", "predict…",
 explanation and its checks against them, and tells the learner at the start
 what they are working towards. Elements without `objectives` remain valid;
 `ptf-check` warns.
+
+`requires` lists what the learner should know first. An entry is an element
+ID, or `{ id, catalog }` when the element lives in another library: `catalog`
+is the URL of that library's `ptf-catalog.json` (CATALOG.md), so a host can find it. When
+the learner's host does not have that library, the tutor offers to connect
+it; a public library connects without a key.
 
 `use_when` says in one line when a simulator helps, so the tutor can decide
 whether to open it at all (§6.7).
@@ -479,6 +488,10 @@ steps:
   - element: ptf:el/llm-basics/softmax
   - element: ptf:el/llm-basics/cross-entropy
     optional: false
+sharing:                                # optional, §8.2
+  with: author
+  areas: [progress]
+  mode: optional
 status: draft
 version: 0.1.0
 ---
@@ -512,6 +525,43 @@ already knows and proposes which steps to skip and at which level to start
   (LEARNER-RECORD.md §4, §5). A step is skipped only when every objective is
   backed by a correct answer; a claim alone shortens a step but does not
   skip it.
+
+A step MAY take an element from another library: `{ element, catalog }`,
+with `catalog` as in §6.1.
+
+### 8.2 Sharing
+
+A path MAY say who sees the progress of its learners. A school or a
+university uses it to follow its students; a teacher uses it for a class.
+
+| Field | Values |
+| --- | --- |
+| `with` | `author` (whoever published the path), `publisher` (the library's operator), or a URL. |
+| `areas` | `progress` (steps done), `mastery` (values per element), `answers` (single answers and questions). |
+| `mode` | `required`: the course is only available with consent. `optional`: off until the learner turns it on. |
+
+Before the first step the learner sees exactly what is shared, with whom and
+whether it is required, and decides. LEARNER-RECORD.md §7 says how hosts
+record and honour it. Without `sharing`, nothing is shared.
+
+### 8.3 What a path requires and reaches
+
+Authors do not write this; tools derive it from the steps:
+
+- **requires**: every `requires` entry of the steps that is not itself a
+  step of the path.
+- **reaches**: every step element, at the deepest level of `audience` it
+  offers.
+
+Hosts use both to show a course's prerequisites, to place a learner (§8.1),
+and to suggest a route of courses to a goal: walk `requires` back from the
+goal, drop what the learner's mastery already covers, and order the paths
+that reach the rest.
+
+### 8.4 Completion
+
+A path is completed when every step that is not `optional` is completed or
+was placed at 0.8 or more (LEARNER-RECORD.md §5).
 
 ---
 

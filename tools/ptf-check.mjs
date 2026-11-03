@@ -370,7 +370,9 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
   }
 
   for (const { f, rel, fm } of [...elements, ...paths]) {
-    for (const ref of [...(fm.data.requires ?? []), ...(fm.data.leads_to ?? []), ...(fm.data.steps ?? []).map((s) => s.element)]) {
+    // Entries with a `catalog` live in another library and are not checked here (SPEC.md §6.1, §8.1).
+    const local = (r) => (typeof r === "string" ? r : r && !r.catalog ? r.id ?? r.element : null);
+    for (const ref of [...(fm.data.requires ?? []), ...(fm.data.leads_to ?? []), ...(fm.data.steps ?? [])].map(local)) {
       if (ref && ref.startsWith(`ptf:el/${bundleId}/`) && !elementIds.has(ref)) err(f, `reference ${ref} does not exist in this bundle`);
     }
     for (const m of fm.body.matchAll(/\]\(([^)#\s]+\.md)(#[^)]*)?\)/g)) {

@@ -19,7 +19,7 @@ every PTF bundle is a plain directory of Markdown files with YAML frontmatter.
 | [SIMULATOR-SPEC.md](SIMULATOR-SPEC.md) | Simulator packages, `sim.json`, the postMessage host contract, security, build rules |
 | [CODE-SPEC.md](CODE-SPEC.md) | Code labs: runnable code in steps (`lab.json`), how hosts hand it to learners, smoke tests |
 | [CATALOG.md](CATALOG.md) | Catalogs: how a library publishes its packages (`ptf-catalog.json`), access keys, what hosts may store |
-| [LEARNER-RECORD.md](LEARNER-RECORD.md) | The portable, private learner profile, progress and consent format |
+| [LEARNER-RECORD.md](LEARNER-RECORD.md) | What a host does with a learner's profile and progress: operations, courses, sharing, export and sync |
 | [PEDAGOGY.md](PEDAGOGY.md) | Recommended course design and teaching: course introduction, try before tell, worked examples, when to use a simulator, small phone-sized stations, evidence-based completion and review |
 | [CONTENT-POLICY.md](CONTENT-POLICY.md) | What shared libraries accept, the automated review gates and the quality rubric |
 | [schemas/](schemas/) | JSON Schemas (2020-12) for everything machine-checkable |
