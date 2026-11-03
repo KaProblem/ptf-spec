@@ -20,13 +20,17 @@
     },
     "verb": {
       "enum": [
+        "answered",
+        "assessed",
+        "completed",
+        "skipped",
         "started",
+        "left",
+        "consented",
+        "withdrew",
+        "profile_updated",
         "experienced",
         "attempted",
-        "answered",
-        "completed",
-        "left",
-        "assessed",
         "station_completed",
         "level_changed",
         "understood",
@@ -39,7 +43,8 @@
     },
     "object": {
       "type": "string",
-      "pattern": "^ptf:(el|path|sim)/"
+      "pattern": "^ptf:(el|path|sim|learner)",
+      "description": "Global PTF ID; `ptf:learner` for profile_updated."
     },
     "level": {
       "type": "string",
@@ -69,7 +74,7 @@
         },
         "consent": {
           "type": "array",
-          "description": "Sharing agreed to when starting a course (LEARNER-RECORD.md §7).",
+          "description": "Legacy (0.2): sharing agreed to with `started`. Hosts read it as a consented event.",
           "items": {
             "type": "object",
             "required": [
@@ -95,16 +100,81 @@
               }
             }
           }
+        },
+        "objectives": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "description": "answered: objectives the question checks; completed, assessed: objectives shown (LEARNER-RECORD.md \u00a75)."
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "completed, assessed: IDs of the answered events that show each objective."
+        },
+        "fields": {
+          "type": "object",
+          "description": "profile_updated: the profile fields set, merged in event order (LEARNER-RECORD.md \u00a73)."
+        },
+        "with": {
+          "type": "string",
+          "minLength": 1,
+          "description": "consented, withdrew: the concrete recipient, a catalog ID or a URL (LEARNER-RECORD.md \u00a77)."
+        },
+        "areas": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "progress",
+              "mastery",
+              "answers"
+            ]
+          }
+        },
+        "required": {
+          "type": "boolean"
         }
       }
     },
     "context": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^ptf:path/"
+        },
+        "catalog": {
+          "type": "string",
+          "description": "ID of the catalog the object came from (CATALOG.md \u00a71)."
+        },
+        "version": {
+          "type": "string",
+          "description": "Version of the element, path or simulator the event refers to."
+        },
+        "reason": {
+          "type": "string",
+          "description": "assessed: placement or recap; completed: placement when shown before teaching."
+        },
+        "host": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
     },
     "note": {
       "type": "string",
       "maxLength": 1000,
-      "description": "The tutor's note for the next session (LEARNER-RECORD.md §2)."
+      "description": "The tutor's note for the next session (LEARNER-RECORD.md \u00a72)."
+    },
+    "keep": {
+      "type": "string",
+      "maxLength": 2000,
+      "description": "The learner's own explanation that made it click (LEARNER-RECORD.md \u00a72)."
     }
   },
   "additionalProperties": true

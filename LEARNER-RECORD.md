@@ -1,27 +1,30 @@
 # PTF Learner Record
 
-**Version 0.2 (draft)** · part of the [Personal Tutor Format](SPEC.md)
+**Version 0.3 (draft)** · part of the [Personal Tutor Format](SPEC.md)
 
 The learner record holds who a learner is, how they like to learn and what
-they have learned. It belongs to the learner. This document fixes what a host
-must be able to *do* with it (§2) and how it moves between hosts (§8).
+they have shown they can do. It belongs to the learner.
 
-**How a host stores it is up to the host.** A database is RECOMMENDED,
-because a record grows for years and the tutor reads only small parts of it:
-Magister uses PostgreSQL, a local server can use SQLite. The operations (§2),
-the events (§4) and the export format (§8) are normative; tables and files
-are not.
+**The record is its events.** Everything else (the profile, completions,
+consents, courses, the estimate used for reviews) is derived from them, so two
+hosts with the same events derive the same state, and a sync that merges
+events loses nothing (§8). How a host stores events and derived state is up to
+the host; a database is RECOMMENDED, because a record grows for years and the
+tutor reads only small parts of it. Magister uses PostgreSQL; a local server can
+use SQLite. Normative are the operations (§2), the events (§4), the derivation
+rules (§3, §5 to §7) and the export (§8).
 
 ---
 
 ## 1. Principles
 
 1. **The learner owns it**: they can see, export and delete it at any time.
-2. **Read what is needed**: an overview at the start of a session, the
+2. **Evidence decides**: what counts as learned is a completion backed by
+   correct answers (§5). A self-report or an estimate never does.
+3. **Read what is needed**: an overview at the start of a session, the
    details of one course while working on it, never the whole history.
-3. **Shared only within a course, and only visibly** (§7).
-4. **Pseudonymous**: no real name needed.
-5. **Portable**: every host exports and imports the same folder (§8).
+4. **Shared only within a course, and only visibly** (§7).
+5. **Pseudonymous**: no real name needed.
 6. **Children**: for `age_band: child`, a parent or guardian manages the
    record and every consent.
 
@@ -34,30 +37,31 @@ The names are those of the MCP tools.
 | Operation | What it does |
 | --- | --- |
 | `get_learner()` | Overview: profile (§3), courses in progress or planned (path, status, current step, last activity), up to 10 reviews due. |
-| `get_learner({ course })` | One course (a path ID) or one element: placement, per step level, mastery and whether it is done, completed simulator stations, open misconceptions, the last `note`, the course's last 20 events. |
-| `record_progress(event)` | Stores one event (§4) and updates mastery (§6) and the course (§5). Optional `note` and `keep`. |
-| `update_learner_profile(fields)` | Merges fields into the profile. |
-| `sync_learner({ events, since })` | Takes events from another copy and returns this host's events since the cursor (§8). |
+| `get_learner({ course })` | One course (a path ID) or one element: per step the levels completed, done, skipped, target level, completed simulator stations, consents, placement, open misconceptions, the last `note`, the last 20 events. |
+| `record_progress(event)` | Stores one event (§4). A host MUST check a `completed` event before storing it (§5) and say what is missing. |
+| `update_learner_profile(fields)` | Stores a `profile_updated` event (§3). |
+| `sync_learner({ events, since })` | Merges events from another copy and returns this host's events received since the cursor `since`, with a new cursor (§8). |
 
-- `note`: two or three sentences for the next session; the latest note of a
-  course comes back with it.
-- `keep`: an explanation in the learner's own terms that made it click; it is
-  stored with the element's mastery and comes back with the element.
-
-Reviews due are ordered: first what the next step of an active course
-`requires`, then the most overdue.
+`note` (two or three sentences for the next session) and `keep` (an
+explanation in the learner's own words that made it click) are fields of any
+event. The latest `note` of a course and the latest `keep` of an element come
+back with them.
 
 ---
 
 ## 3. Profile
 
-Exported as `profile.md` (`type: Learner Profile`, notes for the tutor in the
-body). Schema: [schemas/learner-profile.schema.json](schemas/learner-profile.schema.json).
+Who the learner is and how they learn, derived from `profile_updated` events:
+their `result.fields` are merged in event order (nested objects such as
+`style.explain` field by field, values and arrays replaced), so the later
+change wins per field. `updated` is the time of the last change. Exported as
+`profile.md` for people (`type: Learner Profile`, `notes` in the body).
+Schema: [schemas/learner-profile.schema.json](schemas/learner-profile.schema.json).
 
 ```yaml
 ---
 type: Learner Profile
-ptf_version: "0.2"
+ptf_version: "0.3"
 learner: anon:7f3c9a
 languages: [de, en]
 preferred_lang: de
@@ -66,7 +70,7 @@ style:
   modality: [visual, hands-on]   # visual | hands-on | reading | listening | discussion
   pace: fast                     # slow | normal | fast
   default_level: college
-  explain: { start_with: example, formulas: when_useful, length: short }   # §3.1
+  explain: { start_with: example, formulas: when_useful, length: short }
 interests: [LLMs, physics]
 goals:
   - text: Understand integral calculus at university level
@@ -79,115 +83,121 @@ Prefers numbers before formulas.
 
 The profile also takes `display_name`, `accessibility` (`reduced_motion`,
 `font_scale`, `screen_reader`) and `strengths`. A goal's paths become planned
-courses (§5).
-
-### 3.1 Explanation preferences
+courses.
 
 `style.explain` says *how* this learner wants things explained, never *what*
-has to be understood. All fields are optional.
-
-| Field | Values |
-| --- | --- |
-| `start_with` | `big_picture`, `example`, `question` |
-| `analogies` | `often`, `sometimes`, `rarely` |
-| `formulas` | `avoid`, `when_useful`, `always` |
-| `length` | `short`, `medium`, `detailed` (one explanation before the next interaction) |
-| `simulators` | `rarely`, `when_useful`, `often` |
-| `notes` | Anything else, in the learner's words |
-
-The tutor fills these in when the learner says how they want it, rather than
-by questionnaire.
+has to be understood: `start_with` (`big_picture`, `example`, `question`),
+`analogies` (`often`, `sometimes`, `rarely`), `formulas` (`avoid`,
+`when_useful`, `always`), `length` (`short`, `medium`, `detailed`),
+`simulators` (`rarely`, `when_useful`, `often`), `notes`. The tutor fills
+these in when the learner says how they want it, rather than by questionnaire.
 
 ---
 
 ## 4. Events
 
-Everything that happens is an event, a small subset of xAPI. Events never
-change; mastery and courses are derived from them. Schema:
+A small subset of xAPI. Events never change. Schema:
 [schemas/learner-event.schema.json](schemas/learner-event.schema.json).
 
 ```json
-{"id":"01JB…","at":"2026-10-26T12:03:00Z","verb":"answered","object":"ptf:el/llm-basics/softmax#q2","level":"college","result":{"correct":false,"misconception":"softmax-makes-zeros"},"context":{"path":"ptf:path/llm-basics/gpt-from-scratch"}}
+{"id":"01JB…","at":"2026-10-26T12:03:00Z","verb":"answered","object":"ptf:el/llm-basics/softmax#q2","level":"college","result":{"correct":true,"objectives":["probabilities"]},"context":{"path":"ptf:path/llm-basics/gpt-from-scratch","catalog":"io.github.kaproblem.ptf-library","version":"1.0.0"}}
 ```
 
 | Field | Required | Meaning |
 | --- | --- | --- |
-| `id` | yes | Unique and time-sortable (ULID); copies merge by it. |
+| `id` | yes | Unique and time-sortable (ULID). Copies merge by it; derivation runs in `id` order. |
 | `at` | yes | ISO 8601 with offset. |
 | `verb` | yes | See below. |
-| `object` | yes | Global PTF ID: element, question, path or simulator station. |
-| `level` | no | Level at which it happened. |
-| `result` | no | `correct`, `score` (0 to 1), `response`, `misconception`, `duration_s`; `consent` on `started` (§7). |
-| `note` | no | The tutor's note for the next session (§2). |
-| `context` | no | `path` (set when the event belongs to a course), `host`, `reason`, free keys. |
+| `object` | yes | Global PTF ID (element, question, path, simulator station), or `ptf:learner` for `profile_updated`. |
+| `level` | for `completed` | Level at which it happened. |
+| `result` | no | Verb-specific, see below. Also `score` (0 to 1), `response`, `misconception`, `duration_s`. |
+| `note`, `keep` | no | See §2. |
+| `context` | no | `path` (the course), `catalog` (ID of the catalog the object came from), `version` (of the element or path), `element` (for a simulator or question used for an element), `reason`, `host`, free keys. |
 
-| Verb | When | Evidence? |
+| Verb | When | `result` |
 | --- | --- | --- |
-| `answered` | The learner answered; `result` says how. | yes |
-| `assessed` | Placement of an element before a course, or with `context.reason: recap` after a long break; `result.score` is the placement, `level` the deepest level answered securely. | yes |
-| `station_completed` | Finished a simulator station. | yes, for that station |
-| `completed` | Finished an element (its objectives met) or a path (§5). | yes |
-| `started` | Started a course (object: the path); carries the consent (§7). | no |
-| `left` | Stopped a course, or withdrew a consent it requires. | no |
-| `experienced`, `attempted` | Saw an explanation or station; began a question or task. | no |
-| `understood`, `rephrase`, `deeper`, `stuck`, `level_changed`, `asked` | What the learner said or asked for; `asked` keeps the question in `result.response`. | no |
-| `reported_broken` | The learner reported a broken simulator. | no |
+| `answered` | The learner answered a question, in a card or in the conversation. | `correct`, `objectives` (the objective IDs it checks), `misconception` |
+| `completed` | The learner has shown the element's objectives at `level` (§5); with `context.reason: placement` before teaching it. Object a path: the course is done. | `objectives`, `evidence` (IDs of `answered` events) |
+| `skipped` | The learner chose to leave the element out. Does not count as done. | |
+| `assessed` | A placement score before a course, or with `context.reason: recap` after a long break. For planning and reviews only. | `score` |
+| `started`, `left` | A course starts or stops (object: the path). | |
+| `consented`, `withdrew` | Sharing for a course is granted or taken back (§7). | `with`, `areas`, `required` |
+| `profile_updated` | The profile changed (§3). | `fields` |
+| `station_completed` | A simulator station's task is done. | |
+| `experienced`, `attempted` | Saw an explanation or station; began a task. | |
+| `understood`, `rephrase`, `deeper`, `stuck`, `level_changed`, `asked` | What the learner said or asked for. `deeper` and `level_changed` set the element's target level. | `response` for `asked` |
+| `reported_broken` | A simulator did not work. | |
 
-Only evidence changes mastery. The other verbs are kept so the tutor knows
-what happened.
+Hosts set `context.catalog` and `context.version` when they know them. An ID
+is interpreted in the catalog its event names, never by which catalog a host
+happens to have connected first (CATALOG.md §2.3).
 
 ---
 
-## 5. Courses
+## 5. Completion
 
-A course is a path the learner takes. Its state is derived from the events
-with that `context.path`:
+A **completion** is a `completed` event for an element at one level. It is
+valid when:
+
+1. it names the level, and in `result.objectives` every objective ID of the
+   element (SPEC.md §6.1), or none when the element has no objective IDs;
+2. `result.evidence` lists earlier `answered` events of the same element with
+   `correct: true`, at the same level when they carry one, whose
+   `result.objectives` together cover every listed objective (at least one
+   such answer when no objectives are listed).
+
+A host MUST reject an invalid completion when it is recorded and tell the
+tutor which objective lacks evidence. When deriving, a host ignores invalid
+completions it receives through sync. A `completed` event without
+`result.evidence` comes from version 0.2: it counts, marked
+`verified: false`.
+
+Completions are per level. Going deeper changes the target level, never an
+existing completion; a correct or wrong review answer changes neither. An
+element is **done** when it has a completion at any level.
+
+**Courses** are derived from the events with `context.path`:
 
 | Field | From |
 | --- | --- |
-| `status` | `planned` (in a goal), `active` (`started`), `completed`, `left`; a host MAY add `access_lost`. |
-| `start_level`, `placement` | The `assessed` events before the first step. |
-| `current_step` | The first step that is neither completed nor placed as secure (§6). |
-| `last_note` | The latest `note`. |
-| `sharing` | The consent given with `started` (§7). |
+| `status` | `planned` (a path in a goal), `active` (`started`), `left`, `completed` (every non-optional step done, or a `completed` event for the path); a host MAY add `access_lost`. |
+| `current_step` | The first step that is neither done nor skipped. |
+| `steps` | Per step: levels completed, done, skipped, target level. |
+| `placement` | The `assessed` events. |
+| `last_note`, `sharing` | The latest `note`; the consents (§7). |
 
-When every step that is not `optional` is completed or placed as secure, the
-host records `completed` for the path.
+A skipped step stays open for completion: a course with skipped
+non-optional steps is not completed.
 
 ---
 
-## 6. Mastery
+## 6. The estimate
 
-The current state per element, derived from events and exported as
-`mastery.json`. Schema: [schemas/mastery.schema.json](schemas/mastery.schema.json).
+For scheduling reviews a host keeps, per element, an estimate of how secure
+the learner is (`mastery`, 0 to 1), `next_review` and `interval_days`. The
+formula is the host's: recent results weigh more, the interval grows while
+answers stay right and falls back after a wrong one, and a placement
+(`assessed`) gets an early first review. **No decision depends on the
+estimate**: completion, skipping and course state come from §5 only.
+
+`mastery.json` exports the per-element view for people. Schema:
+[schemas/mastery.schema.json](schemas/mastery.schema.json).
 
 ```json
 {
-  "ptf_version": "0.2",
-  "updated": "2026-10-26T12:30:00Z",
+  "ptf_version": "0.3",
   "concepts": {
     "ptf:el/llm-basics/softmax": {
-      "level": "college", "mastery": 0.8, "completed": true,
-      "last_seen": "2026-10-26T12:30:00Z", "next_review": "2026-10-30", "interval_days": 4,
+      "completed": [{ "level": "highschool", "at": "2026-10-26T12:30:00Z", "version": "1.0.0",
+                      "catalog": "io.github.kaproblem.ptf-library", "objectives": ["probabilities", "larger-score"], "verified": true }],
+      "target_level": "college",
+      "mastery": 0.8, "next_review": "2026-10-30", "interval_days": 4,
       "open_misconceptions": ["softmax-makes-zeros"],
-      "versions_seen": { "element": "1.0.0", "ptf:sim/next-char-lab": "2.0.0" },
       "keep": "Like turning votes into percentages."
     }
   }
 }
 ```
-
-- `mastery` is 0 to 1; the formula is the host's. Recent results weigh
-  more.
-- **Secure means 0.8 or more**, and it needs evidence for every objective of
-  the element. This one number is shared by all hosts, so that courses
-  derive the same way everywhere.
-- `assessed` sets `mastery` to its score and marks `source: "diagnosis"`; a
-  claim without a correct answer never reaches secure. A placement as secure
-  gets an early first review. The next other result removes `source`.
-- Reviews: `next_review` and `interval_days` grow while answers stay right
-  and fall back after a wrong one.
-- Hosts MAY add keys and MUST keep keys they do not know.
 
 ---
 
@@ -196,43 +206,60 @@ The current state per element, derived from events and exported as
 A course may name who sees its learners' progress (SPEC.md §8.2). Nothing
 else leaves the host.
 
-1. Before the first step the learner sees, in plain words, with whom, which
-   areas, whether it is required and until when.
-2. Required sharing: the course starts only with agreement. Optional
-   sharing: off until the learner turns it on.
-3. The agreement is part of the `started` event:
-   `"result": { "consent": [{ "with": "publisher", "areas": ["progress", "mastery"], "required": true }] }`.
-4. The learner can see at any time who sees what, and withdraw. Withdrawing
-   required sharing ends the course (`left`); the learner keeps their record.
-5. Sharing ends with the course or when the content is no longer available.
+1. Before the first step the learner sees, in plain words, the concrete
+   recipient, the areas (`progress`: steps done; `mastery`: completions and
+   estimates per element; `answers`: single answers and questions), whether it
+   is required and until when.
+2. Agreement is a `consented` event per recipient: object the path,
+   `result.with` the concrete recipient (the catalog ID of the publisher, or a
+   URL), `result.areas`, `result.required`. A later `consented` for the same
+   recipient replaces it.
+3. `withdrew` takes areas back (`result.areas`), or everything for that
+   recipient without `areas`. Withdrawing required sharing ends the course
+   (`left`); the learner keeps their record.
+4. The current consents are derived from these events. A host MUST check them
+   before it shares anything, and shares only those areas with that recipient
+   for that course. A course with required sharing starts only after
+   `consented`.
+5. Sharing ends with the course or when its content is no longer available.
 6. What flows back into a library is aggregated and anonymous (SPEC.md §10).
+
+Version 0.2 carried consent in `started` (`result.consent`); hosts read it as
+`consented`.
 
 ---
 
 ## 8. Export and sync
 
-Every host exports the record as a folder, usually zipped, and imports it:
-
-```
-profile.md       # §3
-mastery.json     # §6
-events.jsonl     # §4, one event per line, sorted by id
-```
-
-Courses are derived from events and not exported. Simulator resume state is
+The export is `events.jsonl`: one event per line, sorted by `id`. It is
+lossless. A host MAY add `profile.md` and `mastery.json` as views for people;
+importing ignores them, except that a 0.2 `profile.md` without any
+`profile_updated` event is imported as one. Simulator resume state is
 host-specific.
 
 A learner may keep copies on several hosts, for example a local server and
-Magister. One copy is the **home**; the others call `sync_learner`: a copy
-sends the events it created since the last sync and receives the home's
-events since its cursor; events merge by `id`; each copy recomputes mastery
-and courses; for the profile, the newest `updated` wins per top-level field.
-Importing an exported folder is a sync with an empty cursor.
+Magister. The others sync with one **home** copy through `sync_learner`: a
+copy sends the events it has not sent yet and receives the home's events since
+its cursor; events merge by `id` (an existing `id` is skipped); both derive
+their state again. The cursor is opaque to the caller. Importing an export is a
+sync with an empty cursor.
 
 ---
 
-## 9. Open questions
+## 9. Conformance
 
-- Signed exports, so a host can trust imported mastery.
+[conformance/learner-record/](conformance/learner-record/) holds shared test
+cases: the events of two copies changed independently and the state every host
+must derive after merging them, in any order (profile per field, completions
+per level with version and catalog, a completion rejected for evidence at the
+wrong level, `keep`, consent and withdrawal, a skipped step, a 0.2 completion).
+The estimate is not compared. A host passes when its derived state equals
+`expected`.
+
+---
+
+## 10. Open questions
+
+- Signed exports, so a host can trust imported completions.
 - Leaderboards that reveal only a nickname and points.
 - Sharing outside a course (for example with a coach).

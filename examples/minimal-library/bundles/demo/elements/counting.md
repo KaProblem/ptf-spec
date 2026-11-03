@@ -7,8 +7,10 @@ description: Each number is one more than the one before.
 lang: en
 levels: [child, highschool]
 objectives:
-  - Count a small set of objects without skipping or repeating one.
-  - Explain why the next number is always one more.
+  - id: count
+    text: Count a small set of objects without skipping or repeating one.
+  - id: next-one
+    text: Explain why the next number is always one more.
 about:
   - wikidata: Q247154
     label: counting
@@ -24,7 +26,7 @@ code:
     levels: [highschool]
     note: Let the learner change the number and run it again.
 status: draft
-version: 0.3.0
+version: 0.4.0
 license: CC-BY-SA-4.0
 ---
 
@@ -74,6 +76,7 @@ adding one each time, so every number from 17 to 42 is counted exactly once:
   "id": "q2",
   "level": "child",
   "purpose": "check",
+  "objectives": ["count", "next-one"],
   "misconception": "counting-skips",
   "question": "You count 5, 6, … Which number comes after 6?",
   "options": [
@@ -91,11 +94,26 @@ adding one each time, so every number from 17 to 42 is counted exactly once:
   "id": "q3",
   "level": "highschool",
   "purpose": "probe",
+  "objectives": ["count"],
   "misconception": "counting-skips",
   "question": "How many numbers do you say when you count from 17 to 42?",
   "answer": 26,
   "tolerance": 0,
   "explanation": "Every number comes exactly once: 42 − 17 + 1 = 26."
+}
+```
+
+```ptf-question
+{
+  "kind": "free_text",
+  "id": "q4",
+  "level": "highschool",
+  "purpose": "check",
+  "objectives": ["next-one"],
+  "question": "Why is the number after 99 exactly 100, and not 110 or 1000?",
+  "rubric": ["Says that counting adds one each time", "Says that 99 + 1 = 100"],
+  "sample_answer": "Counting always adds one, and 99 plus one is 100.",
+  "explanation": "The next number in counting is always one more than the last one."
 }
 ```
 

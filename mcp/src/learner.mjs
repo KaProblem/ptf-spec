@@ -1,9 +1,11 @@
-// The learner record (LEARNER-RECORD.md), kept in its export format: plain files.
-// Courses (§5) are derived from the events. A later version stores this in SQLite.
+// The learner record (LEARNER-RECORD.md 0.3). events.jsonl is the record; everything
+// else (profile, completions, consents, courses, the mastery estimate) is derived from it
+// by `derive`, and profile.md and mastery.json are written as views for people.
+// A later version stores the log in SQLite.
 //
-//   <dir>/profile.md      who the learner is and how they learn
-//   <dir>/mastery.json    state per learning element
-//   <dir>/events.jsonl    learning log
+//   <dir>/events.jsonl    the record
+//   <dir>/profile.md      view of the profile
+//   <dir>/mastery.json    view of the elements
 //   <dir>/state/*.json    simulator resume state (host extension, not part of the spec)
 
 import { randomBytes } from "node:crypto";
@@ -12,20 +14,26 @@ import { join } from "node:path";
 import YAML from "yaml";
 import { parseFrontmatter } from "./library.mjs";
 
-const PTF_VERSION = "0.2";
+const PTF_VERSION = "0.3";
 const MAX_STATE_BYTES = 64 * 1024;
-const VERBS = new Set(["started", "left", "experienced", "attempted", "answered", "completed", "assessed", "station_completed", "level_changed",
-  "understood", "rephrase", "deeper", "stuck", "asked", "reported_broken"]);
+export const VERBS = new Set(["answered", "assessed", "completed", "skipped", "started", "left", "consented", "withdrew", "profile_updated",
+  "experienced", "attempted", "station_completed", "level_changed", "understood", "rephrase", "deeper", "stuck", "asked", "reported_broken"]);
+const AREAS = ["progress", "mastery", "answers"];
 
 // Crockford base32 ULID: sortable by time, no dependency.
-function ulid(now = Date.now()) {
+let lastTime = 0, lastRand = null;
+export function ulid(now = Date.now()) {
   const A = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
   let t = "", n = now;
   for (let i = 0; i < 10; i++) { t = A[n % 32] + t; n = Math.floor(n / 32); }
-  const r = randomBytes(16);
-  let s = "";
-  for (let i = 0; i < 16; i++) s += A[r[i] % 32];
-  return t + s;
+  // Monotonic within one millisecond, so the order of events recorded in a row is kept.
+  let r;
+  if (now === lastTime && lastRand) {
+    r = [...lastRand];
+    for (let i = 15; i >= 0; i--) { if (r[i] < 31) { r[i]++; break; } r[i] = 0; }
+  } else r = [...randomBytes(16)].map((b) => b % 32);
+  lastTime = now; lastRand = r;
+  return t + r.map((x) => A[x]).join("");
 }
 
 function writeAtomic(file, text) {
@@ -36,13 +44,137 @@ function writeAtomic(file, text) {
 
 const day = (d) => d.toISOString().slice(0, 10);
 const isObject = (v) => v && typeof v === "object" && !Array.isArray(v);
+const elementOf = (ev) => {
+  const o = String(ev.object ?? "");
+  if (o.startsWith("ptf:el/")) return o.split("#")[0];
+  const e = ev.context?.element;
+  return typeof e === "string" && e.startsWith("ptf:el/") ? e : null;
+};
 
 /** Merges nested objects (style.explain) so a partial update keeps the other fields; arrays and values replace. */
-function merge(old, v) {
+export function merge(old, v) {
   if (!isObject(v) || !isObject(old)) return v;
   const out = { ...old };
   for (const [k, x] of Object.entries(v)) out[k] = merge(old[k], x);
   return out;
+}
+
+/**
+ * Checks a completed event against the log (LEARNER-RECORD.md §5). Evidence is a correct
+ * `answered` event of the same element, earlier in the log, at the completion's level when
+ * it has one. Every listed objective needs evidence; without objectives, one piece is enough.
+ * A completed event without `result.evidence` is a 0.2 completion: it counts, unverified.
+ */
+export function checkCompletion(ev, byId) {
+  const r = ev.result ?? {};
+  if (!("evidence" in r)) return { ok: true, verified: false };
+  const el = elementOf(ev);
+  const good = (r.evidence ?? []).map((id) => byId.get(id)).filter((e) => e && e.verb === "answered" && e.result?.correct === true
+    && elementOf(e) === el && e.id < ev.id && (!ev.level || !e.level || e.level === ev.level));
+  if (!good.length) return { ok: false, missing: r.objectives ?? [], reason: "no correct answer of this element at this level among the evidence" };
+  const shown = new Set(good.flatMap((e) => e.result?.objectives ?? []));
+  const missing = (r.objectives ?? []).filter((o) => !shown.has(o));
+  return missing.length ? { ok: false, missing, reason: `no evidence for objective(s) ${missing.join(", ")}` } : { ok: true, verified: true };
+}
+
+/**
+ * Derives the learner's state from events. Everything except `estimate` fields is
+ * normative: two hosts with the same events derive the same state (conformance/learner-record).
+ */
+export function derive(events) {
+  const sorted = [...events].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const byId = new Map(sorted.map((e) => [e.id, e]));
+  let profile = null;
+  const elements = {};
+  const consents = {};
+  const courses = {};
+  const rejected = [];
+  const el = (id) => (elements[id] ??= { completed: [], skipped: false, open_misconceptions: [], estimate: { mastery: 0 } });
+
+  for (const ev of sorted) {
+    const r = ev.result ?? {};
+    const path = ev.context?.path ?? (String(ev.object).startsWith("ptf:path/") ? String(ev.object).split("#")[0] : null);
+
+    if (ev.verb === "profile_updated") {
+      const fields = isObject(r.fields) ? r.fields : {};
+      profile = profile ?? { type: "Learner Profile", ptf_version: PTF_VERSION };
+      for (const [k, v] of Object.entries(fields)) if (!["type", "ptf_version"].includes(k)) profile[k] = merge(profile[k], v);
+      profile.updated = ev.at;
+      continue;
+    }
+    if (path) {
+      const c = (courses[path] ??= { status: "active", started: null, last_activity: null, last_note: null });
+      if (ev.verb === "started" && ev.object === path) { c.status = "active"; c.started ??= ev.at; }
+      if (ev.verb === "left" && ev.object === path) c.status = "left";
+      if (ev.verb === "completed" && ev.object === path) c.status = "completed";
+      c.last_activity = ev.at;
+      if (ev.note) c.last_note = ev.note;
+    }
+    // Consent (§7): consented sets areas for one recipient, withdrew removes them. 0.2 started.result.consent counts as consented.
+    const grants = ev.verb === "consented" ? [{ with: r.with, areas: r.areas, required: r.required }]
+      : ev.verb === "started" && Array.isArray(r.consent) ? r.consent : [];
+    if (path && grants.length) {
+      const list = (consents[path] ??= []);
+      for (const g of grants) {
+        if (!g?.with) continue;
+        const i = list.findIndex((x) => x.with === g.with);
+        const entry = { with: g.with, areas: (g.areas ?? []).filter((a) => AREAS.includes(a)), required: Boolean(g.required), at: ev.at };
+        if (i >= 0) list[i] = entry; else list.push(entry);
+      }
+    }
+    if (ev.verb === "withdrew" && path && consents[path]) {
+      consents[path] = consents[path].map((x) => (x.with !== r.with ? x
+        : { ...x, areas: r.areas ? x.areas.filter((a) => !r.areas.includes(a)) : [], at: ev.at })).filter((x) => x.areas.length);
+    }
+
+    const id = elementOf(ev);
+    if (!id) continue;
+    const e = el(id);
+    e.last_seen = ev.at;
+    if (ev.keep) e.keep = ev.keep;
+    if (ev.context?.version && !String(ev.object).includes("#")) (e.versions_seen ??= {}).element = ev.context.version;
+    if ((ev.verb === "level_changed" || ev.verb === "deeper") && ev.level) e.target_level = ev.level;
+    if (ev.verb === "skipped") e.skipped = true;
+    if (ev.verb === "completed" && String(ev.object).startsWith("ptf:el/")) {
+      const check = checkCompletion(ev, byId);
+      if (!check.ok) { rejected.push(ev.id); continue; }
+      const level = ev.level ?? "unknown";
+      e.completed = e.completed.filter((x) => x.level !== level);
+      e.completed.push({ level, at: ev.at, ...(ev.context?.version ? { version: ev.context.version } : {}),
+        ...(ev.context?.catalog ? { catalog: ev.context.catalog } : {}), objectives: r.objectives ?? [],
+        ...(ev.context?.reason ? { reason: ev.context.reason } : {}), verified: check.verified });
+      e.skipped = false;
+    }
+    if (r.misconception) {
+      const mis = new Set(e.open_misconceptions);
+      if (r.correct === false) mis.add(r.misconception); else if (r.correct === true) mis.delete(r.misconception);
+      e.open_misconceptions = [...mis];
+    }
+    // The estimate (§6): host's formula, only for scheduling reviews.
+    const s = e.estimate;
+    if (ev.verb === "assessed") {
+      s.mastery = typeof r.score === "number" ? Math.round(r.score * 100) / 100 : r.correct === true ? 0.8 : 0;
+      s.interval_days = s.mastery >= 0.8 ? 3 : 1;
+      s.next_review = day(new Date(new Date(ev.at).getTime() + s.interval_days * 86400000));
+      continue;
+    }
+    const evidence = ev.verb === "answered" || ev.verb === "completed" || ev.verb === "station_completed";
+    const outcome = !evidence ? null : typeof r.score === "number" ? r.score : typeof r.correct === "boolean" ? (r.correct ? 1 : 0)
+      : ev.verb === "completed" ? 0.8 : null;
+    if (outcome !== null) {
+      s.mastery = Math.round((0.6 * (s.mastery ?? 0) + 0.4 * outcome) * 100) / 100;
+      s.interval_days = s.mastery >= 0.8 ? Math.min(60, Math.max(1, (s.interval_days ?? 1) * 2)) : 1;
+      s.next_review = day(new Date(new Date(ev.at).getTime() + s.interval_days * 86400000));
+    }
+  }
+  return { profile, elements, consents, courses, rejected };
+}
+
+/** The normative part of `derive`, without the host's estimate (for conformance tests). */
+export function normative(state) {
+  const elements = {};
+  for (const [id, e] of Object.entries(state.elements)) { const { estimate, last_seen, ...rest } = e; elements[id] = rest; }
+  return { ...state, elements };
 }
 
 export class LearnerRecord {
@@ -53,207 +185,199 @@ export class LearnerRecord {
   #ensure() { mkdirSync(join(this.dir, "state"), { recursive: true }); }
   #file(name) { return join(this.dir, name); }
 
-  profile() {
-    const f = this.#file("profile.md");
-    if (!existsSync(f)) return null;
-    const fm = parseFrontmatter(readFileSync(f, "utf8"));
-    return fm ? { ...fm.data, notes: fm.body.trim() } : null;
+  #all() {
+    const f = this.#file("events.jsonl");
+    const events = !existsSync(f) ? [] : readFileSync(f, "utf8").split("\n").filter((l) => l.trim())
+      .map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+    // 0.2 records kept the profile only in profile.md: turn it into one profile_updated event once.
+    if (!events.some((e) => e.verb === "profile_updated") && existsSync(this.#file("profile.md"))) {
+      const fm = parseFrontmatter(readFileSync(this.#file("profile.md"), "utf8"));
+      if (fm) {
+        const { type, ptf_version, updated, ...fields } = fm.data;
+        if (fm.body.trim()) fields.notes = fm.body.trim();
+        const ev = { id: ulid(), at: new Date().toISOString(), verb: "profile_updated", object: "ptf:learner", result: { fields }, context: { host: "ptf-mcp", reason: "import" } };
+        this.#ensure();
+        appendFileSync(f, JSON.stringify(ev) + "\n");
+        events.push(ev);
+      }
+    }
+    return events;
   }
 
-  /** Merges fields into profile.md; `notes` replaces the free-text body when given. */
-  updateProfile(fields) {
+  state() { return derive(this.#all()); }
+
+  #writeViews(state = this.state()) {
     this.#ensure();
-    const { notes, ...rest } = fields;
-    const current = this.profile() ?? { type: "Learner Profile", ptf_version: PTF_VERSION, learner: `anon:${randomBytes(3).toString("hex")}` };
-    const { notes: oldNotes, ...data } = current;
-    for (const [k, v] of Object.entries(rest)) {
-      if (["type", "ptf_version", "learner"].includes(k)) continue;
-      data[k] = merge(data[k], v);
+    if (state.profile) {
+      const { notes, ...data } = state.profile;
+      writeAtomic(this.#file("profile.md"), `---\n${YAML.stringify(data)}---\n\n${(notes ?? "").trim()}\n`);
     }
-    data.updated = new Date().toISOString();
-    const body = (notes ?? oldNotes ?? "").trim();
-    writeAtomic(this.#file("profile.md"), `---\n${YAML.stringify(data)}---\n\n${body}\n`);
+    writeAtomic(this.#file("mastery.json"), JSON.stringify({ ptf_version: PTF_VERSION, updated: new Date().toISOString(), concepts: this.#concepts(state) }, null, 2) + "\n");
+  }
+
+  #concepts(state) {
+    const out = {};
+    for (const [id, e] of Object.entries(state.elements)) {
+      const { estimate, ...rest } = e;
+      out[id] = { ...rest, mastery: estimate.mastery ?? 0, ...(estimate.next_review ? { next_review: estimate.next_review, interval_days: estimate.interval_days } : {}) };
+    }
+    return out;
+  }
+
+  profile() {
+    const p = this.state().profile;
+    return p ? { notes: "", ...p } : null;
+  }
+
+  /** Records the change as a profile_updated event; `notes` replaces the free-text notes when given. */
+  updateProfile(fields) {
+    const changes = Object.fromEntries(Object.entries(fields).filter(([k, v]) => v !== undefined && !["type", "ptf_version", "updated"].includes(k)));
+    const hasLearner = this.state().profile?.learner;
+    if (!hasLearner) changes.learner = `anon:${randomBytes(3).toString("hex")}`;
+    this.#append({ verb: "profile_updated", object: "ptf:learner", result: { fields: changes } });
+    this.#writeViews();
     return this.profile();
   }
 
-  mastery() {
-    const f = this.#file("mastery.json");
-    if (!existsSync(f)) return { ptf_version: PTF_VERSION, concepts: {} };
-    try { return JSON.parse(readFileSync(f, "utf8")); } catch { return { ptf_version: PTF_VERSION, concepts: {} }; }
-  }
-
-  #saveMastery(m) {
-    this.#ensure();
-    m.updated = new Date().toISOString();
-    writeAtomic(this.#file("mastery.json"), JSON.stringify(m, null, 2) + "\n");
-  }
-
-  #all() {
-    const f = this.#file("events.jsonl");
-    if (!existsSync(f)) return [];
-    return readFileSync(f, "utf8").split("\n").filter((l) => l.trim())
-      .map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
-  }
+  mastery() { return { ptf_version: PTF_VERSION, concepts: this.#concepts(this.state()) }; }
 
   events(limit = 20, filter = () => true) {
     return this.#all().filter(filter).slice(-limit);
   }
 
-  /**
-   * Appends an event and updates mastery.json. `element` (a ptf:el/ ID) attributes
-   * simulator and question results to the learning element they were used for.
-   */
-  record({ verb, object, level, result, context, element, path, note, keep }) {
-    if (!VERBS.has(verb)) throw new Error(`Unknown verb ${verb}`);
-    if (!/^ptf:(el|path|sim)\//.test(object ?? "")) throw new Error(`object must be a ptf:el/, ptf:path/ or ptf:sim/ ID, got ${object}`);
+  #append(fields, now = new Date()) {
     this.#ensure();
-    const now = new Date();
-    const ev = { id: ulid(now.getTime()), at: now.toISOString(), verb, object };
-    if (level) ev.level = level;
-    if (result && Object.keys(result).length) ev.result = result;
-    if (note) ev.note = String(note).slice(0, 1000);
-    const coursePath = path ?? (verb === "started" || verb === "left" || object.startsWith("ptf:path/") ? object.split("#")[0] : undefined);
-    const ctx = { host: "ptf-mcp", ...(context ?? {}), ...(element ? { element } : {}), ...(coursePath ? { path: coursePath } : {}) };
-    ev.context = ctx;
+    const ev = { id: ulid(now.getTime()), at: now.toISOString(), ...fields };
     appendFileSync(this.#file("events.jsonl"), JSON.stringify(ev) + "\n");
-
-    const target = object.startsWith("ptf:el/") ? object.split("#")[0] : element;
-    if (target?.startsWith("ptf:el/")) this.#updateMastery(target, ev, now);
-    if (keep && target?.startsWith("ptf:el/")) this.setMastery(target, { keep: String(keep).slice(0, 2000) });
     return ev;
   }
 
-  #updateMastery(elementId, ev, now) {
-    const m = this.mastery();
-    const c = m.concepts[elementId] ?? { mastery: 0, open_misconceptions: [] };
-    c.last_seen = now.toISOString();
-    if (ev.level) c.level = ev.level;
-    const r = ev.result ?? {};
-    if (ev.verb === "assessed") {
-      // Placement (LEARNER-RECORD.md §6): replaces mastery, early first review.
-      const score = typeof r.score === "number" ? r.score : r.correct === true ? 0.8 : 0;
-      c.mastery = Math.round(score * 100) / 100;
-      c.source = "diagnosis";
-      c.interval_days = c.mastery >= 0.8 ? 3 : 1;
-      c.next_review = day(new Date(now.getTime() + c.interval_days * 86400000));
-      if (r.misconception) c.open_misconceptions = [...new Set([...(c.open_misconceptions ?? []), r.misconception])];
-      m.concepts[elementId] = c;
-      this.#saveMastery(m);
-      return;
+  /**
+   * Appends an event. `element` attributes simulator and question results to the learning element they
+   * were used for. `info(elementId)` returns { objectives: [ids], version, catalog, questionObjectives(qid) }
+   * from the library, or null. A completed event for an element is checked before it is stored: it names
+   * the objectives and the correct answers that show them; missing evidence is picked from the log.
+   */
+  record({ verb, object, level, result, context, element, path, note, keep }, info = () => null) {
+    if (!VERBS.has(verb)) throw new Error(`Unknown verb ${verb}`);
+    if (!/^ptf:(el|path|sim)\//.test(object ?? "")) throw new Error(`object must be a ptf:el/, ptf:path/ or ptf:sim/ ID, got ${object}`);
+    const elId = object.startsWith("ptf:el/") ? object.split("#")[0] : element?.startsWith("ptf:el/") ? element : null;
+    const meta = elId ? info(elId) : null;
+    const res = result && Object.keys(result).length ? { ...result } : undefined;
+    if (verb === "answered" && res && !res.objectives && meta && object.includes("#")) {
+      const objs = meta.questionObjectives?.(object.split("#")[1]);
+      if (objs?.length) res.objectives = objs;
     }
-    if (ev.verb === "completed") c.completed = true;
-    // Only evidence changes mastery (LEARNER-RECORD.md §4); "understood" and other self-reports do not.
-    const evidence = ev.verb === "answered" || ev.verb === "completed" || ev.verb === "station_completed";
-    const outcome = !evidence ? null : typeof r.score === "number" ? r.score : typeof r.correct === "boolean" ? (r.correct ? 1 : 0)
-      : ev.verb === "completed" ? 0.8 : null;
-    if (outcome !== null) {
-      delete c.source;
-      // Recent results weigh more (LEARNER-RECORD.md §6).
-      c.mastery = Math.round((0.6 * (c.mastery ?? 0) + 0.4 * outcome) * 100) / 100;
-      c.interval_days = c.mastery >= 0.8 ? Math.min(60, Math.max(1, (c.interval_days ?? 1) * 2)) : 1;
-      c.next_review = day(new Date(now.getTime() + c.interval_days * 86400000));
-    }
-    const mis = new Set(c.open_misconceptions ?? []);
-    if (r.misconception) (r.correct === false ? mis.add(r.misconception) : r.correct === true && mis.delete(r.misconception));
-    c.open_misconceptions = [...mis];
-    m.concepts[elementId] = c;
-    this.#saveMastery(m);
-  }
+    const coursePath = path ?? (["started", "left", "consented", "withdrew"].includes(verb) || object.startsWith("ptf:path/") ? object.split("#")[0] : undefined);
+    const ctx = { host: "ptf-mcp", ...(context ?? {}), ...(element ? { element } : {}), ...(coursePath ? { path: coursePath } : {}),
+      ...(meta?.version && !object.includes("#") ? { version: meta.version } : {}), ...(meta?.catalog ? { catalog: meta.catalog } : {}) };
 
-  /** Lets the tutor set mastery directly, e.g. after a conversation-based check. */
-  setMastery(elementId, fields) {
-    const m = this.mastery();
-    m.concepts[elementId] = { ...(m.concepts[elementId] ?? {}), ...fields, last_seen: new Date().toISOString() };
-    this.#saveMastery(m);
-    return m.concepts[elementId];
+    const ev = { id: ulid(), at: new Date().toISOString(), verb, object };
+    if (level) ev.level = level;
+    if (note) ev.note = String(note).slice(0, 1000);
+    if (keep) ev.keep = String(keep).slice(0, 2000);
+    ev.context = ctx;
+
+    if (verb === "completed" && object.startsWith("ptf:el/") && !object.includes("#")) {
+      if (!level) throw new Error("completed needs the level at which the element was completed.");
+      const all = this.#all();
+      const objectives = res?.objectives ?? meta?.objectives ?? [];
+      let evidence = res?.evidence;
+      if (!evidence) {
+        // Pick the latest correct answer at this level per objective (or any one without objectives).
+        const answers = all.filter((e) => e.verb === "answered" && e.result?.correct === true && elementOf(e) === elId && (!e.level || e.level === level));
+        evidence = objectives.length
+          ? [...new Set(objectives.map((o) => answers.filter((a) => a.result?.objectives?.includes(o)).at(-1)?.id).filter(Boolean))]
+          : answers.slice(-1).map((a) => a.id);
+      }
+      ev.result = { ...(res ?? {}), objectives, evidence };
+      const check = checkCompletion(ev, new Map(all.map((e) => [e.id, e])));
+      if (!check.ok) {
+        throw new Error(`Not completed: ${check.reason}. Ask a check question for each missing objective at level ${level} and record the ` +
+          "answer with record_progress (verb answered, result.correct, result.objectives), then record completed again. " +
+          "If the learner wants to leave the step out, record verb skipped instead.");
+      }
+    } else if (res) ev.result = res;
+
+    this.#ensure();
+    appendFileSync(this.#file("events.jsonl"), JSON.stringify(ev) + "\n");
+    this.#writeViews();
+    return ev;
   }
 
   /**
-   * What the learner has done so far, from the whole event log: completed
-   * elements and, per simulator, the stations completed. The tutor uses it
-   * to avoid restarting finished work.
+   * Sync (LEARNER-RECORD.md §8): merges events from another copy by id and returns the events this copy
+   * had received since `since` (a cursor from an earlier call), plus the new cursor.
    */
+  sync(events = [], since = "") {
+    const all = this.#all();
+    const start = Math.max(0, Number.parseInt(since || "0", 10) || 0);
+    const outgoing = all.slice(start);
+    const known = new Set(all.map((e) => e.id));
+    const incoming = [];
+    for (const e of events) {
+      if (!e || typeof e.id !== "string" || !e.at || !VERBS.has(e.verb) || typeof e.object !== "string" || known.has(e.id)) continue;
+      known.add(e.id);
+      incoming.push(e);
+    }
+    if (incoming.length) {
+      this.#ensure();
+      appendFileSync(this.#file("events.jsonl"), incoming.map((e) => JSON.stringify(e)).join("\n") + "\n");
+    }
+    this.#writeViews();
+    return { received: incoming.length, events: outgoing, cursor: String(all.length + incoming.length) };
+  }
+
+  /** Completed elements and, per simulator, the stations completed, from the whole log. */
   progress() {
-    const f = this.#file("events.jsonl");
-    const out = { elements_completed: [], simulators: {} };
-    if (!existsSync(f)) return out;
-    const done = new Set();
-    for (const line of readFileSync(f, "utf8").split("\n")) {
-      if (!line.trim()) continue;
-      let ev;
-      try { ev = JSON.parse(line); } catch { continue; }
-      const object = String(ev.object ?? "");
-      if (ev.verb === "completed" && object.startsWith("ptf:el/")) done.add(object.split("#")[0]);
-      if (!object.startsWith("ptf:sim/")) continue;
-      const [ref, station] = object.split("#");
-      const id = ref.replace(/(.)@[^@/]+$/, "$1");
-      const sim = out.simulators[id] ??= { stations_completed: [], last_used: null };
-      sim.last_used = ev.at ?? sim.last_used;
-      if (ev.verb === "station_completed" && station && !sim.stations_completed.includes(station)) sim.stations_completed.push(station);
-    }
-    out.elements_completed = [...done];
-    return out;
+    const s = this.state();
+    return { elements_completed: Object.entries(s.elements).filter(([, e]) => e.completed.length).map(([id]) => id), simulators: this.#stations(this.#all()) };
   }
 
   /**
-   * Courses (LEARNER-RECORD.md §5), derived from events with context.path.
-   * `pathInfo(id)` returns { steps: [{ element, optional }], requires(elementId) } from the library, or null.
+   * Courses (LEARNER-RECORD.md §5). `pathInfo(id)` returns { steps: [{ element, optional }] } from the library, or null.
+   * A step is done when the element has a completion at any level; a skipped step is passed over but does not count.
    */
-  courses(pathInfo = () => null) {
-    const out = new Map();
-    for (const ev of this.#all()) {
-      const path = ev.context?.path;
-      if (!path) continue;
-      const c = out.get(path) ?? { path, status: "active", last_activity: null, last_note: null };
-      if (ev.verb === "started") c.status = "active";
-      if (ev.verb === "left" && ev.object === path) c.status = "left";
-      if (ev.verb === "completed" && ev.object === path) c.status = "completed";
-      c.last_activity = ev.at;
-      if (ev.note) c.last_note = ev.note;
-      out.set(path, c);
-    }
-    for (const g of this.profile()?.goals ?? []) {
+  courses(pathInfo = () => null, state = this.state()) {
+    const out = new Map(Object.entries(state.courses).map(([path, c]) => [path, { path, ...c }]));
+    for (const g of state.profile?.goals ?? []) {
       for (const path of [...(g.paths ?? []), ...(g.path ? [g.path] : [])]) {
         if (!out.has(path)) out.set(path, { path, status: "planned", goal: g.text, last_activity: null, last_note: null });
       }
     }
-    const concepts = this.mastery().concepts;
     for (const c of out.values()) {
       const info = pathInfo(c.path);
       if (!info) continue;
-      const open = info.steps.find((s) => !this.#stepDone(s.element, concepts));
-      c.current_step = open?.element ?? null;
-      c.steps_done = info.steps.filter((s) => this.#stepDone(s.element, concepts)).length;
+      const done = (s) => Boolean(state.elements[s.element]?.completed.length);
+      const skipped = (s) => Boolean(state.elements[s.element]?.skipped);
+      c.current_step = info.steps.find((s) => !done(s) && !skipped(s))?.element ?? null;
+      c.steps_done = info.steps.filter(done).length;
+      c.steps_skipped = info.steps.filter((s) => !done(s) && skipped(s)).length;
       c.steps_total = info.steps.length;
+      if (c.status === "active" && info.steps.length && info.steps.every((s) => s.optional || done(s))) c.status = "completed";
     }
     return [...out.values()];
   }
 
-  #stepDone(elementId, concepts) {
-    const c = concepts[elementId];
-    return Boolean(c && (c.completed || (c.source === "diagnosis" && c.mastery >= 0.8)));
-  }
-
   /** One course in detail (LEARNER-RECORD.md §2, get_learner({ course })). */
   course(pathId, info) {
-    const concepts = this.mastery().concepts;
+    const state = this.state();
     const elements = new Set((info?.steps ?? []).map((s) => s.element));
-    const inCourse = (ev) => ev.context?.path === pathId || elements.has(String(ev.object).split("#")[0]) || elements.has(ev.context?.element);
-    const events = this.#all().filter(inCourse);
-    const summary = this.courses(() => info).find((c) => c.path === pathId) ?? { path: pathId, status: "not started" };
+    const events = this.#all().filter((ev) => ev.context?.path === pathId || elements.has(elementOf(ev)));
+    const summary = this.courses(() => info, state).find((c) => c.path === pathId) ?? { path: pathId, status: "not started" };
     const placement = events.filter((e) => e.verb === "assessed")
       .map((e) => ({ element: e.object.split("#")[0], score: e.result?.score ?? null, level: e.level ?? null, reason: e.context?.reason ?? "placement" }));
-    const consent = [...events].reverse().find((e) => e.verb === "started")?.result?.consent ?? [];
     return {
       ...summary,
-      sharing: consent,
+      sharing: (state.consents[pathId] ?? []).map(({ at, ...c }) => c),
       placement,
       steps: (info?.steps ?? []).map((s) => {
-        const c = concepts[s.element];
-        return { element: s.element, optional: Boolean(s.optional), level: c?.level ?? null, mastery: c?.mastery ?? null,
-          done: this.#stepDone(s.element, concepts), ...(c?.keep ? { keep: c.keep } : {}) };
+        const e = state.elements[s.element];
+        return { element: s.element, optional: Boolean(s.optional), completed: e?.completed.map((c) => c.level) ?? [],
+          done: Boolean(e?.completed.length), skipped: Boolean(e?.skipped && !e.completed.length), target_level: e?.target_level ?? null,
+          mastery: e?.estimate.mastery ?? null, ...(e?.keep ? { keep: e.keep } : {}) };
       }),
-      open_misconceptions: [...new Set([...elements].flatMap((e) => concepts[e]?.open_misconceptions ?? []))],
+      open_misconceptions: [...new Set([...elements].flatMap((e) => state.elements[e]?.open_misconceptions ?? []))],
       simulators: this.#stations(events),
       recent_events: events.slice(-20),
     };
@@ -261,14 +385,14 @@ export class LearnerRecord {
 
   /** One element in detail. */
   element(elementId) {
-    const events = this.#all().filter((ev) => String(ev.object).split("#")[0] === elementId || ev.context?.element === elementId);
-    return { element: elementId, mastery: this.mastery().concepts[elementId] ?? null, simulators: this.#stations(events), recent_events: events.slice(-20) };
+    const events = this.#all().filter((ev) => elementOf(ev) === elementId);
+    return { element: elementId, mastery: this.#concepts(this.state())[elementId] ?? null, simulators: this.#stations(events), recent_events: events.slice(-20) };
   }
 
   /** Reviews due, at most `limit`: first what the next steps of active courses require, then the most overdue. */
   reviewsDue(firstIds = [], limit = 10, today = new Date().toISOString().slice(0, 10)) {
-    const due = Object.entries(this.mastery().concepts).filter(([, c]) => c.next_review && c.next_review <= today)
-      .map(([id, c]) => ({ element: id, next_review: c.next_review, mastery: c.mastery }));
+    const due = Object.entries(this.state().elements).filter(([, e]) => e.estimate.next_review && e.estimate.next_review <= today)
+      .map(([id, e]) => ({ element: id, next_review: e.estimate.next_review, mastery: e.estimate.mastery }));
     const first = new Set(firstIds);
     due.sort((a, b) => (first.has(b.element) - first.has(a.element)) || a.next_review.localeCompare(b.next_review));
     return due.slice(0, limit);

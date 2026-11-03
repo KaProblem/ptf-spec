@@ -37,6 +37,7 @@ every PTF bundle is a plain directory of Markdown files with YAML frontmatter.
 | [tools/ptf-wikidata.mjs](tools/ptf-wikidata.mjs) | Finds Wikidata items for `about` (`search`) and checks every `about` ID in a library (`verify`); needs network |
 | [mcp/](mcp/) | Local MCP server: serves a library, shows simulators as MCP Apps, keeps the learner record on the device; tutor and author skills; Claude Code plugin |
 | [examples/minimal-library/](examples/minimal-library/) | The smallest valid library (one bundle, one simulator, one code lab) |
+| [conformance/](conformance/) | Shared test cases for hosts: the learner-record state every host must derive from the same events ([LEARNER-RECORD.md §9](LEARNER-RECORD.md)) |
 
 ```bash
 npm install

@@ -1,0 +1,289 @@
+{
+  "description": "Two copies of one record (a laptop and a web host) changed independently, then synced. Every host that merges device_a and device_b by event id must derive `expected` (LEARNER-RECORD.md §9).",
+  "device_a": [
+    {
+      "id": "01JC0000000000000000000000",
+      "at": "2026-11-01T08:00:00Z",
+      "verb": "completed",
+      "object": "ptf:el/demo/legacy",
+      "level": "child"
+    },
+    {
+      "id": "01JC0000000000000000000001",
+      "at": "2026-11-01T09:00:00Z",
+      "verb": "profile_updated",
+      "object": "ptf:learner",
+      "result": {
+        "fields": {
+          "learner": "anon:7f3c9a",
+          "preferred_lang": "de",
+          "style": {
+            "pace": "normal",
+            "explain": {
+              "length": "short"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "01JC0000000000000000000002",
+      "at": "2026-11-01T10:00:00Z",
+      "verb": "started",
+      "object": "ptf:path/demo/count-to-ten",
+      "context": {
+        "path": "ptf:path/demo/count-to-ten"
+      }
+    },
+    {
+      "id": "01JC0000000000000000000003",
+      "at": "2026-11-01T11:00:00Z",
+      "verb": "consented",
+      "object": "ptf:path/demo/count-to-ten",
+      "result": {
+        "with": "org.example.minimal-library",
+        "areas": [
+          "progress",
+          "mastery"
+        ],
+        "required": false
+      },
+      "context": {
+        "path": "ptf:path/demo/count-to-ten"
+      }
+    },
+    {
+      "id": "01JC0000000000000000000006",
+      "at": "2026-11-01T14:00:00Z",
+      "verb": "profile_updated",
+      "object": "ptf:learner",
+      "result": {
+        "fields": {
+          "languages": [
+            "de",
+            "en"
+          ]
+        }
+      }
+    },
+    {
+      "id": "01JC0000000000000000000005",
+      "at": "2026-11-01T13:00:00Z",
+      "verb": "answered",
+      "object": "ptf:el/demo/counting#q2",
+      "level": "child",
+      "result": {
+        "correct": true,
+        "objectives": [
+          "count",
+          "next-one"
+        ]
+      },
+      "context": {
+        "path": "ptf:path/demo/count-to-ten",
+        "catalog": "org.example.minimal-library"
+      }
+    },
+    {
+      "id": "01JC0000000000000000000007",
+      "at": "2026-11-01T15:00:00Z",
+      "verb": "completed",
+      "object": "ptf:el/demo/counting",
+      "level": "child",
+      "result": {
+        "objectives": [
+          "count",
+          "next-one"
+        ],
+        "evidence": [
+          "01JC0000000000000000000005"
+        ]
+      },
+      "context": {
+        "path": "ptf:path/demo/count-to-ten",
+        "version": "0.4.0",
+        "catalog": "org.example.minimal-library"
+      }
+    },
+    {
+      "id": "01JC0000000000000000000012",
+      "at": "2026-11-02T10:00:00Z",
+      "verb": "withdrew",
+      "object": "ptf:path/demo/count-to-ten",
+      "result": {
+        "with": "org.example.minimal-library",
+        "areas": [
+          "mastery"
+        ]
+      },
+      "context": {
+        "path": "ptf:path/demo/count-to-ten"
+      }
+    }
+  ],
+  "device_b": [
+    {
+      "id": "01JC0000000000000000000005",
+      "at": "2026-11-01T13:00:00Z",
+      "verb": "answered",
+      "object": "ptf:el/demo/counting#q2",
+      "level": "child",
+      "result": {
+        "correct": true,
+        "objectives": [
+          "count",
+          "next-one"
+        ]
+      },
+      "context": {
+        "path": "ptf:path/demo/count-to-ten",
+        "catalog": "org.example.minimal-library"
+      }
+    },
+    {
+      "id": "01JC0000000000000000000004",
+      "at": "2026-11-01T12:00:00Z",
+      "verb": "profile_updated",
+      "object": "ptf:learner",
+      "result": {
+        "fields": {
+          "style": {
+            "pace": "fast"
+          }
+        }
+      }
+    },
+    {
+      "id": "01JC0000000000000000000008",
+      "at": "2026-11-01T16:00:00Z",
+      "verb": "deeper",
+      "object": "ptf:el/demo/counting",
+      "level": "highschool",
+      "context": {
+        "path": "ptf:path/demo/count-to-ten"
+      }
+    },
+    {
+      "id": "01JC0000000000000000000009",
+      "at": "2026-11-01T17:00:00Z",
+      "verb": "completed",
+      "object": "ptf:el/demo/counting",
+      "level": "highschool",
+      "result": {
+        "objectives": [
+          "count",
+          "next-one"
+        ],
+        "evidence": [
+          "01JC0000000000000000000005"
+        ]
+      },
+      "context": {
+        "path": "ptf:path/demo/count-to-ten"
+      }
+    },
+    {
+      "id": "01JC0000000000000000000010",
+      "at": "2026-11-02T08:00:00Z",
+      "verb": "understood",
+      "object": "ptf:el/demo/counting",
+      "level": "highschool",
+      "keep": "Counting is adding one finger at a time.",
+      "context": {
+        "path": "ptf:path/demo/count-to-ten"
+      }
+    },
+    {
+      "id": "01JC0000000000000000000011",
+      "at": "2026-11-02T09:00:00Z",
+      "verb": "skipped",
+      "object": "ptf:el/demo/other",
+      "context": {
+        "path": "ptf:path/demo/count-to-ten"
+      }
+    }
+  ],
+  "expected": {
+    "profile": {
+      "type": "Learner Profile",
+      "ptf_version": "0.3",
+      "learner": "anon:7f3c9a",
+      "preferred_lang": "de",
+      "style": {
+        "pace": "fast",
+        "explain": {
+          "length": "short"
+        }
+      },
+      "updated": "2026-11-01T14:00:00Z",
+      "languages": [
+        "de",
+        "en"
+      ]
+    },
+    "elements": {
+      "ptf:el/demo/legacy": {
+        "completed": [
+          {
+            "level": "child",
+            "at": "2026-11-01T08:00:00Z",
+            "objectives": [],
+            "verified": false
+          }
+        ],
+        "skipped": false,
+        "open_misconceptions": []
+      },
+      "ptf:el/demo/counting": {
+        "completed": [
+          {
+            "level": "child",
+            "at": "2026-11-01T15:00:00Z",
+            "version": "0.4.0",
+            "catalog": "org.example.minimal-library",
+            "objectives": [
+              "count",
+              "next-one"
+            ],
+            "verified": true
+          }
+        ],
+        "skipped": false,
+        "open_misconceptions": [],
+        "versions_seen": {
+          "element": "0.4.0"
+        },
+        "target_level": "highschool",
+        "keep": "Counting is adding one finger at a time."
+      },
+      "ptf:el/demo/other": {
+        "completed": [],
+        "skipped": true,
+        "open_misconceptions": []
+      }
+    },
+    "consents": {
+      "ptf:path/demo/count-to-ten": [
+        {
+          "with": "org.example.minimal-library",
+          "areas": [
+            "progress"
+          ],
+          "required": false,
+          "at": "2026-11-02T10:00:00Z"
+        }
+      ]
+    },
+    "courses": {
+      "ptf:path/demo/count-to-ten": {
+        "status": "active",
+        "started": "2026-11-01T10:00:00Z",
+        "last_activity": "2026-11-02T10:00:00Z",
+        "last_note": null
+      }
+    },
+    "rejected": [
+      "01JC0000000000000000000009"
+    ]
+  }
+}

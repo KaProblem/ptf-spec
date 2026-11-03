@@ -312,6 +312,13 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
     const hs = headings(fm.body);
     for (const req of ["Core", "Misconceptions"]) if (!hs.includes(req)) err(f, `missing required heading "# ${req}"`);
     if (!d.objectives?.length) warn(f, "no `objectives`: say what the learner can do after this step (SPEC.md §6.1)");
+    const objIds = new Set();
+    for (const o of d.objectives ?? []) {
+      if (typeof o === "string") continue;
+      if (objIds.has(o.id)) err(f, `duplicate objective id "${o.id}"`);
+      objIds.add(o.id);
+    }
+    if ((d.objectives ?? []).some((o) => typeof o === "string")) warn(f, "objectives without `id`: write them as `{ id, text }` so questions and completions can refer to them (SPEC.md §6.1)");
     const textLevels = new Set();
     for (const h of hs) {
       const lm = h.match(/^Level:\s*([a-z0-9-]+)/);
@@ -331,13 +338,19 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
 
     const qIds = new Set();
     const checkLevels = new Set();
+    const covered = new Set();   // "<level> <objective>"
     for (const m of fm.body.matchAll(/```ptf-question\s*\n([\s\S]*?)```/g)) {
       let q;
       try { q = JSON.parse(m[1]); } catch (e) { err(f, `ptf-question block is not valid JSON: ${e.message}`); continue; }
       const where = `${f}#${q.id ?? "?"}`;
       for (const e of schemaErrors("question-block", q)) err(where, e);
       if (q.id) { if (qIds.has(q.id)) err(where, "duplicate question id"); qIds.add(q.id); }
-      if (["check", "probe"].includes(q.purpose ?? "check") && q.level) checkLevels.add(q.level);
+      if (["check", "probe"].includes(q.purpose ?? "check") && q.level) {
+        checkLevels.add(q.level);
+        for (const o of q.objectives ?? []) covered.add(`${q.level} ${o}`);
+        if (objIds.size && !q.objectives?.length) warn(where, "check question without `objectives`: name the objective IDs it checks (SPEC.md §7)");
+      }
+      for (const o of q.objectives ?? []) if (!objIds.has(o)) err(where, `objective "${o}" is not an objective id of this element`);
       if (q.level && !(d.levels ?? []).includes(q.level)) warn(where, `question level "${q.level}" is not in the element's levels`);
       if (q.misconception && !misIds.has(q.misconception)) err(where, `misconception "${q.misconception}" is not defined under # Misconceptions`);
       if (q.kind === "cloze" && q.text && q.gaps) {
@@ -347,6 +360,11 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
     }
 
     for (const l of d.levels ?? []) if (!checkLevels.has(l)) warn(f, `level "${l}" has no \`check\` or \`probe\` question; every level tests the whole concept at its depth (SPEC.md §5.2)`);
+    if (objIds.size) {
+      const gaps = (d.levels ?? []).filter((l) => checkLevels.has(l))
+        .map((l) => [l, [...objIds].filter((o) => !covered.has(`${l} ${o}`))]).filter(([, os]) => os.length);
+      if (gaps.length) warn(f, `objectives without a check question: ${gaps.map(([l, os]) => `${l}: ${os.join(", ")}`).join("; ")} (SPEC.md §7)`);
+    }
 
     for (const s of d.simulators ?? []) {
       if (!s.ref || !s.ref.includes("@")) continue;

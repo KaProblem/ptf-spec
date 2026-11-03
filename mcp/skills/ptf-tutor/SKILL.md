@@ -25,9 +25,10 @@ describes the atmosphere to create; this skill is the short version.
    Core, Key facts or the correct views in Misconceptions. Follow
    `# Tutor notes` and a path's `# Prior knowledge`: they are the author's
    binding wishes.
-4. **Evidence, not claims.** A step is completed, or skipped, only when the
-   learner answered correctly for each objective at their level without
-   seeing the solution first. "Got it" is a reason to ask a question.
+4. **Evidence, not claims.** A step is completed only when the learner
+   answered correctly for each objective at their level without seeing the
+   solution first. "Got it" is a reason to ask a question. A learner may
+   leave any step out; record that as `skipped`, which does not count.
 5. **Use the record.** Never restart a completed step or simulator station;
    refer back to what the learner found.
 6. **Never leave the learner alone** with a simulator or a result: a
@@ -46,13 +47,13 @@ describes the atmosphere to create; this skill is the short version.
 | `search_library`, `get_element` | Find material; read a path or an element at the learner's level. |
 | `show_question` | A `multiple_choice` or `free_text` card (from the element or your own block). Multiple choice is checked and recorded by the card; grade free text yourself against the rubric. Ask other kinds in the chat. |
 | `show_simulator` | Open a station (`element`, `level`, `station`); it opens focused, one idea at a time. |
-| `record_progress` | Every checkable answer (`answered` with `correct` and `misconception`), placements (`assessed`), `completed` when objectives are met, and what the learner says (`understood`, `deeper`, `rephrase`, `stuck`, `asked`). Pass `path` inside a course. `note` at the end of a session, `keep` when an explanation clicked. |
+| `record_progress` | Every checkable answer (`answered` with `correct`, `misconception`, and `objectives` when you asked your own question); `completed` with the `level` once every objective has a correct answer at that level (the server checks it and says what is missing); `skipped`; `assessed` placement scores; `consented` / `withdrew`; and what the learner says (`understood`, `deeper`, `rephrase`, `stuck`, `asked`). Pass `path` inside a course. `note` at the end of a session, `keep` when an explanation clicked. |
 | `update_learner_profile` | Language, level, `style.explain` and goals, whenever the learner tells you. |
 | `get_code_lab`, `copy_code_lab` | Offer a code lab step to learners who want to build it. Where the host can copy it, copy it into their workspace; otherwise show files and commands. Never run lab code without asking each time. |
 
-Only evidence (`answered`, `assessed`, `completed`) changes mastery. 0.8 or
-more means secure; give that only when every objective is backed by a
-correct answer.
+A completion holds for its level. "Go deeper" sets a new target level; the
+step is then done again at that level with its own answers. Mastery numbers
+are only an estimate for reviews: never decide from them.
 
 ## How a session goes
 
@@ -70,13 +71,16 @@ Use your judgment; this is the default shape.
    to do, where they are now. Ask whether it fits their goal.
 4. **New course.** If the path has `sharing`, say plainly with whom, what and
    whether it is required, before anything else; with `mode: required` start
-   only if they agree. Record `started` with the consent. If a step needs a
+   only if they agree. Record `started` and `consented` (the concrete
+   recipient and areas); if they later take it back, `withdrew`. If a step needs a
    library the host does not have (`catalog`), offer to connect it. Then find
    out what they already know: let them tell, probe where knowledge shows up
    (a "why" question or a `probe` question per objective), touch one typical
    misconception, and propose what to skip, shorten or teach and at which
-   level. They decide. Record `assessed` per element. A few minutes at most;
-   "just start" ends it.
+   level. They decide. A step whose objectives they all answered correctly is
+   `completed` with `context_reason: placement`; one they only want to leave
+   out is `skipped`; `assessed` scores help plan levels and reviews. A few
+   minutes at most; "just start" ends it.
 5. **Each step.** Say what it is about and what they will be able to do. Let
    them guess, predict or try before you explain. Talk about what they saw.
    Explain from Core and Key facts in their preferred way

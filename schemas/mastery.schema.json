@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/KaProblem/ptf-spec/schemas/mastery.schema.json",
-  "title": "PTF mastery.json",
+  "title": "PTF mastery.json (a view derived from events.jsonl)",
   "type": "object",
   "required": [
     "ptf_version",
@@ -23,18 +23,13 @@
       },
       "additionalProperties": {
         "type": "object",
-        "required": [
-          "mastery"
-        ],
+        "required": [],
         "properties": {
-          "level": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9-]*$"
-          },
           "mastery": {
             "type": "number",
             "minimum": 0,
-            "maximum": 1
+            "maximum": 1,
+            "description": "The host's estimate for scheduling reviews; the formula is the host's and no decision depends on it."
           },
           "last_seen": {
             "type": "string",
@@ -55,11 +50,6 @@
               "pattern": "^[a-z0-9][a-z0-9-]*$"
             }
           },
-          "source": {
-            "enum": [
-              "diagnosis"
-            ]
-          },
           "versions_seen": {
             "type": "object",
             "additionalProperties": {
@@ -69,11 +59,54 @@
           "keep": {
             "type": "string",
             "maxLength": 2000,
-            "description": "The learner's own explanation (LEARNER-RECORD.md §2)."
+            "description": "The learner's own explanation (LEARNER-RECORD.md \u00a72)."
           },
           "completed": {
+            "type": "array",
+            "description": "Completions with evidence, one per level (LEARNER-RECORD.md \u00a75).",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "at"
+              ],
+              "properties": {
+                "level": {
+                  "type": "string"
+                },
+                "at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "version": {
+                  "type": "string"
+                },
+                "catalog": {
+                  "type": "string"
+                },
+                "objectives": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "verified": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "target_level": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "The level the learner wants next, separate from completions."
+          },
+          "skipped": {
             "type": "boolean",
-            "description": "A completed event was recorded for this element."
+            "description": "The learner chose to leave the element out; does not count as completed."
           }
         }
       }

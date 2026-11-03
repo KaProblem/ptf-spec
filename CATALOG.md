@@ -100,8 +100,11 @@ in a bundle resolve in this view as in SPEC.md §3. Simulators that live inside 
 bundle directory travel with the bundle and need no own entry.
 
 Two catalogs MAY offer the same id. A host MUST NOT mix versions of one id from
-different catalogs silently; it keeps the catalog that was connected first and
-reports the conflict.
+different catalogs silently; for teaching it keeps the catalog that was connected
+first and reports the conflict. Learner events name the catalog their object came
+from (`context.catalog`, LEARNER-RECORD.md §4), and a host interprets an event's
+IDs in that catalog, so the order in which catalogs were connected never changes
+what a record means.
 
 ## 3. Access
 

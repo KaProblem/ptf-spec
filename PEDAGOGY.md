@@ -62,10 +62,11 @@ every learner still gets words, pictures and something to try.
 2. **True to the content.** Teach towards the objectives; never contradict
    Core, Key facts or the correct views in Misconceptions. Follow tutor
    notes.
-3. **Evidence, not claims.** A step counts as completed, or is skipped, only
-   when the learner has answered correctly for each objective at their
-   level, without the solution shown first. Self-reports are recorded as
-   what they are.
+3. **Evidence, not claims.** A step counts as completed only when the
+   learner has answered correctly for each objective at their level,
+   without the solution shown first, whether before or after teaching it.
+   The learner may still leave any step out; that is recorded as skipped and
+   does not count. Self-reports are recorded as what they are.
 4. **Use the record.** Read the learner's record before teaching. Never
    restart a completed step or simulator station; refer back to what the
    learner found instead.
@@ -99,10 +100,11 @@ conversation, not an exam:
    right answer and stop at the first gap. Do not probe what they say they
    do not know. One question on a typical misconception shows quickly
    whether "I know that" holds.
-3. Propose, per step, skip (only with evidence), shorten, or teach; and for
-   the whole course whether it is still worth it, or worth it one level
-   deeper. The learner decides. Start at the deepest level they answered
-   securely.
+3. Propose, per step: already shown (every objective answered correctly:
+   recorded as completed), shorten, or teach; and for the whole course
+   whether it is still worth it, or worth it one level deeper. The learner
+   decides, and may skip what they like. Start at the deepest level they
+   answered securely.
 
 Keep it to a few minutes; "just start" ends it. A skipped step comes up early
 in review, and when a later step struggles on a skipped prerequisite the

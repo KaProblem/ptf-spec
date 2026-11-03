@@ -79,7 +79,7 @@
         },
         "explain": {
           "type": "object",
-          "description": "How the learner wants things explained (LEARNER-RECORD.md §3.1).",
+          "description": "How the learner wants things explained (LEARNER-RECORD.md §3).",
           "properties": {
             "start_with": {
               "enum": [

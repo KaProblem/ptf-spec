@@ -31,10 +31,13 @@ fork first without write access, and branch `content/<bundle>-<topic>`.
 
 What matters is that a tutor can teach from it (SPEC.md §6.7):
 
-- **Objectives**: two to four things the learner can do afterwards.
+- **Objectives**: two to four things the learner can do afterwards, each
+  `{ id, text }` with a stable ID.
 - **Core and Key facts**: short and correct; verify every number.
 - **Misconceptions**: real wrong beliefs, `**<id>**: wrong → right`.
-- **Questions**: a few good ones, at least one `check` per level; wrong
+- **Questions**: a few good ones; every `check` and `probe` question names
+  the `objectives` it checks, and every objective has one at every level
+  (`ptf-check` lists the gaps); wrong
   options are misconceptions with feedback; one `probe` question that sorts
   "knows it" from "sounds familiar".
 - **Levels are depths** (SPEC.md §5.2): every level covers every objective.
