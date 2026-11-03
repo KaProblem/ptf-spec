@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/KaProblem/ptf-spec/schemas/catalog.schema.json",
+  "title": "PTF catalog (ptf-catalog.json)",
+  "type": "object",
+  "required": ["ptf_catalog", "id", "title", "publisher", "auth", "packages"],
+  "properties": {
+    "ptf_catalog": { "const": "0.1" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*(\\.[a-z0-9][a-z0-9-]*)+$" },
+    "title": { "type": "string", "minLength": 1 },
+    "publisher": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "homepage": { "type": "string", "format": "uri" },
+    "contact": { "type": "string" },
+    "auth": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["none", "bearer", "oauth2"] },
+        "instructions": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "authorization_endpoint": { "type": "string", "format": "uri" },
+        "token_endpoint": { "type": "string", "format": "uri" },
+        "device_authorization_endpoint": { "type": "string", "format": "uri" },
+        "scope": { "type": "string" }
+      },
+      "if": { "properties": { "type": { "const": "oauth2" } } },
+      "then": { "required": ["authorization_endpoint", "token_endpoint"] }
+    },
+    "cache": { "enum": ["shared", "per-user", "none"] },
+    "recheck_hours": { "type": "integer", "minimum": 1 },
+    "snapshot": {
+      "type": "object",
+      "required": ["url"],
+      "properties": {
+        "url": { "type": "string", "minLength": 1 },
+        "strip": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "id", "version", "title", "digest"],
+        "properties": {
+          "kind": { "enum": ["bundle", "sim", "code"] },
+          "id": { "type": "string", "pattern": "^(?:[a-z0-9][a-z0-9-]*|ptf:(?:sim|code)/[a-z0-9][a-z0-9-]*)$" },
+          "version": { "type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[0-9A-Za-z.-]+)?$" },
+          "title": { "type": "string", "minLength": 1 },
+          "summary": { "type": "string" },
+          "path": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
+          "archive": { "type": "string", "minLength": 1 },
+          "digest": { "type": "string", "pattern": "^sha256-[A-Za-z0-9+/]{43}=$" }
+        },
+        "anyOf": [{ "required": ["path"] }, { "required": ["archive"] }],
+        "additionalProperties": false
+      }
+    }
+  }
+}

@@ -81,6 +81,7 @@ The key words MUST, SHOULD and MAY are used as in RFC 2119.
 ```
 library/
   README.md
+  ptf-catalog.json                # optional: catalog for hosts (CATALOG.md)
   sims/                           # shared simulator packages
     <sim-name>/
       <version>/                  # immutable once published
@@ -111,6 +112,9 @@ library/
   simulators in `<bundle>/sims/`.
 - Resolvers look for a simulator first in `<bundle>/sims/`, then in the
   library's `sims/`, then in a configured registry (§8).
+- A library MAY publish `ptf-catalog.json` at its root so that hosts can
+  connect it, download and verify its packages, publicly or with an access key
+  ([CATALOG.md](CATALOG.md)).
 - `index.md` and `log.md` are reserved filenames (OKF §3.1).
 
 ### 3.1 Bundle `index.md`
