@@ -458,6 +458,7 @@ allowlist, in byte-identical builds, declared in its manifest.
 | Motion with known equations (fall, drag, slopes, pendulums, orbits, springs) | Own integrator: closed form, RK4 or semi-implicit Euler, fixed step |
 | Many bodies that collide, stack or are joined | `planck` (2D rigid bodies) |
 | 3D scenes | `three-core` (WebGL) |
+| Board games with chess rules (legal moves, check, mate, FEN) | `chess.js` (rules only, no engine) |
 
 An engine is not automatically more physical: game engines trade accuracy
 for stability (damping, contact slop; a 2D "ball" is a disc and rolls 7 %
@@ -474,6 +475,7 @@ reproducible recipe in `vendor/<package>/<version>/`.
 | --- | --- | --- | --- |
 | `three-core@0.170.0` | `THREE` | 511 KB (128 KB gzip) | Tree-shaken three.js: scene, cameras, lights, basic geometry and materials, raycasting; no loaders or addons |
 | `planck@1.4.2` | `planck` | 209 KB | 2D rigid-body physics (Box2D port) |
+| `chess.js@1.4.0` | `ChessJS` | 37 KB | Chess rules: legal moves, check, checkmate, FEN, SAN and UCI moves; no engine (`ChessJS.Chess`) |
 
 Not on the list: WebAssembly engines such as Rapier (the CSP has no
 `'wasm-unsafe-eval'`), full three.js with loaders and addons (network code,

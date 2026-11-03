@@ -1,0 +1,1 @@
+{ "package": "chess.js", "version": "1.4.0", "entry": "entry.js", "global": "ChessJS", "esbuild": "0.28.2", "target": "es2020" }
