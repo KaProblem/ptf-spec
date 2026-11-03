@@ -37,11 +37,12 @@
     },
     "levels": {
       "type": "array",
+      "description": "Levels the texts and questions were written and checked for (SPEC.md §5.1). Two adjacent levels are recommended.",
       "items": {
         "type": "string",
         "pattern": "^[a-z][a-z0-9-]*$"
       },
-      "minItems": 2,
+      "minItems": 1,
       "uniqueItems": true
     },
     "objectives": {

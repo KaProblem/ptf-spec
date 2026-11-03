@@ -394,9 +394,10 @@ server.registerTool("record_progress", {
   description: "Logs what happened in the conversation, with `path` when it belongs to a course. Start a course with verb started " +
     "(object: the path) and, if the path has `sharing`, result.consent [{with, areas, required}] after the learner agreed; never start " +
     "a course with required sharing without consent. verb left ends a course. Logs an answer to a question (verb answered with result.correct and result.misconception), " +
-    "the learner saying they understood, asking to go deeper or to have it explained differently, or being stuck. Updates mastery for ptf:el/ objects. " +
-    "Before a new course, record the prior-knowledge placement of each element with verb assessed, result.score (0.8+ only when every objective " +
-    "is backed by a correct answer, at most 0.4 for a mere claim) and the level the learner answered securely. " +
+    "the learner saying they understood, asking to go deeper or to have it explained differently, or being stuck. Only evidence (answered, completed, assessed) " +
+    "changes mastery; self-reports such as understood are kept but never count. " +
+    "Before a new course, record the prior-knowledge placement of each element with verb assessed, result.score (0.8 or more = secure, only when every objective " +
+    "is backed by a correct answer; a mere claim stays below) and the level the learner answered securely. " +
     "After a break of two weeks or more, record the recap per element with verb assessed and context_reason recap. " +
     "`note`: two or three sentences for the next session. `keep`: the learner's own explanation of an element that made it click. " +
     "Optionally sets `mastery` (0 to 1) directly after a conversational check.",

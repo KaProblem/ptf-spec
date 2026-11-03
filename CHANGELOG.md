@@ -6,6 +6,14 @@ before 1.0, minor versions may break compatibility.
 ## [Unreleased]
 
 ### Changed
+- All documents brought down to their essentials (about a quarter shorter overall; PEDAGOGY.md and the skills about half), with contradictions resolved and more left to the tutor's judgment. SPEC.md describes the format only; PEDAGOGY.md 0.2 describes the learning atmosphere, seven rules that always hold and defaults for courses, steps, media, review and writing content (simulator design rules now live only in SIMULATOR-SPEC.md §7); the tutor and author skills are about half as long. Section numbers that tools refer to are unchanged, except PEDAGOGY.md, which is renumbered.
+- SPEC.md §6.7: one order of precedence: content policy and safety, binding content, the learner's explicit choices, tutor notes, profile, PEDAGOGY.md defaults.
+- SPEC.md §5.1: an element lists at least one level (was two); two adjacent ones are recommended, and a tutor may teach other levels from Core, Key facts and Misconceptions. Schema `levels.minItems` is 1.
+- SPEC.md §10, LEARNER-RECORD.md §4, §6: only evidence (`answered`, `assessed`, `completed`, `station_completed`) changes mastery; self-reports such as `understood` are kept but never count, also not as a measure of how well a level text works. One shared threshold: mastery 0.8 or more is "secure" and needs evidence for every objective; the fixed 0.4 cap and the 3-day first review are now "below secure" and "an early first review". The MCP server no longer counts `understood` as 0.8.
+- LEARNER-RECORD.md: storage is up to the host and a database is recommended; operations, events and the export folder are normative.
+- CODE-SPEC.md §5: a host that cannot reach the learner's machine shows a lab's files and commands instead of copying them; the tutor skill uses `copy_code_lab` only where the host offers it.
+- Tutor skill: no profile questionnaire at the start; preferences are learned as the learner states them.
+
 - LEARNER-RECORD.md 0.2: the record is defined by operations, not files. `get_learner` returns a small overview (profile, courses, up to 10 reviews due, ordered by what the next step needs); `get_learner({ course })` returns one path or element in detail. Hosts store the record as they like (Magister: PostgreSQL); the folder `profile.md`, `mastery.json`, `events.jsonl` is the export format. New: courses derived from events (§5), sharing per course instead of per platform (§7), sync between copies by event `id` (§8), recap after a break as `assessed` with `context.reason: recap` (§6). `consents.json` is gone.
 - Tutor skill: overview first, course details when working on a course, recap after two weeks, sharing shown before a course starts, `note` and `keep`.
 - MCP server: `get_learner` takes `course` and no longer returns all mastery and the whole progress; `record_progress` takes `path`, `note`, `keep`, `context_reason` and the verbs `started` and `left`.

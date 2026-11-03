@@ -83,14 +83,10 @@ sims/<name>/<version>/
 | `integrity` | yes | Hash over all package files except `sim.json` (§2.1). |
 
 **Station levels are depths, not parts** (SPEC.md §5.2). A station that
-teaches part of a concept is available at every level of the simulator, or
-at least at every level of the elements that use it, and changes its depth
-inside (labels, formulas, number of controls, harder tasks; §7 rule 4).
-Restricting a station's `levels` is for two cases only: the station belongs
-to an element that does not offer the lower levels, or it is optional
-deepening that the concept is complete without (a derivation, the numerical
-method behind the simulation, a variant). In focus mode the stations of one
-level, walked with Next, then always teach the whole concept.
+teaches part of a concept is shown at every level of the elements that use
+it and changes its depth inside (§7 rule 4). Restrict a station's `levels`
+only for optional deepening the concept is complete without (a derivation,
+a variant), or when the elements using it do not offer the lower levels.
 
 Schema: [schemas/sim-manifest.schema.json](schemas/sim-manifest.schema.json).
 
@@ -268,26 +264,19 @@ build dynamic strings with a helper such as `L(en, de)`.
 
 ### 4.7 Focus mode
 
-Learners take in one idea at a time best. A simulator therefore keeps each
-station to **one idea** and supports a focus mode, so that a tutor can walk
-through it card by card instead of showing all stations at once:
+Learners take in one idea at a time, so a tutor walks through a simulator
+station by station:
 
-- In focus mode the simulator shows only the focused station (and the level
-  switch), hides the other stations and its intro text, and offers
-  **Back** and **Next** controls that move focus to the previous or next
-  station visible at the current level.
+- In focus mode the simulator shows only the focused station and the level
+  switch, with **Back** and **Next** to the neighbouring stations visible at
+  the current level. Moving emits `experienced` with
+  `data: { focus: "<station>" }`.
 - Focus is entered via the init context (`station` plus `focus: true`) or
-  `ptf/goto { station, focus: true }`, and left via `ptf/goto { focus: false }`
-  (with or without a station).
-- When the learner moves with Back or Next, the simulator emits
-  `experienced` with `data: { focus: "<station>" }`, so the tutor can follow.
-- Learning paths and learning elements SHOULD refer to single stations
-  (`simulators[].station`) rather than to a whole simulator.
+  `ptf/goto { station, focus: true }`, and left via `ptf/goto { focus: false }`.
 - A simulator SHOULD start focused on its first station, also standalone,
-  and offer **Show all** to see every station at once for review.
-- A simulator SHOULD show progress: one step per station visible at the
-  current level, done stations marked, and each step opening its station
-  directly (go-to).
+  show progress (one step per station, done ones marked, each opening its
+  station) and offer **Show all** for review.
+- Content SHOULD refer to single stations (`simulators[].station`).
 
 ---
 
@@ -402,134 +391,101 @@ failures.
 
 ## 7. Build rules for authors and generators
 
-These rules apply equally to human authors and to models generating
-simulators. Generator prompts SHOULD include this section.
-PEDAGOGY.md §4 and §7 add recommendations on how large a station and a
-simulator should be.
+These rules apply to human authors and to models alike; generator prompts
+SHOULD include this section. A simulator is an aid the tutor opens when it
+helps (PEDAGOGY.md §5), so it is small, focused and honest.
 
 1. **One `index.html`** with inline CSS and JS, plus `ptf-sim.js` and, only
-   where §8 allows it, vendored library builds. Vanilla JS or Web Components,
-   ES2022, classic `<script>` tags (no ES modules). No build step required.
-2. **No network, no storage, no eval** (§5.2). Fonts: system font stacks,
-   or a font file inside the package.
-3. **Stations.** Split the simulator into stations, each a
-   `<section data-station="<id>">` that teaches **one idea**. Each station
-   works on its own, can be opened via `ptf/goto` (also in focus mode,
-   §4.7) and emits `station_completed` when its task is done.
-4. **Levels.** Mark content per level (`data-levels="highschool college"`);
-   switching level via `ptf/setLevel` shows and hides content without a
-   reload. Levels change the depth of a station, not which ideas are taught
-   (§2, SPEC.md §5.2): a lower level gets the same idea with plainer words,
-   fewer numbers and an easier task; a higher level adds the formula, the
-   terminology and a harder task. Do not split a concept into stations per
-   level ("beginner stations", "advanced stations").
-5. **Predict, observe, explain.** A station begins with something to try or
-   guess, then explains. Where a station runs an experiment, the learner
-   first commits to a prediction: the controls that start or change the
-   experiment stay disabled until a prediction is chosen, picking one gives
-   no hint whether it is right, and the prediction is judged only after the
-   result is shown, then reported as `answered` (with `result.misconception`
-   for a wrong one). Explanations that give the answer away stay hidden until
-   then.
-6. **Self-contained.** No references to external videos or texts in the UI;
-   the learner may never have seen them.
-7. **Theme tokens.** Use the CSS custom properties from §4.5 with fallbacks,
-   and support light and dark mode.
-8. **Mobile first.** Usable from 320 px wide, touch targets at least 44 px,
-   no hover-only interactions.
+   where §8 allows it, vendored builds. Vanilla JS or Web Components, ES2022,
+   classic `<script>` tags, no build step.
+2. **No network, no storage, no eval** (§5.2). System fonts or a font file
+   in the package.
+3. **Small stations.** Each `<section data-station="<id>">` teaches **one
+   idea**, works on its own, opens via `ptf/goto` (also focused), has a small
+   task and emits `station_completed` when it is done. Rule of thumb: at most
+   about three controls and one to three minutes per station, at most about
+   seven stations per simulator; beyond that, split. In focus mode a station
+   fits one phone screen in portrait: question, controls and result visible
+   together. Long explanations belong to the tutor.
+4. **Levels change depth, not ideas.** Mark content with
+   `data-levels="highschool college"`; `ptf/setLevel` shows and hides it
+   without a reload. A lower level gets the same idea with plainer words and
+   an easier task, a higher level adds the formula and a harder task. No
+   "beginner stations" and "advanced stations" (§2).
+5. **Predict, then reveal.** A station starts from something familiar and
+   asks for a guess. Where it runs an experiment, the controls that start it
+   stay disabled until a prediction is chosen; choosing gives no hint; the
+   prediction is judged after the result and reported as `answered` (with
+   `result.misconception` when wrong). Explanations that give the answer away
+   stay hidden until then. A station ends with a one-line takeaway, so it is
+   framed even without a tutor.
+6. **Self-contained.** No references to external videos or texts.
+7. **Theme tokens** from §4.5 with fallbacks; light and dark mode.
+8. **Mobile first.** Usable from 320 px, touch targets at least 44 px, no
+   hover-only interactions.
 9. **Accessible.** Keyboard operable, labelled controls, respects
-   `prefers-reduced-motion`, text contrast at least 4.5:1.
-10. **Report.** Emit `answered` with `result.correct` and, where it applies,
-    `result.misconception` for every checkable interaction. Implement
-    `snapshot`.
-11. **Small.** Below 300 KB without media and vendored libraries.
-12. **Correct.** For anything that claims to model the real world, follow
-    §8.5: SI units, a fixed time step, stated assumptions, and at least one
-    computed value checked against a closed-form result in `test.json`.
+   `prefers-reduced-motion`, contrast at least 4.5:1.
+10. **Report what matters.** The tutor never sees the simulator, only events
+    and the snapshot. Emit `answered` with `result.correct` (and
+    `misconception`) for every checkable interaction, and make `snapshot`
+    describe the learner's choices and results in words a tutor can talk
+    about ("predicted 'e', model chose 'e' with 41 %").
+11. **Small.** Below 300 KB without media and vendored builds.
+12. **Correct.** Anything that models the real world follows §8.5.
 
 ### 7.1 The ladder: from catalog to free code
 
-Generate the simplest thing that teaches the concept:
-
-1. **Question blocks** (SPEC.md §7) when a quiz is enough. No code.
-2. **Template simulator**: an existing, reviewed simulator with new
-   `params` (e.g. a different corpus). No new code.
-3. **Free simulator**: new code, following this spec. Needs the full review
-   in §5.4 before it is shared.
+Generate the simplest thing that teaches the concept: question blocks when a
+quiz is enough; an existing reviewed simulator with new `params`; only then
+a new simulator, which needs the review in §5.4 before it is shared.
 
 ---
 
 ## 8. Libraries and vendoring (proposal)
 
-> Status: proposal for v0.2, piloted by `ptf:sim/newton-einstein@1.0.0` in
-> ptf-library. Feedback welcome before it becomes normative.
+> Status: proposal for v0.2, piloted by `ptf:sim/newton-einstein@1.0.0`.
 
-Most simulators need no library: a canvas, a few dozen lines of drawing code
-and, for physics, a small integrator are smaller, easier to review and more
-correct than a general engine. Libraries are for the cases where writing it
-yourself would be large and error-prone: 3D rendering and many interacting
-rigid bodies. To keep the library from growing wild, a simulator MAY use only
-libraries from one shared allowlist, in byte-identical builds, declared in its
-manifest.
+Most simulators need no library: a canvas, some drawing code and, for
+physics, a small integrator are smaller, easier to review and more correct
+than an engine. A simulator MAY use only libraries from one shared
+allowlist, in byte-identical builds, declared in its manifest.
 
 ### 8.1 Choose the smallest tool
 
 | Need | Use |
 | --- | --- |
-| Charts, diagrams, 2D drawing, simple animation | Canvas 2D or SVG, no library. |
-| Motion with known equations (free fall, drag, inclined plane, pendulum, orbits, springs) | Own integrator in the page: semi-implicit Euler or RK4 with a fixed step, or the closed-form solution. |
-| Many bodies that collide, stack, slide or are joined | `planck` (2D rigid bodies). |
-| 3D scenes (surfaces, orbits in space, molecules, solids) | `three-core` (WebGL). |
+| Charts, diagrams, 2D drawing, simple animation | Canvas 2D or SVG |
+| Motion with known equations (fall, drag, slopes, pendulums, orbits, springs) | Own integrator: closed form, RK4 or semi-implicit Euler, fixed step |
+| Many bodies that collide, stack or are joined | `planck` (2D rigid bodies) |
+| 3D scenes | `three-core` (WebGL) |
 
-A physics engine is not automatically "more physical". Game engines trade
-accuracy for stability: they use fixed-step semi-implicit integration,
-damping, sleeping bodies, contact slop and restitution thresholds, and a 2D
-engine models a ball as a disc (moment of inertia ½ m r² instead of
-⅖ m r² for a sphere, so a "ball" rolls 7 % too slowly down a ramp). Use an
-engine when the interaction is the point, and say what it simplifies.
+An engine is not automatically more physical: game engines trade accuracy
+for stability (damping, contact slop; a 2D "ball" is a disc and rolls 7 %
+too slowly down a ramp). Use one when the interaction is the point, and say
+what it simplifies.
 
 ### 8.2 The allowlist
 
-[`vendor/allowlist.json`](vendor/allowlist.json) in this repository lists the
-permitted builds. Each entry names the npm package and version, the license,
-the global it defines, the file name and its SHA-256. The recipe for each
-build lives next to it (`vendor/<package>/<version>/entry.js` and
-`build.json`), so anyone can rebuild it and get the same bytes.
+[`vendor/allowlist.json`](vendor/allowlist.json) lists the permitted builds
+(npm package and version, license, global, file, SHA-256); each has a
+reproducible recipe in `vendor/<package>/<version>/`.
 
-| Build | Global | Size (min) | Purpose |
+| Build | Global | Size | Purpose |
 | --- | --- | --- | --- |
-| `three-core@0.170.0` | `THREE` | 511 KB (128 KB gzip) | 3D with WebGL: scene, cameras, lights, basic geometries and materials, lines, raycasting. No loaders, no addons. |
-| `planck@1.4.2` | `planck` | 209 KB | 2D rigid-body physics (Box2D port): shapes, contacts, friction, joints. |
+| `three-core@0.170.0` | `THREE` | 511 KB (128 KB gzip) | Tree-shaken three.js: scene, cameras, lights, basic geometry and materials, raycasting; no loaders or addons |
+| `planck@1.4.2` | `planck` | 209 KB | 2D rigid-body physics (Box2D port) |
 
-Considered and not on the list (yet):
-
-| Library | Why not |
-| --- | --- |
-| Rapier, other WebAssembly engines | Instantiating WebAssembly needs `'wasm-unsafe-eval'` in `script-src`, which the simulator CSP (§5.1) does not grant. Revisit only together with a CSP change. |
-| matter.js | Overlaps with planck; its position-based solver is less accurate for textbook mechanics. |
-| cannon-es, Ammo.js | 3D rigid bodies are rarely needed for teaching; Ammo is WebAssembly. Add when a simulator needs them. |
-| Full three.js with addons, loaders | Loaders contain network code (`fetch`), and addons are ES modules. `three-core` is tree-shaken to what simulators need. |
-| D3, Chart.js, Plotly | Charts for teaching are small enough to draw directly; revisit if a family of data simulators appears. |
-
-A new library or version is added by a pull request to this repository that
-adds the recipe and the build (`ptf-vendor build <build>@<version> --write`)
-and argues these criteria:
-
-1. **License** MIT, BSD, ISC or Apache-2.0; the build keeps the license
-   comment.
-2. **Classic script.** It builds into one IIFE or UMD file with one global
-   (`esbuild --format=iife`), because hosts inline packages into `srcdoc`
-   iframes where ES module imports cannot be resolved.
-3. **Inside the sandbox.** No network, storage, `eval`, workers from URLs or
-   WebAssembly on the code paths a simulator uses; `ptf-check`'s
-   forbidden-pattern scan passes on the build.
-4. **Needed.** A concrete simulator needs it, and drawing or integrating by
-   hand would be much larger or less correct.
-5. **Small enough.** Tree-shaken to what simulators use; the whole package
-   stays below the 5 MB limit.
-6. **Maintained.** An active upstream with a stable API. Versions are pinned;
-   a newer version is a new allowlist entry, old entries stay so published
-   simulators keep working.
+Not on the list: WebAssembly engines such as Rapier (the CSP has no
+`'wasm-unsafe-eval'`), full three.js with loaders and addons (network code,
+ES modules), matter.js (overlaps planck, less accurate), chart libraries
+(teaching charts are small enough to draw). A new entry is a pull request to
+this repository with recipe and build (`ptf-vendor build <build>@<version> --write`)
+that shows: a permissive license (MIT, BSD, ISC, Apache-2.0) kept in the
+build; one classic IIFE or UMD file with one global (hosts inline packages
+into `srcdoc`, where module imports cannot resolve); no network, storage,
+eval, URL workers or WebAssembly on the paths a simulator uses; a concrete
+simulator that needs it; a tree-shaken size within the 5 MB limit; an active
+upstream. Versions are pinned and old entries stay.
 
 ### 8.3 Vendoring a build into a package
 
@@ -538,72 +494,40 @@ node ../ptf-spec/tools/ptf-vendor.mjs list
 node ../ptf-spec/tools/ptf-vendor.mjs add sims/<name>/<version> three-core@0.170.0
 ```
 
-`add` copies the file to `vendor/<file>` and declares it in `sim.json`:
+`add` copies the file to `vendor/` and declares it in `sim.json`:
 
 ```json
-"vendor": [
-  { "build": "three-core@0.170.0", "path": "vendor/three-core-0.170.0.min.js",
-    "sha256": "b3c33d2a…", "license": "MIT" }
-]
+"vendor": [{ "build": "three-core@0.170.0", "path": "vendor/three-core-0.170.0.min.js", "sha256": "b3c33d2a…", "license": "MIT" }]
 ```
 
-The page loads it with a classic script tag before its own code and uses the
-global:
-
-```html
-<script src="ptf-sim.js"></script>
-<script src="vendor/three-core-0.170.0.min.js"></script>
-<script> /* uses THREE */ </script>
-```
-
-Rules:
-
-- The copy MUST be byte-identical to the allowlisted build. Never edit,
-  re-minify or concatenate it; a different build is a different allowlist
-  entry.
-- Only declared, allowlisted builds may live in `vendor/`.
-- No CDN, no `import` from URLs, no `<script type="module">`.
-- Vendored files count towards the 5 MB package limit and the integrity hash,
-  but not towards the 300 KB recommendation (§1, §7).
-
-`ptf-check` verifies each declaration (file present, SHA-256 matches the
-manifest and the allowlist), reports undeclared scripts in `vendor/`, skips
-its forbidden-pattern scan for verified builds (they were scanned when they
-were allowlisted; the sandbox and CSP still apply at runtime) and warns about
-module scripts.
+The page loads it with a classic `<script src="vendor/…">` after
+`ptf-sim.js` and uses the global. The copy MUST be byte-identical (never
+edited, re-minified or concatenated); only declared, allowlisted builds live
+in `vendor/`; no CDN, URL imports or module scripts. Vendored files count
+towards the 5 MB limit and the integrity hash, not towards the 300 KB
+recommendation. `ptf-check` verifies each declaration against the
+allowlist, reports undeclared files in `vendor/` and skips its pattern scan
+for verified builds.
 
 ### 8.4 Using WebGL and engines
 
-- **Degrade gracefully.** WebGL can be missing (old devices, some remote
-  desktops, policy). Check the context, and if it fails show a short text or
-  a 2D picture of the same idea instead of throwing. The station must still
-  be usable and its test must still pass.
-- **Render on demand.** Render when something changes or while an animation
-  runs, not in an endless loop; stop animation loops when the station is
-  hidden.
-- **Touch.** Rotate by horizontal drag with `touch-action: pan-y`, so the page
-  still scrolls; offer buttons as an alternative to dragging.
-- **Theme.** Read colours from the theme tokens (§4.5) and update materials
-  when `data-theme` changes.
-- **Engine state is not learner state.** Save only what is needed to
-  recreate a scene (`ptf/state`), not engine internals.
+- **Degrade gracefully**: if WebGL is missing, show a text or 2D picture of
+  the same idea; the station and its test still work.
+- **Render on demand**, and stop loops when the station is hidden.
+- **Touch**: rotate by horizontal drag with `touch-action: pan-y`; offer
+  buttons as an alternative.
+- **Theme**: read colours from the tokens (§4.5), update on `data-theme`.
+- **State**: save what recreates the scene, not engine internals.
 
 ### 8.5 Physics that is right
 
-A simulator that claims to show how the world behaves is held to the same
-standard as a textbook:
-
-1. **SI units inside**, converted only for display. State the constants used
-   (g, air density, radii) in the UI.
-2. **Fixed time step** (for example 1/240 s), independent of the frame rate,
-   with interpolation for drawing. Never integrate with the frame time.
-3. **Prefer the closed form** where one exists; otherwise RK4 or semi-implicit
-   Euler. Explicit Euler only to teach why it drifts.
-4. **Name the model's limits** in an expert-level note (constant drag
-   coefficient, discs instead of spheres, first-order corrections).
-5. **Check a number.** `test.json` SHOULD contain at least one `expectText`
-   on a computed value that has a closed-form answer (a fall time, a period,
-   a GPS clock offset), so a refactoring that breaks the physics fails CI.
-6. **Exaggerate honestly.** If an effect is scaled up to be visible (e.g.
-   relativistic precession × 100 000), say so on screen and show the real
-   value next to it.
+1. **SI units inside**, converted only for display; state the constants on
+   screen.
+2. **Fixed time step** (e.g. 1/240 s), independent of the frame rate.
+3. **Closed form** where it exists, else RK4 or semi-implicit Euler;
+   explicit Euler only to show why it drifts.
+4. **Name the model's limits** in an expert-level note.
+5. **Check a number**: `test.json` SHOULD assert at least one computed value
+   with a closed-form answer, so a refactoring that breaks the physics fails.
+6. **Exaggerate honestly**: a scaled-up effect says so on screen next to the
+   real value.
