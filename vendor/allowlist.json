@@ -24,6 +24,18 @@
       "file": "planck-1.4.2.min.js",
       "sha256": "6910dd6bbd14637df81bdeaba5089188187ffbd71f694aff933752ffbe9cc3bd",
       "bytes": 213964
+    },
+    "chess.js@1.4.0": {
+      "package": "chess.js",
+      "version": "1.4.0",
+      "license": "BSD-2-Clause",
+      "upstream": "https://github.com/jhlywa/chess.js",
+      "purpose": "Chess rules: legal moves, check, checkmate, stalemate, FEN and SAN/UCI parsing. No engine, no search.",
+      "global": "ChessJS",
+      "dir": "chess.js/1.4.0",
+      "file": "chess.js-1.4.0.min.js",
+      "sha256": "d74243838fd5908e5d506c9e36ea6d045cc3717e5bfcaf7c7bd0e4cfd99c68fc",
+      "bytes": 37826
     }
   }
 }

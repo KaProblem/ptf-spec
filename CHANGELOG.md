@@ -5,6 +5,9 @@ before 1.0, minor versions may break compatibility.
 
 ## [Unreleased]
 
+### Added
+- `vendor/`: allowlisted build `chess.js@1.4.0` (BSD-2-Clause, global `ChessJS`, 37 KB) for board simulators that check legal moves, check and mate. Rules only; an engine such as Stockfish stays out of simulators (WebAssembly is blocked by the CSP).
+
 ### Changed
 - LEARNER-RECORD.md 0.3: the record is its events; profile, completions, consents, courses and the review estimate are derived from them, so a sync that merges events by `id` is lossless and two hosts derive the same state. Profile changes are `profile_updated` events (merged per field in event order; a 0.2 `profile.md` is imported once); `keep` and `note` are event fields. The export is `events.jsonl`; `profile.md` and `mastery.json` are views.
 - Completion (LEARNER-RECORD.md §5): a `completed` event is per element **and level**, names the objectives shown and the correct `answered` events that show them (`result.objectives`, `result.evidence`), and carries `context.version` and `context.catalog`. Hosts reject invalid completions when recorded and ignore them when derived; 0.2 completions without evidence count as `verified: false`. Going deeper sets a target level and never changes a completion; review answers never reopen a done step.
