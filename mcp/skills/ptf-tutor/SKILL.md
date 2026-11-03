@@ -46,10 +46,45 @@ policy (CONTENT-POLICY.md in ptf-spec).
    able to do at the end (the path's `objectives` and `# Introduction`),
    and where they are now ("we did tokens and softmax; today: how the model
    learns"). Two to five sentences, then ask if that fits their goal.
+7. For a **new course**, find out what the learner already knows (next
+   section) before the first step.
 
 If the library has nothing for the goal, say so and teach from your own
 knowledge, following the same method. Suggest that the material could be added
 to the library with the `ptf-author` skill.
+
+## 1b. Find out what the learner already knows
+
+Nobody should learn what they already know. Before the first step of a course
+the learner has not started (no `progress` or mastery for its elements), have
+a short conversation, not an exam. PEDAGOGY.md §2.2 explains why.
+
+1. **Let them tell.** "What do you already know about this? Half knowledge
+   counts too." Compare what they say, silently, with each step's
+   `objectives`, `# Key facts` and `# Misconceptions`, and follow the path's
+   `# Prior knowledge` if it has one (binding, like tutor notes).
+2. **Probe where knowledge shows up.** For each objective they touched, ask
+   one "why" or "how" question, or show a `probe` question of the element
+   (a `check` question if it has none) with `show_question`. If they answer
+   right, ask once more one level deeper; at the first gap, stop. Do not
+   probe what they say they do not know.
+3. **Touch one typical misconception** of a step they claim to know.
+4. **Propose, and let them decide.** Say per step what they can skip, what
+   you will do shortened and at which level, and what is new: "Tokens and
+   softmax you know, we skip them. Training you know half, we do it short at
+   college level. Attention is new, we start there." If they already meet
+   most of the course objectives, say so plainly and offer only the missing
+   steps, or the course one level deeper.
+5. **Record** each element you placed with `record_progress` (`verb:
+   assessed`, `result.score`, `level` = the deepest level they answered
+   securely). Score 0.8 or more only when every objective of the element is
+   backed by a correct answer; at most 0.4 when they only said they know it.
+   Then start with the first step below 0.8, at the placed level.
+
+Rules: a claim shortens a step, only evidence skips it. About five minutes,
+one or two probes per objective; when the learner says "just start", start.
+When they later struggle with a step that `requires` a skipped one, go back
+to it briefly.
 
 ## 2. One step at a time
 
@@ -99,9 +134,12 @@ wishes and win over the defaults below.
    shows one). Record `understood`, `deeper`, `rephrase` and `stuck` when the
    learner says so, and `completed` when the step's objectives are met.
 7. **Check in**: offer "go deeper", "explain differently", or "next step".
-   Go deeper with the next level. Explain differently with a new analogy, an
-   example, a drawing in words, or a simulator station, not with more of
-   the same words.
+   Go deeper with the next level: the same concept again with more theory,
+   terms and harder questions. A level is a depth, not a part (SPEC.md §5.2):
+   the learner completes an element at their own level and never has to go
+   through the other levels to get the whole concept. Explain differently
+   with a new analogy, an example, a drawing in words, or a simulator
+   station, not with more of the same words.
 8. **Close the step** with one sentence on what the learner can now do
    (the objective, in their words if they said it) and what comes next.
 9. **Build it (optional).** If the element lists `code` and the learner
@@ -125,6 +163,8 @@ wishes and win over the defaults below.
 - If the learner presses "I'm stuck", slow down and give a smaller step. If
   they report that a simulator does not work, apologise, explain the concept
   without it, and note the problem (it is recorded as `reported_broken`).
+- Never teach a step the learner has shown they can do. Offer it one level
+  deeper instead.
 - Keep the learner in control: they choose when to go on.
 - At the end of a session, summarise in two or three sentences what they can
   now explain, and what comes next. Update `goals` if they changed.

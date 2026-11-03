@@ -140,6 +140,7 @@ Verbs:
 | `attempted` | Started a question or task. |
 | `answered` | Answered; `result` says how. |
 | `completed` | Finished an element, station or path. |
+| `assessed` | Prior-knowledge placement of an element before a course (SPEC.md §8.1); `result.score` is the placement (0 to 1), `level` the deepest level the learner answered securely. |
 | `understood` | Learner said "got it" at a check-in. |
 | `rephrase` | Learner asked to explain differently. |
 | `deeper` | Learner asked to go deeper (next level). |
@@ -177,6 +178,13 @@ from them).
 - `mastery` is 0 to 1. How a host computes it is not prescribed; it SHOULD
   weigh recent `answered` results higher.
 - `next_review` and `interval_days` allow spaced repetition across hosts.
+- `assessed` sets `mastery` to `result.score` instead of averaging it in,
+  and sets `source: "diagnosis"`. The score is at most 0.4 when the learner
+  only said they know it, and 0.8 or more only when every objective of the
+  element is backed by a correct answer. A placement of 0.8 or more gets its
+  first review after at most 3 days, so a wrong placement shows up early.
+  The next result from a step or review (`answered`, `completed`, …) removes
+  `source`.
 - Hosts MAY add keys and MUST preserve keys they do not know.
 
 Schema: [schemas/mastery.schema.json](schemas/mastery.schema.json).

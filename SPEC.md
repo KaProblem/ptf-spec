@@ -130,7 +130,7 @@ description: From next-character prediction to self-attention, built up step by 
 lang: en
 license: CC-BY-SA-4.0
 version: 0.1.0
-levels:                 # optional: custom levels in addition to the defaults (§5.2)
+levels:                 # optional: custom levels in addition to the defaults (§5.3)
   - id: practitioner
     rank: 2.5
     description: Working developers without a math background.
@@ -175,7 +175,34 @@ Scoped simulator names for personal forks MAY use `ptf:sim/@<scope>/<name>`.
 A learning element MUST cover at least two levels and SHOULD cover adjacent
 ones, so a tutor can step up or down.
 
-### 5.2 Custom levels
+### 5.2 Levels are depths, not parts
+
+A level says **how deep** a concept is taught, never **which part** of it.
+A learner who works through an element at any one of its levels has learned
+the whole concept at that depth and never needs another level to complete it.
+
+- Every level of an element covers `# Core`, every objective and the central
+  misconceptions. The lowest level explains them as simply as possible; a
+  higher level explains the same things with more terminology, formulas,
+  derivations, limits and harder tasks.
+- A higher level MAY add depth (a derivation, a variant, an edge case) that
+  lower levels leave out. It MUST NOT carry a piece of the concept that the
+  lower levels lack. If a piece is needed to reach an objective, every level
+  gets it, simplified where necessary.
+- Each level text stands on its own (§6.3). It never assumes that the
+  learner read another level's text ("as above", "building on the
+  highschool level").
+- Questions follow the same rule: every level SHOULD have at least one
+  `check` question that tests the objectives at that depth (§7).
+- Simulators follow it too (SIMULATOR-SPEC.md §2, §7 rule 4): a station
+  that teaches part of a concept is available at every level of the elements
+  that use it; stations offered only at higher levels are optional
+  deepening.
+
+"Go deeper" therefore means: the same concept again, one level up. It is an
+offer, not the next part of the lesson.
+
+### 5.3 Custom levels
 
 A bundle MAY define additional levels in its `index.md` under `levels`, each
 with an `id` and a numeric `rank`. Consumers MUST order unknown levels by
@@ -280,6 +307,9 @@ Level texts are **optional**. Without them, the tutor composes an explanation
 from Core, Key facts and Misconceptions. With them, the tutor MAY use the text
 as is or adapt it to the learner.
 
+- Each level text MUST be complete on its own: it reaches every objective
+  at its depth and does not build on another level text (§5.2). A tutor
+  usually receives only the text for the learner's level.
 - Each level text SHOULD start with something to try or guess, not with a
   definition.
 - A level text MAY carry a version marker on the line below the heading:
@@ -386,7 +416,7 @@ Common fields (all kinds):
 | `kind` | yes | One of the kinds below. |
 | `id` | yes | Unique within the element. |
 | `level` | yes | Level ID. |
-| `purpose` | no | `warmup` (guess before learning), `check` (understanding, default), `transfer` (apply in a new situation). |
+| `purpose` | no | `warmup` (guess before learning), `check` (understanding, default), `transfer` (apply in a new situation), `probe` (finding out before a course what the learner already knows; also counts as a `check`, §8.1). |
 | `misconception` | no | Misconception ID this item targets. |
 | `explanation` | yes | Why the answer is right, shown after answering. |
 
@@ -463,8 +493,25 @@ The body uses these optional level-1 headings:
 | `# Introduction` | What the course is about, what the learner will be able to do at the end, and how it is built. The tutor opens the course with it, in its own words, before the first step. |
 | `# Steps` | The steps in prose or a table, including planned steps that have no element yet. |
 | `# Tutor notes` | Pace, where learners usually need a break, and anything binding (§6.7). |
+| `# Prior knowledge` | What learners usually bring to this course, which misconceptions to probe, and which steps experienced learners can often skip (§8.1). |
 
 Other headings MAY be added.
+
+### 8.1 Prior knowledge
+
+Before the first step of a new course, the tutor finds out what the learner
+already knows and proposes which steps to skip and at which level to start
+(PEDAGOGY.md §2.2). Content supports this but does not have to:
+
+- The tutor compares what the learner says with each step's `objectives`,
+  `# Key facts` and `# Misconceptions`, and probes with the steps' `probe`
+  questions, or with `check` questions when an element has none.
+- A path's `# Prior knowledge` section is binding like `# Tutor notes`
+  (§6.7) when present.
+- The result is recorded per element with the verb `assessed`
+  (LEARNER-RECORD.md §4, §5). A step is skipped only when every objective is
+  backed by a correct answer; a claim alone shortens a step but does not
+  skip it.
 
 ---
 

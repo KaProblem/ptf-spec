@@ -20,7 +20,7 @@ every PTF bundle is a plain directory of Markdown files with YAML frontmatter.
 | [CODE-SPEC.md](CODE-SPEC.md) | Code labs: runnable code in steps (`lab.json`), how hosts hand it to learners, smoke tests |
 | [CATALOG.md](CATALOG.md) | Catalogs: how a library publishes its packages (`ptf-catalog.json`), access keys, what hosts may store |
 | [LEARNER-RECORD.md](LEARNER-RECORD.md) | The portable, private learner profile, progress and consent format |
-| [PEDAGOGY.md](PEDAGOGY.md) | Recommended course design: anchors, small steps, try before tell, retrieval and spacing, simulator granularity |
+| [PEDAGOGY.md](PEDAGOGY.md) | Recommended course design and teaching: course introduction, try before tell, worked examples, when to use a simulator, small phone-sized stations, evidence-based completion and review |
 | [CONTENT-POLICY.md](CONTENT-POLICY.md) | What shared libraries accept, the automated review gates and the quality rubric |
 | [schemas/](schemas/) | JSON Schemas (2020-12) for everything machine-checkable |
 

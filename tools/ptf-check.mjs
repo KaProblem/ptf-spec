@@ -312,9 +312,14 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
     const hs = headings(fm.body);
     for (const req of ["Core", "Misconceptions"]) if (!hs.includes(req)) err(f, `missing required heading "# ${req}"`);
     if (!d.objectives?.length) warn(f, "no `objectives`: say what the learner can do after this step (SPEC.md §6.1)");
+    const textLevels = new Set();
     for (const h of hs) {
       const lm = h.match(/^Level:\s*([a-z0-9-]+)/);
+      if (lm) textLevels.add(lm[1]);
       if (lm && !(d.levels ?? []).includes(lm[1])) warn(f, `"# ${h}" is not in the element's levels`);
+    }
+    if (textLevels.size) {
+      for (const l of d.levels ?? []) if (!textLevels.has(l)) warn(f, `no "# Level: ${l}" text while other levels have one; every level covers the whole concept (SPEC.md §5.2)`);
     }
     if (/\b(im Video|in the video|bei \d+:\d\d|at \d+:\d\d)\b/i.test(fm.body.replace(/^# (?:Further reading|Sources)[\s\S]*$/m, ""))) {
       warn(f, "body seems to refer to source material; lessons must be self-contained (SPEC.md §6.2)");
@@ -325,12 +330,14 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
     if (misText && misIds.size === 0) warn(f, "misconceptions have no **id** markers (SPEC.md §6.4)");
 
     const qIds = new Set();
+    const checkLevels = new Set();
     for (const m of fm.body.matchAll(/```ptf-question\s*\n([\s\S]*?)```/g)) {
       let q;
       try { q = JSON.parse(m[1]); } catch (e) { err(f, `ptf-question block is not valid JSON: ${e.message}`); continue; }
       const where = `${f}#${q.id ?? "?"}`;
       for (const e of schemaErrors("question-block", q)) err(where, e);
       if (q.id) { if (qIds.has(q.id)) err(where, "duplicate question id"); qIds.add(q.id); }
+      if (["check", "probe"].includes(q.purpose ?? "check") && q.level) checkLevels.add(q.level);
       if (q.level && !(d.levels ?? []).includes(q.level)) warn(where, `question level "${q.level}" is not in the element's levels`);
       if (q.misconception && !misIds.has(q.misconception)) err(where, `misconception "${q.misconception}" is not defined under # Misconceptions`);
       if (q.kind === "cloze" && q.text && q.gaps) {
@@ -338,6 +345,8 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
         if (n !== q.gaps.length) err(where, `cloze has ${n} gaps in text but ${q.gaps.length} in gaps`);
       }
     }
+
+    for (const l of d.levels ?? []) if (!checkLevels.has(l)) warn(f, `level "${l}" has no \`check\` or \`probe\` question; every level tests the whole concept at its depth (SPEC.md §5.2)`);
 
     for (const s of d.simulators ?? []) {
       if (!s.ref || !s.ref.includes("@")) continue;
