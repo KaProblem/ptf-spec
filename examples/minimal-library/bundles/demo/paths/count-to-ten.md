@@ -10,7 +10,7 @@ objectives:
 steps:
   - element: ptf:el/demo/counting
 sharing:
-  with: author
+  with: publisher
   areas: [progress]
   mode: optional
 ---

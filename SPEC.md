@@ -179,8 +179,10 @@ description: Turns arbitrary numbers into a probability distribution.   # REQUIR
 lang: en                                 # REQUIRED, BCP 47
 levels: [highschool, college]            # REQUIRED (§5.1)
 objectives:                              # RECOMMENDED: what the learner can do afterwards
-  - Turn a list of scores into probabilities and explain why they sum to 1.
-  - Predict how a larger score changes the distribution.
+  - id: probabilities
+    text: Turn a list of scores into probabilities and explain why they sum to 1.
+  - id: larger-score
+    text: Predict how a larger score changes the distribution.
 about:                                   # RECOMMENDED: Wikidata items (§6.6)
   - { wikidata: Q7554146, label: softmax function }
 requires:                                # prerequisites
@@ -207,8 +209,12 @@ license: CC-BY-SA-4.0
 ```
 
 - `objectives`: two to four things the learner can *do* afterwards, written
-  so a question can check them ("explain why…", "predict…", "compute…").
-  They are the target of the step. `ptf-check` warns when they are missing.
+  so a question can check them ("explain why…", "predict…", "compute…"),
+  each with a stable `id`. They are the target of the step: questions name
+  the objectives they check (§7), and a completion names the objectives the
+  learner has shown (LEARNER-RECORD.md §5). Keep IDs stable; removing or
+  renaming one is a major version. Plain strings without an ID are still
+  accepted; `ptf-check` warns about them and about missing objectives.
 - `requires`: what the learner should know first. An entry from another
   library carries the URL of that library's catalog, so a host can offer to
   connect it.
@@ -308,6 +314,7 @@ Library questions are reviewed examples; a tutor MAY ask its own.
 | `id` | yes | Unique within the element. |
 | `level` | yes | Level ID. |
 | `purpose` | no | `warmup` (guess before learning), `check` (default: tests an objective), `transfer` (apply in a new situation), `probe` (sorts "knows it" from "sounds familiar" before a course; also counts as a `check`). |
+| `objectives` | for `check`, `probe` | IDs of the element's objectives the question checks. |
 | `misconception` | no | The misconception ID it targets. |
 | `explanation` | yes | Why the answer is right, shown afterwards. |
 
@@ -322,13 +329,15 @@ Library questions are reviewed examples; a tutor MAY ask its own.
 | `free_text` | Answers in their own words | `question`, `rubric[]`, `sample_answer` |
 
 Details: [schemas/question-block.schema.json](schemas/question-block.schema.json).
-Every level of an element SHOULD have at least one `check` or `probe`
-question. Wrong options SHOULD be real misconceptions with `feedback`.
+Every objective SHOULD have a `check` or `probe` question at every level
+of the element; `ptf-check` lists the gaps. A tutor's own questions name
+objectives the same way when it records the answer. Wrong options SHOULD be
+real misconceptions with `feedback`.
 
 ```ptf-question
 {
   "kind": "multiple_choice", "id": "q1", "level": "highschool", "purpose": "check",
-  "misconception": "softmax-makes-zeros",
+  "objectives": ["probabilities"], "misconception": "softmax-makes-zeros",
   "question": "The scores are [2, 1, 0]. What is true after softmax?",
   "options": [
     { "text": "The values add up to 1", "correct": true, "feedback": "Yes, softmax normalises." },
@@ -367,7 +376,7 @@ steps:
   - element: ptf:el/llm-basics/tokenizer
   - element: ptf:el/llm-basics/softmax
   - { element: ptf:el/math/probability, catalog: https://example.org/ptf-catalog.json, optional: true }
-sharing: { with: author, areas: [progress], mode: optional }   # optional, §8.2
+sharing: { with: publisher, areas: [progress], mode: optional }   # optional, §8.2
 status: draft
 version: 0.1.0
 ---
@@ -386,10 +395,17 @@ Optional body headings:
 
 Before the first step of a new course the tutor finds out what the learner
 already knows and proposes where to start (PEDAGOGY.md §3). The rule that
-matters for the format: **a step is skipped only on evidence**, a correct
-answer for each of its objectives; a claim alone may shorten a step but never
-skips it. The result is recorded per element with the verb `assessed`
-(LEARNER-RECORD.md §4).
+matters for the format is the difference between two kinds of leaving a step
+out:
+
+- **Already shown**: the learner answered correctly for every objective.
+  This is recorded as a completion (`completed` with `context.reason:
+  placement`) and counts for the course.
+- **Skipped**: the learner chose to leave it out, or only claims to know it.
+  This is recorded as `skipped`, moves the course on, and does not count.
+
+A placement score (`assessed`) helps plan levels and reviews but decides
+nothing (LEARNER-RECORD.md §5).
 
 ### 8.2 Sharing
 
@@ -398,7 +414,7 @@ a teacher.
 
 | Field | Values |
 | --- | --- |
-| `with` | `author`, `publisher` (the library's operator), or a URL. |
+| `with` | The concrete recipient: `publisher` (the publisher of the catalog the path comes from; the host records it as that catalog's ID) or a URL. |
 | `areas` | `progress` (steps done), `mastery` (values per element), `answers` (single answers and questions). |
 | `mode` | `required` (the course needs consent) or `optional` (off until the learner turns it on). |
 
@@ -416,8 +432,8 @@ suggest a route of courses to a goal.
 
 ### 8.4 Completion
 
-A course is completed when every step that is not `optional` is completed or
-was placed as secure (LEARNER-RECORD.md §5, §6).
+A course is completed when every step that is not `optional` has a
+completion at some level; skipped steps do not count (LEARNER-RECORD.md §5).
 
 ---
 

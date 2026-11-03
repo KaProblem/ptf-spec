@@ -59,12 +59,30 @@ test("warns about elements without objectives and checks their shape", () => {
   const lib = copyExample();
   const el = join(lib, "bundles/demo/elements/counting.md");
   const src = readFileSync(el, "utf8");
-  writeFileSync(el, src.replace(/objectives:\n(  - .*\n)+/, ""));
+  const noObjectives = src.replace(/objectives:\n((?:  - |    ).*\n)+/, "").replace(/\s*"objectives": \[[^\]]*\],/g, "");
+  writeFileSync(el, noObjectives);
   const r = run(lib);
   assert.equal(r.status, 0, r.stdout);
   assert.match(r.stdout, /no `objectives`/);
-  writeFileSync(el, src.replace(/objectives:\n(  - .*\n)+/, "objectives: []\n"));
+  writeFileSync(el, src.replace(/objectives:\n((?:  - |    ).*\n)+/, "objectives: []\n"));
   assert.equal(run(lib).status, 1);
+});
+
+test("checks that questions name existing objectives and cover each one per level", () => {
+  const lib = copyExample();
+  const el = join(lib, "bundles/demo/elements/counting.md");
+  const src = readFileSync(el, "utf8");
+  writeFileSync(el, src.replace('"objectives": ["next-one"]', '"objectives": ["nxt"]'));
+  let r = run(lib);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /objective "nxt" is not an objective id/);
+  writeFileSync(el, src.replace('"objectives": ["next-one"],', ""));
+  r = run(lib);
+  assert.equal(r.status, 0, r.stdout);
+  assert.match(r.stdout, /objectives without a check question: highschool: next-one/);
+  assert.match(r.stdout, /check question without `objectives`/);
+  writeFileSync(el, src.replace("  - id: count\n    text: Count", "  - Count"));
+  assert.match(run(lib).stdout, /objectives without `id`/);
 });
 
 test("rejects invalid question blocks", () => {
@@ -174,7 +192,7 @@ test("catalog lists every package with its digest and catches drift", () => {
   const file = join(lib, "ptf-catalog.json");
   const catalog = JSON.parse(readFileSync(file, "utf8"));
   assert.deepEqual(catalog.packages.map((p) => `${p.kind} ${p.id}@${p.version} ${p.path}`), [
-    "bundle demo@0.1.0 bundles/demo",
+    "bundle demo@0.2.0 bundles/demo",
     "sim ptf:sim/counter@1.0.0 sims/counter/1.0.0",
     "code ptf:code/counting@1.0.0 code/counting/1.0.0",
   ]);
@@ -185,7 +203,7 @@ test("catalog lists every package with its digest and catches drift", () => {
   writeFileSync(sim, readFileSync(sim, "utf8").replace('"version": "1.0.0"', '"version": "1.0.1"'));
   let r = run(lib);
   assert.equal(r.status, 1);
-  assert.match(r.stdout, /bundle demo@0\.1\.0: digest differs from the files/);
+  assert.match(r.stdout, /bundle demo@0\.2\.0: digest differs from the files/);
   assert.match(r.stdout, /sim ptf:sim\/counter@1\.0\.1 is not listed/);
 
   r = run("catalog", "--write", lib);
