@@ -151,11 +151,14 @@ Pick the simplest medium that serves the objective.
 | --- | --- |
 | Conversation | Definitions, reasons, history, connecting ideas, repairing a misconception |
 | Worked example | Procedures and calculations, for novices |
+| Figure | Shapes, graphs, quantities side by side, a construction or proof that builds up step by step; anything one picture shows better than words |
 | Question card | Predictions, checks, reviews |
 | Simulator station | Cause and effect that is hard to imagine, a parameter to vary, many fast trials, processes in time or space |
 | Code lab | Learners who want to build it themselves, usually `college` and above |
 
-A simulator earns its place when the learner can change something and see a
+A figure earns its place when the learner would otherwise have to build the
+picture in their head; show it step by step and talk about each step. A
+simulator earns its place when the learner can change something and see a
 result that words or one picture cannot show as well. Skip it for facts,
 definitions and single calculations, when the learner prefers less, when the
 station is already done, or when it needs a screen the learner does not

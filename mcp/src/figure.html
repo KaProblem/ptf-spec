@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PTF figure</title>
+<style>
+  :root { color-scheme: light dark; --bg: #ffffff; --surface: #f4f6f8; --ink: #18212e; --muted: #5b6573; --line: #d5dbe2;
+    --accent: #0e6e68; --warn: #b5560f; --good: #1d7a3a; --bad: #b3261e; --f-body: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  [data-theme="dark"] { color-scheme: dark; --bg: #16191d; --surface: #1f2329; --ink: #e8ebef; --muted: #a3acb8; --line: #343a42;
+    --accent: #4fc1b8; --warn: #f0a35e; --good: #6fcf8a; --bad: #f28b82; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: transparent; color: var(--ink); font: 15px/1.45 var(--f-body); }
+  .frame { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg); }
+  header { display: flex; gap: 8px; align-items: center; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; min-width: 0; }
+  .badge { flex: none; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); border: 1px solid currentColor; border-radius: 999px; padding: 2px 8px; }
+  .caption { margin: 0; padding: 10px 12px 0; font-weight: 600; min-height: 2.6em; }
+  .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 12px; }
+  .btn { font: inherit; font-weight: 600; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
+  .btn.primary { color: #fff; background: var(--accent); border-color: var(--accent); }
+  [data-theme="dark"] .btn.primary { color: #0b1514; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .count { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: center; }
+  details { padding: 0 12px 12px; color: var(--muted); }
+  summary { cursor: pointer; min-height: 32px; padding-top: 6px; }
+  details p { margin: 6px 0 0; }
+  #status { padding: 14px 12px; color: var(--muted); }
+  [hidden] { display: none !important; }
+/*PTF_FIGURE_CSS*/
+</style>
+</head>
+<body>
+<div class="frame">
+  <header><span class="badge" data-i18n="badge">Figure</span><h1 id="title"></h1></header>
+  <div id="status" data-i18n="loading">Loading figure…</div>
+  <div class="ptf-figure-stage" id="stage" hidden></div>
+  <p class="caption" id="caption" aria-live="polite" hidden></p>
+  <div class="controls" id="controls" hidden>
+    <button type="button" class="btn" id="back" data-i18n="back">Back</button>
+    <button type="button" class="btn primary" id="next" data-i18n="next">Next</button>
+    <button type="button" class="btn" id="all" data-i18n="all">Show all</button>
+    <span class="count" id="count"></span>
+  </div>
+  <details id="about" hidden><summary data-i18n="about">What the figure shows</summary><p id="desc"></p></details>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  // ---------- texts ----------
+  var TEXT = {
+    en: { badge: "Figure", loading: "Loading figure…", back: "Back", next: "Next", all: "Show all", about: "What the figure shows",
+      failed: "The figure could not be shown: ",
+      step: function (n, total, title, caption) { return "The learner is looking at step " + n + " of " + total + " of the figure “" + title + "”" + (caption ? ": " + caption : "."); },
+      seen: function (total, title) { return "The learner has seen all " + total + " steps of the figure “" + title + "”."; } },
+    de: { badge: "Abbildung", loading: "Abbildung wird geladen…", back: "Zurück", next: "Weiter", all: "Alles zeigen", about: "Was die Abbildung zeigt",
+      failed: "Die Abbildung konnte nicht angezeigt werden: " }
+  };
+  var t = TEXT.en;
+  function applyTexts(locale) {
+    var lang = String(locale || "en").slice(0, 2);
+    t = TEXT[lang] ? Object.assign({}, TEXT.en, TEXT[lang]) : TEXT.en;
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-i18n]").forEach(function (el) { el.textContent = t[el.dataset.i18n]; });
+  }
+  function $(id) { return document.getElementById(id); }
+
+  // ---------- MCP Apps transport (View side, JSON-RPC over postMessage) ----------
+  var nextId = 1, pending = {};
+  function send(msg) { msg.jsonrpc = "2.0"; window.parent.postMessage(msg, "*"); }
+  function notify(method, params) { send({ method: method, params: params || {} }); }
+  function request(method, params) {
+    var id = "ptf-" + nextId++;
+    return new Promise(function (resolve, reject) {
+      pending[id] = { resolve: resolve, reject: reject };
+      send({ id: id, method: method, params: params || {} });
+    });
+  }
+  function callTool(name, args) {
+    return request("tools/call", { name: name, arguments: args || {} }).then(function (r) {
+      if (r && r.isError) throw new Error(((r.content || [])[0] || {}).text || name + " failed");
+      return r;
+    });
+  }
+
+  var host = { capabilities: {}, context: {} };
+  var data = null;        // structuredContent of show_figure
+  var initialized = false, queued = null;
+
+  window.addEventListener("message", function (ev) {
+    if (ev.source !== window.parent) return;
+    var m = ev.data;
+    if (!m || m.jsonrpc !== "2.0") return;
+    if (m.id != null && !m.method) {
+      var p = pending[m.id];
+      if (p) { delete pending[m.id]; if (m.error) p.reject(new Error(m.error.message || "error")); else p.resolve(m.result); }
+      return;
+    }
+    switch (m.method) {
+      case "ui/notifications/tool-result": if (initialized) onToolResult(m.params || {}); else queued = m.params || {}; break;
+      case "ui/notifications/host-context-changed": onHostContext(m.params || {}); break;
+      case "ui/resource-teardown": if (m.id != null) send({ id: m.id, result: {} }); break;
+      case "ping": if (m.id != null) send({ id: m.id, result: {} }); break;
+      default: if (m.id != null) send({ id: m.id, error: { code: -32601, message: "Method not found" } });
+    }
+  });
+
+  // ---------- theme ----------
+  var TOKEN_MAP = { "--bg": "--color-background-primary", "--surface": "--color-background-secondary", "--ink": "--color-text-primary",
+    "--muted": "--color-text-secondary", "--line": "--color-border-primary", "--accent": "--color-text-info",
+    "--warn": "--color-text-warning", "--good": "--color-text-success", "--bad": "--color-text-danger", "--f-body": "--font-sans" };
+  function onHostContext(ctx) {
+    for (var k in ctx) host.context[k] = ctx[k];
+    document.documentElement.setAttribute("data-theme", host.context.theme === "dark" ? "dark" : "light");
+    var vars = (host.context.styles && host.context.styles.variables) || {};
+    for (var tk in TOKEN_MAP) if (vars[TOKEN_MAP[tk]]) document.documentElement.style.setProperty(tk, String(vars[TOKEN_MAP[tk]]));
+  }
+
+  // ---------- size ----------
+  var lastHeight = 0;
+  new ResizeObserver(function () {
+    var h = Math.ceil(document.documentElement.scrollHeight);
+    if (Math.abs(h - lastHeight) > 1) { lastHeight = h; notify("ui/notifications/size-changed", { height: h }); }
+  }).observe(document.documentElement);
+
+  // ---------- sanitizing (SPEC.md §6.8): only the figure format survives ----------
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  var ELEMENTS = {};
+  "svg g title desc defs marker symbol use clipPath path line polyline polygon rect circle ellipse text tspan".split(" ")
+    .forEach(function (n) { ELEMENTS[n] = true; });
+  var ATTRIBUTES = {};
+  ("id class viewBox role aria-labelledby aria-label aria-hidden data-ptf-figure data-step data-caption x y x1 y1 x2 y2 cx cy r rx ry " +
+    "width height d points transform text-anchor dominant-baseline dx dy rotate font-weight marker-start marker-mid marker-end refX refY " +
+    "markerWidth markerHeight markerUnits orient href xlink:href fill stroke stroke-linecap stroke-linejoin opacity fill-opacity " +
+    "stroke-opacity clip-path preserveAspectRatio pathLength").split(" ").forEach(function (n) { ATTRIBUTES[n] = true; });
+
+  function sanitize(markup) {
+    var doc = new DOMParser().parseFromString(markup, "image/svg+xml");
+    var src = doc.documentElement;
+    if (!src || src.localName !== "svg" || src.namespaceURI !== SVG_NS || doc.getElementsByTagName("parsererror").length) {
+      throw new Error("not a valid SVG figure");
+    }
+    function copy(node) {
+      if (node.nodeType === 3) return document.createTextNode(node.nodeValue);
+      if (node.nodeType !== 1 || node.namespaceURI !== SVG_NS || !ELEMENTS[node.localName]) return null;
+      var out = document.createElementNS(SVG_NS, node.localName);
+      for (var i = 0; i < node.attributes.length; i++) {
+        var a = node.attributes[i], name = a.name, v = a.value.trim();
+        if (!ATTRIBUTES[name]) continue;
+        if (name === "href" || name === "xlink:href") { if (/^#[\w-]+$/.test(v)) out.setAttribute("href", v); continue; }
+        if (/url\s*\(/i.test(v) && !/^url\(\s*#[\w-]+\s*\)$/.test(v)) continue;
+        if ((name === "fill" || name === "stroke") && v !== "none") continue;
+        out.setAttribute(name, a.value);
+      }
+      for (var c = node.firstChild; c; c = c.nextSibling) { var x = copy(c); if (x) out.appendChild(x); }
+      return out;
+    }
+    var svg = copy(src);
+    svg.removeAttribute("width"); svg.removeAttribute("height");
+    svg.setAttribute("data-ptf-figure", "1");
+    svg.setAttribute("role", "img");
+    return svg;
+  }
+
+  // ---------- steps ----------
+  var groups = [], total = 0, cur = 0, seenAll = false, figTitle = "";
+  function show(n) {
+    cur = Math.max(1, Math.min(total, n));
+    var caption = "";
+    groups.forEach(function (g) {
+      var s = Number(g.getAttribute("data-step"));
+      var off = s > cur;
+      g.classList.toggle("ptf-hidden", off);
+      g.setAttribute("aria-hidden", off ? "true" : "false");
+      if (s === cur && !caption) caption = g.getAttribute("data-caption") || "";
+    });
+    $("caption").textContent = caption;
+    $("count").textContent = cur + " / " + total;
+    $("back").disabled = cur <= 1;
+    $("next").disabled = cur >= total;
+    $("all").disabled = cur >= total;
+    tellTutor(t.step(cur, total, figTitle, caption));
+    if (cur >= total && !seenAll) { seenAll = true; viewedAll(); }
+  }
+  function tellTutor(text) {
+    if (!host.capabilities.updateModelContext) return;
+    request("ui/update-model-context", { content: [{ type: "text", text: text }] }).catch(function () { /* best effort */ });
+  }
+  function viewedAll() {
+    if (total > 1) tellTutor(t.seen(total, figTitle));
+    if (!data.object) return;
+    callTool("ptf_record_event", { verb: "experienced", object: data.object, level: data.level || undefined, via: "figure" })
+      .catch(function () { /* recording is best effort */ });
+  }
+
+  // ---------- rendering ----------
+  function onToolResult(result) {
+    var sc = result.structuredContent;
+    if (!sc || !sc.figure) { fail(((result.content || [])[0] || {}).text || "no figure in tool result"); return; }
+    data = sc;
+    var markup = result._meta && result._meta["ptf/svg"];
+    (typeof markup === "string" ? Promise.resolve(markup)
+      : callTool("ptf_figure_source", { element: sc.figure.element, figure: sc.figure.id, lang: sc.figure.lang })
+        .then(function (r) { return r.structuredContent.svg; }))
+      .then(mount, function (e) { fail(e.message); });
+  }
+
+  function mount(markup) {
+    var f = data.figure;
+    var svg = sanitize(markup);
+    figTitle = f.title || "";
+    $("title").textContent = figTitle;
+    var stage = $("stage");
+    stage.innerHTML = "";
+    stage.appendChild(svg);
+    if (f.lang) stage.setAttribute("lang", f.lang);
+    $("desc").textContent = f.desc || "";
+    $("status").hidden = true;
+    stage.hidden = false;
+    $("about").hidden = !f.desc;
+    groups = Array.prototype.slice.call(svg.querySelectorAll("g[data-step]"));
+    total = groups.reduce(function (m, g) { return Math.max(m, Number(g.getAttribute("data-step")) || 0); }, 0);
+    if (total > 0) {
+      $("caption").hidden = false;
+      $("controls").hidden = total < 2;
+      show(data.step || 1);
+    } else {
+      seenAll = true;
+      viewedAll();
+    }
+  }
+
+  $("back").addEventListener("click", function () { show(cur - 1); });
+  $("next").addEventListener("click", function () { show(cur + 1); });
+  $("all").addEventListener("click", function () { show(total); });
+  document.addEventListener("keydown", function (e) {
+    if (!total || e.target.closest && e.target.closest("summary")) return;
+    if (e.key === "ArrowRight") show(cur + 1);
+    else if (e.key === "ArrowLeft") show(cur - 1);
+  });
+
+  function fail(msg) {
+    $("stage").hidden = true; $("controls").hidden = true; $("caption").hidden = true;
+    $("status").hidden = false;
+    $("status").textContent = t.failed + msg;
+  }
+
+  // ---------- handshake ----------
+  request("ui/initialize", {
+    appInfo: { name: "ptf-figure", version: "0.1.0" },
+    appCapabilities: {},
+    protocolVersion: "2026-01-26"
+  }).then(function (r) {
+    host.capabilities = (r && r.hostCapabilities) || {};
+    onHostContext((r && r.hostContext) || {});
+    applyTexts(host.context.locale);
+    initialized = true;
+    notify("ui/notifications/initialized", {});
+    if (queued) { onToolResult(queued); queued = null; }
+  }, function (e) { fail(e.message); });
+})();
+</script>
+</body>
+</html>

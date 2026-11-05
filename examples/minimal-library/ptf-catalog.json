@@ -12,11 +12,11 @@
     {
       "kind": "bundle",
       "id": "demo",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "title": "Demo bundle",
       "summary": "The smallest useful PTF bundle, used by the tests.",
       "path": "bundles/demo",
-      "digest": "sha256-BAAREG83f6ZWEI+O6R3WKFXzbx+XAOCvqcRSh1nXr5g="
+      "digest": "sha256-yDH5iqF+wcIUg88ob468F5KrAuA4KC+J/HSkRlGh5r4="
     },
     {
       "kind": "sim",
