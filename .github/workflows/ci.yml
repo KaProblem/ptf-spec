@@ -27,7 +27,7 @@ jobs:
           PTF_MCP_ENTRY=$PWD/mcp/dist/ptf-mcp.mjs npm test --prefix mcp
       - name: Simulator self-test
         run: |
-          npm install --no-save playwright
+          npm install --no-save playwright@1.64.1
           npx playwright install --with-deps chromium
           node tools/ptf-selftest.mjs examples/minimal-library/sims/*/*/
       - name: MCP App player in the browser
