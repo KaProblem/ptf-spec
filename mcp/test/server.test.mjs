@@ -88,8 +88,12 @@ test("show_question serves library questions and validates ad-hoc ones", async (
   assert.equal(r.structuredContent.question.kind, "multiple_choice");
   assert.equal(r.structuredContent.object, "ptf:el/demo/counting#q2");
 
-  const unsupported = await client.callTool({ name: "show_question", arguments: { element: "ptf:el/demo/counting", question_id: "q1" } });
-  assert.match(unsupported.content[0].text, /cannot be shown as a card yet/);
+  const guess = await client.callTool({ name: "show_question", arguments: { element: "ptf:el/demo/counting", question_id: "q1" } });
+  assert.ok(!guess.isError, guess.content[0].text);
+  assert.equal(guess.structuredContent.question.kind, "guess_next");
+  assert.match(guess.content[0].text, /The card checks the answer.*records it as ptf:el\/demo\/counting#q1/);
+  for (const kind of ["cloze", "ordering", "estimate_number", "guess_next", "calculation_steps"])
+    assert.match(tools.find((t) => t.name === "show_question").description, new RegExp(kind));
   const missing = await client.callTool({ name: "show_question", arguments: { element: "ptf:el/demo/counting", question_id: "nope" } });
   assert.match(missing.content[0].text, /q1 \(guess_next\), q2 \(multiple_choice\)/);
 

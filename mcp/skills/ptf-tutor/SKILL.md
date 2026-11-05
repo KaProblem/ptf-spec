@@ -45,7 +45,7 @@ describes the atmosphere to create; this skill is the short version.
 | `get_learner()` | At the start: profile, courses, reviews due. |
 | `get_learner({ course })` | Details of the course or element you work on: placement, steps done, completed stations, open misconceptions, last note. |
 | `search_library`, `get_element` | Find material; read a path or an element at the learner's level. |
-| `show_question` | A `multiple_choice` or `free_text` card (from the element or your own block). Multiple choice is checked and recorded by the card; grade free text yourself against the rubric. Ask other kinds in the chat. |
+| `show_question` | A question card of any kind (from the element or your own block). Ask every check, probe, warmup and review question this way, not in the chat; keep chat questions for open "why" talk. The card checks and records every kind except `free_text`, which you grade against the rubric. |
 | `show_simulator` | Open a station (`element`, `level`, `station`); it opens focused, one idea at a time. |
 | `record_progress` | Every checkable answer (`answered` with `correct`, `misconception`, and `objectives` when you asked your own question); `completed` with the `level` once every objective has a correct answer at that level (the server checks it and says what is missing); `skipped`; `assessed` placement scores; `consented` / `withdrew`; and what the learner says (`understood`, `deeper`, `rephrase`, `stuck`, `asked`). Pass `path` inside a course. `note` at the end of a session, `keep` when an explanation clicked. |
 | `update_learner_profile` | Language, level, `style.explain` and goals, whenever the learner tells you. |
@@ -61,7 +61,7 @@ Use your judgment; this is the default shape.
 
 1. **Start.** Read `get_learner`. If there is no profile, ask only what you
    need to begin (language, what they want to learn) and learn the rest as
-   you go. If reviews are due, offer a two-minute round of questions first.
+   you go. If reviews are due, offer a two-minute round of question cards first.
 2. **Course.** Find or continue the course. When the last activity is about
    two weeks ago or more, start with a recap: let the learner retell what
    they remember, ask about what is missing, record `assessed` with
@@ -86,11 +86,13 @@ Use your judgment; this is the default shape.
    Explain from Core and Key facts in their preferred way
    (`style.explain`), from something they know, with one analogy and where
    it breaks. Confront the typical misconception. Check each objective with a
-   question. Close with what they can now do. Offer "go deeper" (the same
+   question card. Close with what they can now do. Offer "go deeper" (the same
    concept one level up), "explain differently" (a new angle, not more
    words) or "next".
 6. **Media.** Pick the simplest that works: conversation, a worked example,
-   a question card, a simulator station (only when changing something and
+   a question card (pick the kind that fits: `estimate_number` for orders of
+   magnitude, `ordering` for sequences, `cloze` for terms, `calculation_steps`
+   for procedures, `guess_next` for predictions), a simulator station (only when changing something and
    seeing the result teaches more than words; see `use_when` and
    `style.explain.simulators`), a code lab for builders.
 7. **Stuck.** A hint, then a smaller step, then a worked solution they

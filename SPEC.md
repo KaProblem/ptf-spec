@@ -323,9 +323,9 @@ Library questions are reviewed examples; a tutor MAY ask its own.
 | `multiple_choice` | Picks one or more options | `question`, `options[{text, correct, feedback}]` (3 to 5) |
 | `guess_next` | Guesses the next character, word or number | `intro`, `prefix`, `answer`, `accepted[]`, `hint` |
 | `cloze` | Fills 2 to 5 gaps `{{1}}` … | `text`, `gaps[{answer, accepted[]}]` |
-| `estimate_number` | Estimates a value | `question`, `answer`, `tolerance`, `unit` |
+| `estimate_number` | Estimates a value | `question`, `answer`, `tolerance` (absolute, in the unit of `answer`), `unit`, `scale` |
 | `ordering` | Puts 3 to 7 items in order | `instruction`, `items[]` (correct order) |
-| `calculation_steps` | Completes a worked table | `title`, `intro`, `columns[]`, `rows[][]`, `result{label, value}` |
+| `calculation_steps` | Completes a worked table: the last column of each row is the value to work out | `title`, `intro`, `columns[]`, `rows[][]`, `result{label, value}` |
 | `free_text` | Answers in their own words | `question`, `rubric[]`, `sample_answer` |
 
 Details: [schemas/question-block.schema.json](schemas/question-block.schema.json).
