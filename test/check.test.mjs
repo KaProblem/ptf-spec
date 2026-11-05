@@ -192,7 +192,7 @@ test("catalog lists every package with its digest and catches drift", () => {
   const file = join(lib, "ptf-catalog.json");
   const catalog = JSON.parse(readFileSync(file, "utf8"));
   assert.deepEqual(catalog.packages.map((p) => `${p.kind} ${p.id}@${p.version} ${p.path}`), [
-    "bundle demo@0.2.0 bundles/demo",
+    "bundle demo@0.3.0 bundles/demo",
     "sim ptf:sim/counter@1.0.0 sims/counter/1.0.0",
     "code ptf:code/counting@1.0.0 code/counting/1.0.0",
   ]);
@@ -203,7 +203,7 @@ test("catalog lists every package with its digest and catches drift", () => {
   writeFileSync(sim, readFileSync(sim, "utf8").replace('"version": "1.0.0"', '"version": "1.0.1"'));
   let r = run(lib);
   assert.equal(r.status, 1);
-  assert.match(r.stdout, /bundle demo@0\.2\.0: digest differs from the files/);
+  assert.match(r.stdout, /bundle demo@0\.3\.0: digest differs from the files/);
   assert.match(r.stdout, /sim ptf:sim\/counter@1\.0\.1 is not listed/);
 
   r = run("catalog", "--write", lib);
@@ -264,4 +264,37 @@ test("rounded numbers in calculation steps agree with computed values", async ()
   const r = { kind: "calculation_steps", rows: [["t", "√(112 / 9.81) ≈ 3.38 s"], ["A", "2.83 · 10⁻³ m²"], ["k", "8.48e-4 kg/m"], ["d", "19.6 − 4.9 = 14.7 m"]] };
   assert.deepEqual(compare(r, [Math.sqrt(112 / 9.81), Math.PI * 0.03 ** 2, 8.482e-4, 14.7]), []);
   assert.equal(compare(r, [null, 2.9e-3, null, null]).length, 1);
+});
+
+test("checks figures: format rules, references and translations", () => {
+  const lib = copyExample();
+  const figs = join(lib, "bundles/demo/figures");
+  const svg = join(figs, "count-apples.svg");
+  const good = readFileSync(svg, "utf8");
+  writeFileSync(svg, good
+    .replace('viewBox="0 0 320 180"', 'viewBox="0 0 480 180"')
+    .replace('<circle class="s-warn f-warn-soft w2"', '<circle onclick="alert(1)" fill="#ff0000" class="s-warn red"')
+    .replace("</defs>", '</defs><script>alert(1)</script><image href="https://example.org/x.png"/>')
+    .replace('data-step="3"', 'data-step="4"'));
+  writeFileSync(join(figs, "orphan.de.svg"), good);
+  writeFileSync(join(figs, "notes.txt"), "x");
+  const el = join(lib, "bundles/demo/elements/counting.md");
+  writeFileSync(el, readFileSync(el, "utf8").replace("  - id: count-apples\n    objectives: [next-one]", "  - id: count-apples\n    objectives: [nope]\n  - id: missing"));
+  const r = run(lib);
+  assert.equal(r.status, 1);
+  for (const re of [/viewBox is 480 units wide/, /attribute onclick on <circle> is not allowed/, /fill="#ff0000" on <circle>: colours only through classes/,
+    /<script> is not allowed/, /<image> is not allowed/, /unknown class\(es\) red/, /steps must be numbered 1\.\.3 without gaps/,
+    /canonical figures\/orphan\.svg is missing/, /figures\/ holds only <id>\.svg/, /figure "missing" not found/]) {
+    assert.match(r.stdout, re);
+  }
+  assert.doesNotMatch(r.stdout, /figure "count-apples" not found/);   // invalid, reported on the file, not as missing
+});
+
+test("a translated figure must keep the steps of the canonical one", () => {
+  const lib = copyExample();
+  const de = join(lib, "bundles/demo/figures/count-apples.de.svg");
+  writeFileSync(de, readFileSync(de, "utf8").replace(/<g data-step="3"[\s\S]*?<\/g>\n/, ""));
+  const r = run(lib);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /has 2 step\(s\), the canonical figure 3/);
 });

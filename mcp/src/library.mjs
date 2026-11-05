@@ -175,6 +175,28 @@ export class Library {
     return out;
   }
 
+  /**
+   * A figure of an element (SPEC.md §6.8): figures/<id>.svg of its bundle, or the translation
+   * figures/<id>.<lang>.svg when `lang` asks for one. Returns { id, file, lang, entry }.
+   */
+  figure(elementId, figureId, lang) {
+    const d = this.doc(elementId);
+    if (!d || d.type !== "Learning Element") throw new Error(`Unknown element ${elementId}.`);
+    const dir = this.bundles.get(d.bundle)?.dir;
+    const listed = (d.meta.figures ?? []).filter((f) => f && f.id);
+    const known = () => listed.map((f) => f.id).join(", ") || "none";
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(String(figureId))) throw new Error(`Figure IDs use a-z, 0-9 and -. Figures of ${elementId}: ${known()}`);
+    const base = dir && join(dir, "figures");
+    if (!base || !existsSync(join(base, `${figureId}.svg`))) throw new Error(`Element ${elementId} has no figure ${figureId}. Figures: ${known()}`);
+    const wanted = lang ? [String(lang), String(lang).split("-")[0]] : [];
+    for (const l of wanted) {
+      if (l === d.meta.lang) break;
+      const f = join(base, `${figureId}.${l}.svg`);
+      if (/^[a-z]{2,3}(-[A-Za-z0-9]+)*$/.test(l) && existsSync(f)) return { id: figureId, file: f, lang: l, entry: listed.find((x) => x.id === figureId) ?? null };
+    }
+    return { id: figureId, file: join(base, `${figureId}.svg`), lang: d.meta.lang ?? null, entry: listed.find((x) => x.id === figureId) ?? null };
+  }
+
   /** Picks the version for a simulator or code lab: lockfile of the given bundle, else highest match (non-deprecated first). */
   #pick(id, range, bundleId, kind = "simulators") {
     const versions = (kind === "code" ? this.labs : this.sims).get(id);
@@ -260,5 +282,6 @@ function summary(d) {
     ...(m.about ? { about: m.about } : {}),
     ...(m.steps ? { steps: m.steps.map((s) => s.element) } : {}),
     ...(m.simulators ? { simulators: m.simulators.map((s) => ({ ref: s.ref, station: s.station, levels: s.levels, role: s.role, use_when: s.use_when })) } : {}),
-    ...(m.code ? { code: m.code.map((c) => ({ ref: c.ref, step: c.step, levels: c.levels })) } : {}) };
+    ...(m.code ? { code: m.code.map((c) => ({ ref: c.ref, step: c.step, levels: c.levels })) } : {}),
+    ...(m.figures ? { figures: m.figures.map((f) => ({ id: f.id, objectives: f.objectives, levels: f.levels, use_when: f.use_when })) } : {}) };
 }

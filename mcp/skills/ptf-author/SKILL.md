@@ -53,6 +53,10 @@ What matters is that a tutor can teach from it (SPEC.md §6.7):
 - **Paths**: `objectives`, an `# Introduction` for the course, steps in
   `requires` order, `# Prior knowledge` when learners often bring part of
   it. Add new elements to the bundle's `index.md`.
+- **Figures**: when a step needs a picture (a graph, a shape, a
+  construction), draw it with the `ptf-figure` skill: a script computes it,
+  `ptf-figure shot` renders it at phone width, and you look at every
+  screenshot before you list it in `figures`.
 - **Anything the tutor must do a certain way** goes in `# Tutor notes`.
 - **Changes** keep all IDs, say what problem they fix, bump `version`
   (patch wording, minor additions, major when Core changes meaning or IDs

@@ -219,6 +219,40 @@
         }
       }
     },
+    "figures": {
+      "type": "array",
+      "description": "Figures of this element: figures/<id>.svg in the bundle (SPEC.md §6.8).",
+      "items": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "objectives": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*$"
+            }
+          },
+          "use_when": {
+            "type": "string",
+            "minLength": 1,
+            "description": "When the tutor should show this figure."
+          }
+        }
+      }
+    },
     "sources": {
       "type": "array",
       "items": {

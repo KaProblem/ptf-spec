@@ -11,11 +11,11 @@ is personal: that is the "Personal" in the name.
 PTF is a **profile of the [Open Knowledge Format (OKF) v0.2](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)**:
 every PTF bundle is a valid OKF bundle, a directory of Markdown files with
 YAML frontmatter. PTF fixes a few `type` values, fields and headings, and adds
-question blocks, simulators and code labs.
+question blocks, figures, simulators and code labs.
 
 | Document | Defines |
 | --- | --- |
-| SPEC.md (this file) | Bundles, learning elements, levels, questions, paths, IDs, versioning |
+| SPEC.md (this file) | Bundles, learning elements, levels, questions, figures, paths, IDs, versioning |
 | [PEDAGOGY.md](PEDAGOGY.md) | How a tutor teaches: the learning atmosphere PTF is built for |
 | [SIMULATOR-SPEC.md](SIMULATOR-SPEC.md) | Simulator packages, the host contract, security |
 | [CODE-SPEC.md](CODE-SPEC.md) | Code labs: runnable code the learner builds on locally |
@@ -57,6 +57,7 @@ such as IMS QTI; its question blocks are small and convertible.
 | Learning element | One concept, one Markdown file. |
 | Learning path (course) | An ordered sequence of elements towards a goal. |
 | Question block | One quiz item of a known kind, as JSON. |
+| Figure | A still or step-by-step SVG picture of an element (§6.8). |
 | Simulator | A versioned, sandboxed HTML package to explore a concept. |
 | Code lab | A versioned package of runnable code in steps (CODE-SPEC.md). |
 | Level | How deep a concept is taught (§5). |
@@ -79,6 +80,8 @@ library/
     ptf.lock              # optional: pinned simulator and lab versions (§9)
     elements/<name>.md    # type: Learning Element
     checks/<name>.js      # answer checks for elements/<name>.md (§7.1)
+    figures/<id>.svg      # optional: figures (§6.8), translations <id>.<lang>.svg
+    figures/src/          # optional: the scripts that generate the figures
     paths/<name>.md       # type: Learning Path
     sims/, code/          # optional: bundle-local packages
 ```
@@ -199,6 +202,10 @@ simulators:
     use_when: the learner wants to see probabilities change, not read about them
 code:                                    # CODE-SPEC.md §4
   - { ref: ptf:code/gpt-from-scratch@^1.0.0, step: bigram, levels: [college] }
+figures:                                 # §6.8
+  - id: softmax-bars                     # figures/softmax-bars.svg of the bundle
+    objectives: [larger-score]
+    use_when: before the learner computes softmax by hand
 sources:                                 # provenance only, never cited to the learner
   - { id: karpathy-gpt, resource: https://www.youtube.com/watch?v=kCc8FmEb1nY, title: "Let's build GPT" }
 generated: { by: claude/opus, at: 2026-10-26T12:00:00Z }
@@ -292,7 +299,7 @@ primary concept. Order of learning still comes from `requires`.
 | --- | --- |
 | `objectives`, `# Core`, `# Key facts`, the correct views in `# Misconceptions` | **Binding.** The tutor teaches towards the objectives and never contradicts these. |
 | `# Tutor notes`, a path's `# Prior knowledge` | **Binding wishes of the author**, in plain words ("use this level text as written", "start with station `guess`"). |
-| Level texts, `# Introduction`, `# Examples`, questions, simulators, code | **Offers.** The tutor uses, adapts or replaces them for this learner. |
+| Level texts, `# Introduction`, `# Examples`, questions, figures, simulators, code | **Offers.** The tutor uses, adapts or replaces them for this learner. |
 | Everything else: order, words, pace, medium, which questions | **The tutor's judgment**, guided by PEDAGOGY.md and the learner's profile. |
 
 When these meet, this order wins: the content policy and the learner's
@@ -300,6 +307,69 @@ safety; then the binding content; then the learner's explicit choices (they
 may always stop, skip ahead or decline an activity); then tutor notes; then
 the learner's profile; then PEDAGOGY.md. A host SHOULD pass `# Tutor notes`
 to the tutor unchanged.
+
+### 6.8 Figures
+
+Most explanations need a picture rather than a simulator. A figure is one SVG
+file in the bundle's `figures/` directory that a host shows as a card and
+that can build up step by step, while the tutor talks about each step.
+
+**Listing.** An element lists its figures in `figures` (§6.1): `id` (the file
+`figures/<id>.svg`), optionally the `objectives` and `levels` it serves and
+`use_when`, one line on when it helps. Figures belong to the bundle; several
+elements MAY list the same one.
+
+**The file.** A figure is self-describing, because the tutor never sees the
+picture:
+
+```svg
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 330 295" role="img" data-ptf-figure="1">
+  <title>Slope of a line</title>
+  <desc>The line y = ½x + 1. Between (2|2) and (6|4) a slope triangle shows Δx = 4 and Δy = 2, so the slope is ½.</desc>
+  <g><!-- always visible: axes, grid --></g>
+  <g data-step="1" data-caption="The line y = ½x + 1.">…</g>
+  <g data-step="2" data-caption="From one point to the other: 4 to the right, 2 up.">…</g>
+</svg>
+```
+
+- `<title>` and `<desc>` are REQUIRED children of `<svg>`. `<desc>` says what
+  is to be seen, including the numbers; it is what the tutor knows.
+- **Steps** are optional: `<g data-step="n" data-caption="…">`, numbered 1
+  to n without gaps, not nested. A host shows step 1 first and reveals the
+  others one after the other with the caption; shapes outside any step are
+  always visible. A figure without steps is a still picture.
+- **Colours and fonts only through classes**, which the host maps to its
+  theme tokens (SIMULATOR-SPEC.md §4.5), so a figure works in light and dark:
+  stroke `s-ink s-muted s-line s-accent s-warn s-good`; fill `f-ink f-muted
+  f-surface f-accent f-warn f-good f-accent-soft f-warn-soft f-good-soft
+  f-none`; stroke width `w1 w2 w3`; `dash`; text `t` (16), `t-s` (14), `t-l`
+  (20), `bold`, `math` (italic serif). Shapes without an `f-` class are not
+  filled; text without one uses the ink colour. `fill` and `stroke`
+  attributes may only be `none`.
+- **Arrowheads** are `<marker>`s in the file's `<defs>`, referenced with
+  `url(#id)`; every `#id` reference MUST resolve inside the file.
+- **Size.** The viewBox is at most **360 units wide** and text at least 14
+  units, so text stays at least 12 px in a 320 px wide card on a phone.
+- **Not allowed:** `<script>`, `<style>`, `<foreignObject>`, `<image>`,
+  `<a>`, animation elements, `on*` and `style` attributes, font attributes,
+  references other than a local `#id`, DOCTYPE and entities. `<metadata>` is
+  allowed and ignored. Hosts MUST still sanitize: they keep only the elements
+  and attributes of this section and show the figure in a sandboxed frame.
+- **Language.** Labels are in the bundle language. A translation is a sibling
+  file `figures/<id>.<lang>.svg` with the same steps; it changes words only.
+  Hosts pick it from the learner's language. Formulas use Unicode (½, ², √,
+  π, ·, −), not LaTeX.
+
+**Showing.** A host shows a figure as a card: the figure, the caption of the
+current step, Back, Next and Show all, and the description on request. It
+gives the tutor the description and every caption, tells it which step the
+learner is on, and records an `experienced` event with the object
+`ptf:el/<bundle>/<element>#figure:<id>` once the learner has seen every step.
+In the MCP server this is the tool `show_figure`.
+
+Figures are written in a script that computes the coordinates, never by eye,
+and are checked in a rendered screenshot at phone width
+(`tools/ptf-figure.mjs shot`); `ptf-check` checks the rules above.
 
 ---
 
@@ -531,6 +601,8 @@ A PTF v0.1 bundle is conformant if:
 6. Every `simulators[].ref` and `code[].ref` resolves to an existing version,
    every `code[].step` exists, and every package validates against
    SIMULATOR-SPEC.md §2 or CODE-SPEC.md §2 with matching `integrity`.
+6. Every `figures[].id` has a file `figures/<id>.svg`, and every file in
+   `figures/` follows §6.8.
 
 `tools/ptf-check` checks all of this. Consumers MUST tolerate unknown types,
 keys and levels and missing optional sections.

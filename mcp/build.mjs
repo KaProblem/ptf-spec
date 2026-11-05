@@ -5,6 +5,7 @@ import { build } from "esbuild";
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const player = read("./src/player.html").replace("/*PTF_HOST_RUNTIME*/", () => read("../runtime/ptf-host.js"));
 const quiz = read("./src/quiz.html");
+const figure = read("./src/figure.html").replace("/*PTF_FIGURE_CSS*/", () => read("../runtime/ptf-figure.css"));
 const questionSchema = read("../schemas/question-block.schema.json");
 const tutor = read("./skills/ptf-tutor/SKILL.md").replace(/^---\n[\s\S]*?\n---\n/, "").trim();
 const version = JSON.parse(read("./package.json")).version;
@@ -24,7 +25,7 @@ await build({
     setup(b) {
       b.onResolve({ filter: /\/assets\.mjs$/ }, (args) => ({ path: args.path, namespace: "ptf-assets" }));
       b.onLoad({ filter: /.*/, namespace: "ptf-assets" }, () => ({
-        contents: `export const PLAYER_HTML = ${JSON.stringify(player)};\nexport const QUIZ_HTML = ${JSON.stringify(quiz)};\nexport const QUESTION_SCHEMA = ${questionSchema};\nexport const TUTOR_GUIDE = ${JSON.stringify(tutor)};\nexport const VERSION = ${JSON.stringify(version)};\n`,
+        contents: `export const PLAYER_HTML = ${JSON.stringify(player)};\nexport const QUIZ_HTML = ${JSON.stringify(quiz)};\nexport const FIGURE_HTML = ${JSON.stringify(figure)};\nexport const QUESTION_SCHEMA = ${questionSchema};\nexport const TUTOR_GUIDE = ${JSON.stringify(tutor)};\nexport const VERSION = ${JSON.stringify(version)};\n`,
         loader: "js",
       }));
     },

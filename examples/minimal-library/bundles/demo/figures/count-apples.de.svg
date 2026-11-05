@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" role="img" aria-labelledby="count-apples-t count-apples-d" data-ptf-figure="1">
+  <title id="count-apples-t">Äpfel zählen: jedes Mal einer mehr</title>
+  <desc id="count-apples-d">Drei Äpfel in einer Reihe, nummeriert mit 1, 2 und 3. Am Ende kommt ein vierter Apfel dazu und bekommt die Zahl 4, eins mehr als 3. Darunter: 3 + 1 = 4.</desc>
+  <defs><marker id="ptf-arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="f-accent" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+  <g data-step="1" data-caption="Drei Äpfel in einer Reihe.">
+    <circle class="s-warn f-warn-soft w2" cx="50" cy="62" r="22"/>
+    <path class="s-good w2" d="M50 40 q4 -10 12 -12"/>
+    <circle class="s-warn f-warn-soft w2" cx="120" cy="62" r="22"/>
+    <path class="s-good w2" d="M120 40 q4 -10 12 -12"/>
+    <circle class="s-warn f-warn-soft w2" cx="190" cy="62" r="22"/>
+    <path class="s-good w2" d="M190 40 q4 -10 12 -12"/>
+  </g>
+  <g data-step="2" data-caption="Zähle sie: Jeder Apfel bekommt die nächste Zahl.">
+    <text class="t-l bold f-ink" x="50" y="122" text-anchor="middle">1</text>
+    <text class="t-l bold f-ink" x="120" y="122" text-anchor="middle">2</text>
+    <text class="t-l bold f-ink" x="190" y="122" text-anchor="middle">3</text>
+  </g>
+  <g data-step="3" data-caption="Ein Apfel mehr: Die nächste Zahl ist eins mehr, 4.">
+    <circle class="s-accent f-accent-soft w2" cx="260" cy="62" r="22"/>
+    <path class="s-good w2" d="M260 40 q4 -10 12 -12"/>
+    <text class="t-l bold f-accent" x="260" y="122" text-anchor="middle">4</text>
+    <path class="s-accent w2" d="M202 130 Q225.0 148 246 130" marker-end="url(#ptf-arrow-accent)"/>
+    <text class="t-s f-accent" x="225.0" y="160" text-anchor="middle">+1, einer mehr</text>
+    <text class="t math f-ink" x="110" y="160" text-anchor="middle">3 + 1 = 4</text>
+  </g>
+</svg>
