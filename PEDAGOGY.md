@@ -128,18 +128,32 @@ not needed:
 | Phase | What happens |
 | --- | --- |
 | Orient | What the step is about and what the learner will be able to do. |
-| Try | A guess, a prediction, a quick calculation, or a simulator station when it helps. |
+| Try | A guess, a prediction, a quick calculation, or a simulator station when it helps. For a novice on a procedure: a worked example first (below). |
 | Debrief | What did they notice? Connect it to the objective. |
 | Explain | Plain words from Core and Key facts, an anchor from the learner's world, the analogy and where it breaks. |
 | Confront | The typical misconception, shown failing. |
-| Check | A question per objective, answered without looking, with feedback. |
+| Check | A question per objective, answered without looking, with feedback; the objective's `criteria` for this level say what the answer must show. |
 | Close | What they can now do; what comes next; "go deeper" as an offer. |
 
-When the learner is stuck: a hint, then a smaller step, then a worked
-solution they explain back. When they want it explained differently: a new
-analogy, an example or a picture, not more of the same words. Beginners learn
-procedures faster from a worked example, then a partly worked one, then one
-alone; learners who already know the basics skip the examples.
+**Try or show first?** Guessing first helps when the learner has something
+to guess with: prior knowledge the record or the conversation shows, and an
+objective about *what happens* (predict, explain, tell apart). A novice facing
+a *procedure* (compute, derive, construct) learns faster from a worked example
+first, then a partly worked one they complete, then one alone; learners who
+already know the basics skip the examples and start with the problem. Either
+way the explanation picks up the learner's own attempt; a guess nobody comes
+back to teaches nothing.
+
+**After a wrong answer**: say what was right, what exactly went wrong and the
+next step; then one hint (the question's `hints`, from a nudge to almost the
+answer) and a new attempt; only then the solution. An answer after the
+solution is recorded with `assistance: solution` and is no evidence; the
+objective needs a fresh question. One wrong option *suggests* a
+misconception; ask once more before treating it as the learner's
+(LEARNER-RECORD.md §6). When the learner is stuck: a hint, then a smaller
+step, then a worked solution they explain back. When they want it explained
+differently: a new analogy, an example or a picture, not more of the same
+words.
 
 ---
 
@@ -175,10 +189,16 @@ have. Many steps need none; one station per step is usually enough.
   to complete it.
 - When an explanation clicked, keep it in the learner's words; it comes back
   with the element next time.
-- Reviews are retrieval: short questions, mixed across elements, preferably
-  in a form the learner has not seen. A correct review lengthens the
-  interval; a wrong one reopens the misconception and shortens it. Re-teach
-  only what a review shows is missing.
+- Reviews are retrieval, and a completed step stays open for them: never
+  re-taught, always available for a question. A review round is short
+  questions mixed across the elements due, each in a form the learner has
+  not seen (a `transfer` question, a new situation, the learner's own words),
+  answered without hints. A correct review lengthens the interval; a wrong
+  one makes its misconception suspected or open and shortens it. Re-teach
+  only what a review shows is missing, and only that part.
+- Growing intervals are a reasonable default, not a finding: the evidence is
+  for spaced retrieval itself. The schedule follows the learner's answers
+  (LEARNER-RECORD.md §6), not a fixed table.
 
 ---
 
@@ -192,7 +212,8 @@ For authors and generators. The checklists are what reviewers look for
   sentences, one central misconception. Bigger: split and join with
   `requires`.
 - Two to four checkable `objectives`, starting with a verb the learner can
-  show ("explain", "compute", "predict", "tell apart").
+  show ("explain", "compute", "predict", "tell apart"); `criteria` per
+  level say what counts as shown at that depth (describe, compute, derive).
 - Every level covers every objective and stands on its own (SPEC.md §5.2).
   Test it: could a learner who only ever sees this level reach every
   objective?
@@ -200,8 +221,9 @@ For authors and generators. The checklists are what reviewers look for
   hold, analogies with where they break down, a worked example for
   procedures.
 - A few good questions beat many: at least one `check` per level, wrong
-  options that are real misconceptions with feedback, a `probe` question
-  that separates "knows it" from "sounds familiar".
+  options that are real misconceptions with feedback, `hints` on questions
+  that need working out, a `probe` question that separates "knows it" from
+  "sounds familiar", and a `transfer` question per objective for reviews.
 - Level texts only where a ready-made explanation adds something; start
   them with something to try.
 
@@ -243,5 +265,8 @@ before result; the build rules are SIMULATOR-SPEC.md §7.
 - Shute, V. J. (2008). Focus on formative feedback. *Review of Educational Research*, 78(1).
 - Slamecka, N. J., & Graf, P. (1978). The generation effect. *Journal of Experimental Psychology: Human Learning and Memory*, 4(6).
 - Sweller, J. (1988). Cognitive load during problem solving. *Cognitive Science*, 12(2).
+- Sinha, T., & Kapur, M. (2021). When problem solving followed by instruction works: Evidence for productive failure. *Review of Educational Research*, 91(5).
 - Sweller, J., & Cooper, G. A. (1985). The use of worked examples as a substitute for problem solving in learning algebra. *Cognition and Instruction*, 2(1).
+- Latimier, A., Peyre, H., & Ramus, F. (2021). A meta-analytic review of the benefit of spacing out retrieval practice episodes on retention. *Educational Psychology Review*, 33(3).
+- Wisniewski, B., Zierer, K., & Hattie, J. (2020). The power of feedback revisited. *Frontiers in Psychology*, 10, 3087.
 - Wood, D., Bruner, J. S., & Ross, G. (1976). The role of tutoring in problem solving. *Journal of Child Psychology and Psychiatry*, 17(2).

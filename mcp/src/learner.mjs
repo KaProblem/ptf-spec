@@ -16,6 +16,7 @@ import { parseFrontmatter } from "./library.mjs";
 
 const PTF_VERSION = "0.3";
 const MAX_STATE_BYTES = 64 * 1024;
+const MAX_STABILITY_DAYS = 180;
 export const VERBS = new Set(["answered", "assessed", "completed", "skipped", "started", "left", "consented", "withdrew", "profile_updated",
   "experienced", "attempted", "station_completed", "level_changed", "understood", "rephrase", "deeper", "stuck", "asked", "reported_broken"]);
 const AREAS = ["progress", "mastery", "answers"];
@@ -59,6 +60,9 @@ export function merge(old, v) {
   return out;
 }
 
+/** A correct answer not given after the solution was shown (LEARNER-RECORD.md §5). */
+const isEvidence = (e) => Boolean(e) && e.verb === "answered" && e.result?.correct === true && e.result?.assistance !== "solution";
+
 /**
  * Checks a completed event against the log (LEARNER-RECORD.md §5). Evidence is a correct
  * `answered` event of the same element, earlier in the log, at the completion's level when
@@ -69,9 +73,9 @@ export function checkCompletion(ev, byId) {
   const r = ev.result ?? {};
   if (!("evidence" in r)) return { ok: true, verified: false };
   const el = elementOf(ev);
-  const good = (r.evidence ?? []).map((id) => byId.get(id)).filter((e) => e && e.verb === "answered" && e.result?.correct === true
-    && elementOf(e) === el && e.id < ev.id && (!ev.level || !e.level || e.level === ev.level));
-  if (!good.length) return { ok: false, missing: r.objectives ?? [], reason: "no correct answer of this element at this level among the evidence" };
+  const good = (r.evidence ?? []).map((id) => byId.get(id)).filter((e) => isEvidence(e) && elementOf(e) === el && e.id < ev.id
+    && (!ev.level || !e.level || e.level === ev.level));
+  if (!good.length) return { ok: false, missing: r.objectives ?? [], reason: "no correct answer of this element at this level, given without the solution shown first, among the evidence" };
   const shown = new Set(good.flatMap((e) => e.result?.objectives ?? []));
   const missing = (r.objectives ?? []).filter((o) => !shown.has(o));
   return missing.length ? { ok: false, missing, reason: `no evidence for objective(s) ${missing.join(", ")}` } : { ok: true, verified: true };
@@ -89,7 +93,7 @@ export function derive(events) {
   const consents = {};
   const courses = {};
   const rejected = [];
-  const el = (id) => (elements[id] ??= { completed: [], skipped: false, open_misconceptions: [], estimate: { mastery: 0 } });
+  const el = (id) => (elements[id] ??= { completed: [], skipped: false, open_misconceptions: [], suspected_misconceptions: [], estimate: {} });
 
   for (const ev of sorted) {
     const r = ev.result ?? {};
@@ -145,29 +149,43 @@ export function derive(events) {
         ...(ev.context?.reason ? { reason: ev.context.reason } : {}), verified: check.verified });
       e.skipped = false;
     }
-    if (r.misconception) {
-      const mis = new Set(e.open_misconceptions);
-      if (r.correct === false) mis.add(r.misconception); else if (r.correct === true) mis.delete(r.misconception);
-      e.open_misconceptions = [...mis];
+    // Misconceptions (§6): one wrong answer makes it suspected, a second one open; a correct answer on it clears both.
+    if (r.misconception && typeof r.correct === "boolean") {
+      const open = new Set(e.open_misconceptions), suspected = new Set(e.suspected_misconceptions);
+      if (r.correct) { open.delete(r.misconception); suspected.delete(r.misconception); }
+      else if (suspected.has(r.misconception) || open.has(r.misconception)) { suspected.delete(r.misconception); open.add(r.misconception); }
+      else suspected.add(r.misconception);
+      e.open_misconceptions = [...open];
+      e.suspected_misconceptions = [...suspected];
     }
-    // The estimate (§6): host's formula, only for scheduling reviews.
+    // The estimate (§6): the reference formula, only for scheduling reviews. Stability in days follows the answer history.
     const s = e.estimate;
+    const at = new Date(ev.at).getTime();
+    const schedule = (stability) => {
+      s.stability_days = Math.round(Math.min(MAX_STABILITY_DAYS, stability) * 100) / 100;
+      s.last_answer = ev.at;
+      s.next_review = day(new Date(at + s.stability_days * 86400000));
+      s.interval_days = Math.max(1, Math.round(s.stability_days));
+    };
     if (ev.verb === "assessed") {
-      s.mastery = typeof r.score === "number" ? Math.round(r.score * 100) / 100 : r.correct === true ? 0.8 : 0;
-      s.interval_days = s.mastery >= 0.8 ? 3 : 1;
-      s.next_review = day(new Date(new Date(ev.at).getTime() + s.interval_days * 86400000));
+      const score = typeof r.score === "number" ? r.score : r.correct === true ? 1 : 0;
+      schedule(score >= 0.8 ? 3 : 1);
       continue;
     }
-    const evidence = ev.verb === "answered" || ev.verb === "completed" || ev.verb === "station_completed";
-    const outcome = !evidence ? null : typeof r.score === "number" ? r.score : typeof r.correct === "boolean" ? (r.correct ? 1 : 0)
-      : ev.verb === "completed" ? 0.8 : null;
-    if (outcome !== null) {
-      s.mastery = Math.round((0.6 * (s.mastery ?? 0) + 0.4 * outcome) * 100) / 100;
-      s.interval_days = s.mastery >= 0.8 ? Math.min(60, Math.max(1, (s.interval_days ?? 1) * 2)) : 1;
-      s.next_review = day(new Date(new Date(ev.at).getTime() + s.interval_days * 86400000));
-    }
+    const answer = ev.verb === "answered" || ev.verb === "station_completed";
+    const correct = typeof r.correct === "boolean" ? r.correct : typeof r.score === "number" ? r.score >= 0.8 : null;
+    if (!answer || correct === null || r.assistance === "solution") continue;
+    if (!correct) schedule(1);
+    else schedule(!s.stability_days ? 1 : s.stability_days * (r.assistance === "hint" ? 1.5 : 2.5));
   }
   return { profile, elements, consents, courses, rejected };
+}
+
+/** The estimated chance of a correct answer now: 0.9 ^ (days since the last answer / stability); 0 without a correct answer (§6). */
+export function retrievability(estimate, now = Date.now()) {
+  if (!estimate?.stability_days || !estimate.last_answer) return 0;
+  const days = Math.max(0, (now - new Date(estimate.last_answer).getTime()) / 86400000);
+  return Math.round(Math.pow(0.9, days / estimate.stability_days) * 100) / 100;
 }
 
 /** The normative part of `derive`, without the host's estimate (for conformance tests). */
@@ -215,11 +233,12 @@ export class LearnerRecord {
     writeAtomic(this.#file("mastery.json"), JSON.stringify({ ptf_version: PTF_VERSION, updated: new Date().toISOString(), concepts: this.#concepts(state) }, null, 2) + "\n");
   }
 
-  #concepts(state) {
+  #concepts(state, now = Date.now()) {
     const out = {};
     for (const [id, e] of Object.entries(state.elements)) {
       const { estimate, ...rest } = e;
-      out[id] = { ...rest, mastery: estimate.mastery ?? 0, ...(estimate.next_review ? { next_review: estimate.next_review, interval_days: estimate.interval_days } : {}) };
+      out[id] = { ...rest, mastery: retrievability(estimate, now),
+        ...(estimate.next_review ? { next_review: estimate.next_review, interval_days: estimate.interval_days, stability_days: estimate.stability_days } : {}) };
     }
     return out;
   }
@@ -284,8 +303,8 @@ export class LearnerRecord {
       const objectives = res?.objectives ?? meta?.objectives ?? [];
       let evidence = res?.evidence;
       if (!evidence) {
-        // Pick the latest correct answer at this level per objective (or any one without objectives).
-        const answers = all.filter((e) => e.verb === "answered" && e.result?.correct === true && elementOf(e) === elId && (!e.level || e.level === level));
+        // Pick the latest correct answer at this level per objective (or any one without objectives); answers after the solution do not count.
+        const answers = all.filter((e) => isEvidence(e) && elementOf(e) === elId && (!e.level || e.level === level));
         evidence = objectives.length
           ? [...new Set(objectives.map((o) => answers.filter((a) => a.result?.objectives?.includes(o)).at(-1)?.id).filter(Boolean))]
           : answers.slice(-1).map((a) => a.id);
@@ -293,7 +312,7 @@ export class LearnerRecord {
       ev.result = { ...(res ?? {}), objectives, evidence };
       const check = checkCompletion(ev, new Map(all.map((e) => [e.id, e])));
       if (!check.ok) {
-        throw new Error(`Not completed: ${check.reason}. Ask a check question for each missing objective at level ${level} and record the ` +
+        throw new Error(`Not completed: ${check.reason}. Ask a check question for each missing objective at level ${level} (a new one if the solution was shown) and record the ` +
           "answer with record_progress (verb answered, result.correct, result.objectives), then record completed again. " +
           "If the learner wants to leave the step out, record verb skipped instead.");
       }
@@ -375,9 +394,10 @@ export class LearnerRecord {
         const e = state.elements[s.element];
         return { element: s.element, optional: Boolean(s.optional), completed: e?.completed.map((c) => c.level) ?? [],
           done: Boolean(e?.completed.length), skipped: Boolean(e?.skipped && !e.completed.length), target_level: e?.target_level ?? null,
-          mastery: e?.estimate.mastery ?? null, ...(e?.keep ? { keep: e.keep } : {}) };
+          mastery: e ? retrievability(e.estimate) : null, ...(e?.keep ? { keep: e.keep } : {}) };
       }),
       open_misconceptions: [...new Set([...elements].flatMap((e) => state.elements[e]?.open_misconceptions ?? []))],
+      suspected_misconceptions: [...new Set([...elements].flatMap((e) => state.elements[e]?.suspected_misconceptions ?? []))],
       simulators: this.#stations(events),
       recent_events: events.slice(-20),
     };
@@ -392,7 +412,8 @@ export class LearnerRecord {
   /** Reviews due, at most `limit`: first what the next steps of active courses require, then the most overdue. */
   reviewsDue(firstIds = [], limit = 10, today = new Date().toISOString().slice(0, 10)) {
     const due = Object.entries(this.state().elements).filter(([, e]) => e.estimate.next_review && e.estimate.next_review <= today)
-      .map(([id, e]) => ({ element: id, next_review: e.estimate.next_review, mastery: e.estimate.mastery }));
+      .map(([id, e]) => ({ element: id, next_review: e.estimate.next_review, mastery: retrievability(e.estimate),
+        open_misconceptions: e.open_misconceptions, suspected_misconceptions: e.suspected_misconceptions }));
     const first = new Set(firstIds);
     due.sort((a, b) => (first.has(b.element) - first.has(a.element)) || a.next_review.localeCompare(b.next_review));
     return due.slice(0, limit);

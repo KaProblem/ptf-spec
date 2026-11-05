@@ -9,8 +9,14 @@ levels: [child, highschool]
 objectives:
   - id: count
     text: Count a small set of objects without skipping or repeating one.
+    criteria:
+      child: Counts up to ten apples aloud without skipping or repeating one.
+      highschool: Works out how many numbers a range from a to b contains and says why.
   - id: next-one
     text: Explain why the next number is always one more.
+    criteria:
+      child: Says what comes after a number and that it is "one more".
+      highschool: Explains why 99 is followed by 100 using "add one".
 about:
   - wikidata: Q247154
     label: counting
@@ -30,7 +36,7 @@ figures:
     objectives: [next-one]
     use_when: before explaining why the next number is one more
 status: draft
-version: 0.5.0
+version: 0.6.0
 license: CC-BY-SA-4.0
 ---
 
@@ -103,6 +109,7 @@ adding one each time, so every number from 17 to 42 is counted exactly once:
   "question": "How many numbers do you say when you count from 17 to 42?",
   "answer": 26,
   "tolerance": 0,
+  "hints": ["Try it with a small range first: how many numbers from 3 to 5?", "42 − 17 tells you how many steps you take, not how many numbers you say."],
   "explanation": "Every number comes exactly once: 42 − 17 + 1 = 26."
 }
 ```

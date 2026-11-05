@@ -116,7 +116,7 @@ A small subset of xAPI. Events never change. Schema:
 
 | Verb | When | `result` |
 | --- | --- | --- |
-| `answered` | The learner answered a question, in a card or in the conversation. | `correct`, `objectives` (the objective IDs it checks), `misconception` |
+| `answered` | The learner answered a question, in a card or in the conversation. | `correct`, `objectives` (the objective IDs it checks), `misconception`, `assistance` (`none` default, `hint`: after a hint, `solution`: after the solution was shown; §5) |
 | `completed` | The learner has shown the element's objectives at `level` (§5); with `context.reason: placement` before teaching it. Object a path: the course is done. | `objectives`, `evidence` (IDs of `answered` events) |
 | `skipped` | The learner chose to leave the element out. Does not count as done. | |
 | `assessed` | A placement score before a course, or with `context.reason: recap` after a long break. For planning and reviews only. | `score` |
@@ -142,7 +142,8 @@ valid when:
 1. it names the level, and in `result.objectives` every objective ID of the
    element (SPEC.md §6.1), or none when the element has no objective IDs;
 2. `result.evidence` lists earlier `answered` events of the same element with
-   `correct: true`, at the same level when they carry one, whose
+   `correct: true`, at the same level when they carry one, not given after
+   the solution was shown (`result.assistance` is not `solution`), whose
    `result.objectives` together cover every listed objective (at least one
    such answer when no objectives are listed).
 
@@ -171,14 +172,38 @@ non-optional steps is not completed.
 
 ---
 
-## 6. The estimate
+## 6. Misconceptions and the estimate
 
-For scheduling reviews a host keeps, per element, an estimate of how secure
-the learner is (`mastery`, 0 to 1), `next_review` and `interval_days`. The
-formula is the host's: recent results weigh more, the interval grows while
-answers stay right and falls back after a wrong one, and a placement
-(`assessed`) gets an early first review. **No decision depends on the
-estimate**: completion, skipping and course state come from §5 only.
+**Misconceptions.** A wrong answer that names a misconception makes it
+*suspected* for that element; a second wrong answer naming it, with no
+correct answer on it in between, makes it *open*. A correct answer that names
+it clears both. One wrong option is a hint, not a diagnosis: the tutor asks
+once more before it treats the misconception as the learner's. Both lists are
+derived from the events and are normative (§9).
+
+**The estimate.** For scheduling reviews a host keeps, per element, an
+estimate of how secure the learner is (`mastery`, 0 to 1), `next_review` and
+`interval_days`. **No decision depends on the estimate**: completion,
+skipping and course state come from §5 only. The formula is the host's; the
+reference host uses this one, which follows the answer history rather than a
+fixed schedule:
+
+- A *stability* in days grows with every correct answer given without the
+  solution: from 0 to 1 day at the first, then × 2.5 (× 1.5 after a hint), at
+  most 180 days. A wrong answer sets it to 1 day. An answer given after the
+  solution was shown changes nothing. A placement (`assessed`) sets it to 3
+  days when the score is 0.8 or more, else 1.
+- `next_review` is the last such answer plus the stability; `interval_days`
+  is the stability, rounded.
+- `mastery` is the estimated chance of a correct answer now,
+  0.9 ^ (days since the last answer ÷ stability), so it falls while the
+  learner stays away and is 0 before the first correct answer. Self-reports
+  (`understood`) and `experienced` never change it.
+
+Growing intervals are a default, not a finding: evidence favours spaced
+retrieval, not any particular schedule, so a host MAY use another formula
+(FSRS, a fixed interval) as long as a wrong answer brings the element back
+soon and a correct one without help pushes it further out.
 
 `mastery.json` exports the per-element view for people. Schema:
 [schemas/mastery.schema.json](schemas/mastery.schema.json).
@@ -191,8 +216,8 @@ estimate**: completion, skipping and course state come from §5 only.
       "completed": [{ "level": "highschool", "at": "2026-10-26T12:30:00Z", "version": "1.0.0",
                       "catalog": "io.github.kaproblem.ptf-library", "objectives": ["probabilities", "larger-score"], "verified": true }],
       "target_level": "college",
-      "mastery": 0.8, "next_review": "2026-10-30", "interval_days": 4,
-      "open_misconceptions": ["softmax-makes-zeros"],
+      "mastery": 0.8, "next_review": "2026-10-30", "interval_days": 4, "stability_days": 3.75,
+      "open_misconceptions": ["softmax-makes-zeros"], "suspected_misconceptions": [],
       "keep": "Like turning votes into percentages."
     }
   }
@@ -252,7 +277,9 @@ sync with an empty cursor.
 cases: the events of two copies changed independently and the state every host
 must derive after merging them, in any order (profile per field, completions
 per level with version and catalog, a completion rejected for evidence at the
-wrong level, `keep`, consent and withdrawal, a skipped step, a 0.2 completion).
+wrong level or given after the solution was shown, suspected and open
+misconceptions, `keep`, consent and withdrawal, a skipped step, a 0.2
+completion).
 The estimate is not compared. A host passes when its derived state equals
 `expected`.
 

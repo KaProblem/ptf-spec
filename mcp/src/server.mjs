@@ -477,8 +477,10 @@ server.registerTool("update_learner_profile", {
 server.registerTool("record_progress", {
   title: "Record learning progress",
   description: "Logs what happened in the conversation, with `path` when it belongs to a course (LEARNER-RECORD.md §4). " +
-    "answered: every checkable answer with result.correct, result.misconception, and result.objectives (the objective IDs it checks; " +
-    "filled in from the question block when the object is ptf:el/<…>#<question>). " +
+    "answered: every checkable answer with result.correct, result.misconception, result.objectives (the objective IDs it checks; " +
+    "filled in from the question block when the object is ptf:el/<…>#<question>) and result.assistance: hint when the learner had a hint, " +
+    "solution when the solution was shown before the answer (then it is no evidence and the step needs a new question). " +
+    "One wrong answer makes its misconception suspected, a second one open: ask once more before you treat it as the learner's. " +
     "completed: the element's objectives are shown at `level` (required). Pass result.evidence (IDs of the correct answered events) or leave it " +
     "out and the server picks them; the call fails and says which objective lacks a correct answer at that level. A completion holds for that " +
     "level only; going deeper is level_changed or deeper with the new level. Before a course, a step the learner already shows is completed " +
@@ -494,7 +496,7 @@ server.registerTool("record_progress", {
     object: z.string().regex(/^ptf:(el|path|sim)\//).describe("e.g. ptf:el/llm-basics/softmax or ptf:el/llm-basics/softmax#q1"),
     level: LEVEL.optional(),
     result: z.object({ correct: z.boolean().optional(), score: z.number().min(0).max(1).optional(), response: z.string().optional(),
-      misconception: z.string().optional(),
+      misconception: z.string().optional(), assistance: z.enum(["none", "hint", "solution"]).optional(),
       objectives: z.array(z.string()).optional(), evidence: z.array(z.string()).optional(),
       with: z.string().optional(), areas: z.array(z.enum(["progress", "mastery", "answers"])).optional(), required: z.boolean().optional() }).optional(),
     context_reason: z.enum(["placement", "recap"]).optional(),

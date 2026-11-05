@@ -69,6 +69,17 @@
               "text": {
                 "type": "string",
                 "minLength": 1
+              },
+              "criteria": {
+                "type": "object",
+                "description": "Per level: what counts as having shown this objective at that depth (SPEC.md §6.1). Keys are level IDs of the element.",
+                "propertyNames": {
+                  "pattern": "^[a-z][a-z0-9-]*$"
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "minLength": 1
+                }
               }
             },
             "additionalProperties": true

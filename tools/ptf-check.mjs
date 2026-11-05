@@ -322,6 +322,7 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
       if (typeof o === "string") continue;
       if (objIds.has(o.id)) err(f, `duplicate objective id "${o.id}"`);
       objIds.add(o.id);
+      for (const l of Object.keys(o.criteria ?? {})) if (!(d.levels ?? []).includes(l)) err(f, `objective "${o.id}": criteria for "${l}", which is not a level of this element (SPEC.md §6.1)`);
     }
     if ((d.objectives ?? []).some((o) => typeof o === "string")) warn(f, "objectives without `id`: write them as `{ id, text }` so questions and completions can refer to them (SPEC.md §6.1)");
     const textLevels = new Set();

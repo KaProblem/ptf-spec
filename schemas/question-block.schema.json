@@ -90,6 +90,16 @@
             "pattern": "^[a-z0-9][a-z0-9-]*$"
           },
           "description": "IDs of the element's objectives this question checks (SPEC.md §7)."
+        },
+        "hints": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Hints from a nudge to almost the answer, given one at a time before the solution (SPEC.md §7)."
         }
       }
     },
@@ -165,6 +175,16 @@
             "pattern": "^[a-z0-9][a-z0-9-]*$"
           },
           "description": "IDs of the element's objectives this question checks (SPEC.md §7)."
+        },
+        "hints": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Hints from a nudge to almost the answer, given one at a time before the solution (SPEC.md §7)."
         }
       }
     },
@@ -242,6 +262,16 @@
             "pattern": "^[a-z0-9][a-z0-9-]*$"
           },
           "description": "IDs of the element's objectives this question checks (SPEC.md §7)."
+        },
+        "hints": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Hints from a nudge to almost the answer, given one at a time before the solution (SPEC.md §7)."
         }
       }
     },
@@ -313,6 +343,16 @@
             "pattern": "^[a-z0-9][a-z0-9-]*$"
           },
           "description": "IDs of the element's objectives this question checks (SPEC.md §7)."
+        },
+        "hints": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Hints from a nudge to almost the answer, given one at a time before the solution (SPEC.md §7)."
         }
       }
     },
@@ -375,6 +415,16 @@
             "pattern": "^[a-z0-9][a-z0-9-]*$"
           },
           "description": "IDs of the element's objectives this question checks (SPEC.md §7)."
+        },
+        "hints": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Hints from a nudge to almost the answer, given one at a time before the solution (SPEC.md §7)."
         }
       }
     },
@@ -472,6 +522,16 @@
             "pattern": "^[a-z0-9][a-z0-9-]*$"
           },
           "description": "IDs of the element's objectives this question checks (SPEC.md §7)."
+        },
+        "hints": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Hints from a nudge to almost the answer, given one at a time before the solution (SPEC.md §7)."
         }
       }
     },
@@ -534,6 +594,16 @@
             "pattern": "^[a-z0-9][a-z0-9-]*$"
           },
           "description": "IDs of the element's objectives this question checks (SPEC.md §7)."
+        },
+        "hints": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Hints from a nudge to almost the answer, given one at a time before the solution (SPEC.md §7)."
         }
       }
     }

@@ -81,8 +81,12 @@ test("checks that questions name existing objectives and cover each one per leve
   assert.equal(r.status, 0, r.stdout);
   assert.match(r.stdout, /objectives without a check question: highschool: next-one/);
   assert.match(r.stdout, /check question without `objectives`/);
-  writeFileSync(el, src.replace("  - id: count\n    text: Count", "  - Count"));
+  writeFileSync(el, src.replace(/  - id: count\n    text: (Count[^\n]*)\n    criteria:\n(?: {6}[^\n]*\n)*/, "  - $1\n"));
   assert.match(run(lib).stdout, /objectives without `id`/);
+  writeFileSync(el, src.replace("      highschool: Works out", "      college: Works out"));
+  r = run(lib);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /objective "count": criteria for "college", which is not a level of this element/);
 });
 
 test("rejects invalid question blocks", () => {
@@ -192,7 +196,7 @@ test("catalog lists every package with its digest and catches drift", () => {
   const file = join(lib, "ptf-catalog.json");
   const catalog = JSON.parse(readFileSync(file, "utf8"));
   assert.deepEqual(catalog.packages.map((p) => `${p.kind} ${p.id}@${p.version} ${p.path}`), [
-    "bundle demo@0.3.0 bundles/demo",
+    "bundle demo@0.4.0 bundles/demo",
     "sim ptf:sim/counter@1.0.0 sims/counter/1.0.0",
     "code ptf:code/counting@1.0.0 code/counting/1.0.0",
   ]);
@@ -203,7 +207,7 @@ test("catalog lists every package with its digest and catches drift", () => {
   writeFileSync(sim, readFileSync(sim, "utf8").replace('"version": "1.0.0"', '"version": "1.0.1"'));
   let r = run(lib);
   assert.equal(r.status, 1);
-  assert.match(r.stdout, /bundle demo@0\.3\.0: digest differs from the files/);
+  assert.match(r.stdout, /bundle demo@0\.4\.0: digest differs from the files/);
   assert.match(r.stdout, /sim ptf:sim\/counter@1\.0\.1 is not listed/);
 
   r = run("catalog", "--write", lib);

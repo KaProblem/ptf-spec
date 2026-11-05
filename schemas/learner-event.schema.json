@@ -138,6 +138,14 @@
         },
         "required": {
           "type": "boolean"
+        },
+        "assistance": {
+          "enum": [
+            "none",
+            "hint",
+            "solution"
+          ],
+          "description": "answered: help the learner had before this answer. `solution` means the solution was shown first; such an answer is no evidence (LEARNER-RECORD.md \u00a75)."
         }
       }
     },
