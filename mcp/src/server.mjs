@@ -143,8 +143,8 @@ server.registerTool("sync_library", {
 
 // ---------- questions ----------
 
-// Kinds the quiz UI can render. The others are valid PTF but are asked in the chat for now.
-const QUIZ_KINDS = ["multiple_choice", "free_text"];
+// Every kind is shown as a card. The card checks all of them itself, except free_text, which the tutor grades.
+const QUIZ_KINDS = ["multiple_choice", "cloze", "ordering", "estimate_number", "guess_next", "calculation_steps", "free_text"];
 const validQuestion = new Ajv2020({ allErrors: true, strict: false }).compile(QUESTION_SCHEMA);
 
 function questionErrors(q) {
@@ -162,7 +162,8 @@ server.registerTool("show_question", {
   description: "Shows one question to the learner as an interactive card inline in the chat, instead of asking it in plain text. " +
     "Either take a question from a learning element (`element` + `question_id`, from its # Questions section) or write your own " +
     "`question` as a PTF question block (SPEC.md §7, schema question-block.schema.json). Kinds shown as a card: " + QUIZ_KINDS.join(", ") + ". " +
-    "The card checks multiple_choice itself; for free_text you grade the answer with the rubric. The learner's answer arrives as their next message.",
+    "Use it for every check, probe, warmup or review question rather than asking in the chat. The card checks every kind itself " +
+    "except free_text, which you grade with the rubric. The learner's answer arrives as their next message.",
   inputSchema: {
     element: z.string().regex(/^ptf:el\//).optional().describe("Learning element the question belongs to; answers count towards its mastery"),
     question_id: z.string().optional().describe("ID of a question block in the element"),
@@ -186,12 +187,12 @@ server.registerTool("show_question", {
   }
   const errors = questionErrors(q);
   if (errors.length) throw new Error(`Not a valid PTF question block: ${errors.join("; ")}`);
-  if (!QUIZ_KINDS.includes(q.kind)) throw new Error(`Kind ${q.kind} cannot be shown as a card yet (${QUIZ_KINDS.join(", ")}). Ask it in the chat.`);
   const object = element ? `${element}#${q.id}` : null;
   const lines = [`Showing question ${q.id} (${q.kind}) to the learner. Do not give away the answer; wait for their reply.`];
-  if (q.kind === "multiple_choice") {
-    lines.push("The card checks the answer, shows the feedback and the explanation" + (object ? `, and records it as ${object}.` : "."),
-      "Then talk about the answer: why it is right or which misconception it shows.");
+  if (q.kind !== "free_text") {
+    lines.push("The card checks the answer, shows the right answer and the explanation" + (object ? `, and records it as ${object}.` : "."),
+      object ? "Then talk about the answer: why it is right or which misconception it shows."
+        : "Then record it with record_progress (verb answered, correct, objectives) and talk about the answer.");
   } else {
     lines.push("Grade the answer the learner sends against this rubric, give short feedback, then show or summarise the sample answer if it helps.");
     if (q.rubric?.length) lines.push(`Rubric:\n${q.rubric.map((r) => `- ${r}`).join("\n")}`);

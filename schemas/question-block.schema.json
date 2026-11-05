@@ -293,7 +293,8 @@
         },
         "tolerance": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "description": "An estimate counts as right within answer ± tolerance (absolute, in the unit of answer)."
         },
         "unit": {
           "type": "string"

@@ -36,6 +36,41 @@
   .result.right { color: var(--good); } .result.wrong { color: var(--bad); }
   .explain { background: var(--surface); border-radius: 8px; padding: 10px 12px; }
   #status { color: var(--muted); }
+  input.field { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; min-height: 44px; padding: 8px 10px; }
+  input.field:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input.field.right { border-color: var(--good); box-shadow: inset 0 0 0 1px var(--good); }
+  input.field.wrong { border-color: var(--bad); box-shadow: inset 0 0 0 1px var(--bad); }
+  .cloze { margin: 0; line-height: 2.6; }
+  .cloze input.field { min-height: 40px; padding: 4px 8px; margin: 0 2px; vertical-align: baseline; }
+  .fix { color: var(--good); font-weight: 600; margin: 0 4px 0 2px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .unit { color: var(--muted); }
+  .order { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .order li { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 4px 4px 4px 12px; min-height: 52px; background: var(--bg); }
+  .order li .txt { flex: 1; }
+  .order li.right { border-color: var(--good); box-shadow: inset 0 0 0 1px var(--good); }
+  .order li.wrong { border-color: var(--bad); box-shadow: inset 0 0 0 1px var(--bad); }
+  .order .pos { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 1.5em; }
+  button.move { font: inherit; font-size: 18px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; width: 44px; height: 44px; cursor: pointer; }
+  button.move:disabled { opacity: .35; cursor: default; }
+  button.ghost { font: inherit; color: var(--accent); background: transparent; border: 1px solid var(--line); border-radius: 8px; min-height: 44px; padding: 0 14px; cursor: pointer; }
+  .solution { margin: 0; padding-left: 1.4em; }
+  .prefix { font: 18px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--surface); border-radius: 8px; padding: 10px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+  .prefix span { white-space: pre-wrap; }
+  .prefix input.field { font: inherit; width: 7ch; min-height: 40px; padding: 2px 6px; }
+  .scale { position: relative; height: 56px; margin: 4px 8px 0; }
+  .scale .axis { position: absolute; left: 0; right: 0; top: 22px; height: 2px; background: var(--line); }
+  .scale .band { position: absolute; top: 16px; height: 14px; background: var(--good); opacity: .25; border-radius: 4px; }
+  .scale .pin { position: absolute; top: 12px; width: 2px; height: 22px; margin-left: -1px; }
+  .scale .pin.answer { background: var(--good); } .scale .pin.guess { background: var(--accent); }
+  .scale .lab { position: absolute; top: 36px; font-size: 12px; white-space: nowrap; transform: translateX(-50%); }
+  .scale .lab.answer { color: var(--good); } .scale .lab.guess { color: var(--accent); top: -4px; }
+  .steps { display: grid; gap: 10px; }
+  .step { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; }
+  .step .label { font-weight: 600; }
+  .step .expr { color: var(--muted); }
+  .step input.field { flex: 1; min-width: 8em; }
+  .total { font-weight: 600; }
 </style>
 </head>
 <body>
@@ -54,16 +89,30 @@
       right: "Correct!", wrong: "Not quite.", explanation: "Why:", sent: "Sent. Your tutor looks at your answer.",
       failed: "The question could not be shown: ",
       msgChoice: function (q, a, ok) { return "My answer to \u201c" + q + "\u201d: " + a + " (" + (ok ? "correct" : "wrong") + ")"; },
-      msgText: function (q, a) { return "My answer to \u201c" + q + "\u201d:\n\n" + a; } },
+      msgText: function (q, a) { return "My answer to \u201c" + q + "\u201d:\n\n" + a; },
+      fillGaps: "Fill in the gaps.", gap: "Gap", order: "Put them in the right order.", up: "Move up", down: "Move down",
+      rightOrder: "Right order:", estimate: "Estimate the value.", yourGuess: "Your guess", number: "Enter a number, e.g. 1500 or 1.5e9.",
+      answerIs: "Answer", within: "counts as right within \u00b1", guessNext: "What comes next?", showHint: "Show hint", hintLabel: "Hint:",
+      steps: "Work out each step.", stepValue: "Your value", checkStep: "Check step", reveal: "Show step", revealed: "shown",
+      msgResult: function (task, a, ok) { return "My answer to \u201c" + task + "\u201d: " + a + " (" + (ok ? "correct" : "wrong") + ")"; },
+      msgSteps: function (title, n, total, ok) { return "Worked steps \u201c" + title + "\u201d: " + n + " of " + total + " steps right" + (ok ? " (correct)" : ""); } },
     de: { badge: "Frage", loading: "Frage wird geladen…", check: "Prüfen", send: "Antwort senden", pickOne: "Wähle eine Antwort.",
       pickMany: "Wähle alle Antworten, die stimmen.", write: "Antworte in eigenen Worten.", placeholder: "Deine Antwort…",
       right: "Richtig!", wrong: "Nicht ganz.", explanation: "Warum:", sent: "Gesendet. Dein Tutor sieht sich deine Antwort an.",
       failed: "Die Frage konnte nicht angezeigt werden: ",
       msgChoice: function (q, a, ok) { return "Meine Antwort auf \u201e" + q + "\u201c: " + a + " (" + (ok ? "richtig" : "falsch") + ")"; },
-      msgText: function (q, a) { return "Meine Antwort auf \u201e" + q + "\u201c:\n\n" + a; } }
+      msgText: function (q, a) { return "Meine Antwort auf \u201e" + q + "\u201c:\n\n" + a; },
+      fillGaps: "Fülle die Lücken.", gap: "Lücke", order: "Bring sie in die richtige Reihenfolge.", up: "Nach oben", down: "Nach unten",
+      rightOrder: "Richtige Reihenfolge:", estimate: "Schätze den Wert.", yourGuess: "Deine Schätzung", number: "Gib eine Zahl ein, z. B. 1500 oder 1,5e9.",
+      answerIs: "Lösung", within: "zählt als richtig innerhalb \u00b1", guessNext: "Was kommt als Nächstes?", showHint: "Hinweis zeigen", hintLabel: "Hinweis:",
+      steps: "Rechne jeden Schritt aus.", stepValue: "Dein Wert", checkStep: "Schritt prüfen", reveal: "Schritt zeigen", revealed: "gezeigt",
+      msgResult: function (task, a, ok) { return "Meine Antwort auf \u201e" + task + "\u201c: " + a + " (" + (ok ? "richtig" : "falsch") + ")"; },
+      msgSteps: function (title, n, total, ok) { return "Rechenweg \u201e" + title + "\u201c: " + n + " von " + total + " Schritten richtig" + (ok ? " (richtig)" : ""); } }
   };
   var t = TEXT.en;
+  var userLang = "en";
   function applyTexts(locale) {
+    userLang = String(locale || "en").slice(0, 2);
     t = TEXT[String(locale || "").slice(0, 2)] || TEXT.en;
     document.documentElement.lang = String(locale || "en").slice(0, 2);
     document.querySelectorAll("[data-i18n]").forEach(function (el) { el.textContent = t[el.dataset.i18n]; });
@@ -161,6 +210,11 @@
     var q = sc.question;
     if (q.kind === "multiple_choice") renderChoice(main, q);
     else if (q.kind === "free_text") renderFreeText(main, q);
+    else if (q.kind === "cloze") renderCloze(main, q);
+    else if (q.kind === "ordering") renderOrdering(main, q);
+    else if (q.kind === "estimate_number") renderEstimate(main, q);
+    else if (q.kind === "guess_next") renderGuessNext(main, q);
+    else if (q.kind === "calculation_steps") renderSteps(main, q);
     else fail("unsupported kind " + q.kind);
   }
 
@@ -255,6 +309,304 @@
     });
   }
 
+  // ---------- shared helpers for the checked kinds ----------
+  var SUP = { "\u2070": "0", "\u00b9": "1", "\u00b2": "2", "\u00b3": "3", "\u2074": "4", "\u2075": "5", "\u2076": "6", "\u2077": "7", "\u2078": "8", "\u2079": "9", "\u207b": "-" };
+  // Reads the first number in a text: "1,5e9", "17.500" (de), "2.83 · 10⁻³ m²", "−7.2 µs". null if there is none.
+  function parseNumber(text, lang) {
+    var s = String(text == null ? "" : text).replace(/[\u2070\u00b9\u00b2\u00b3\u2074-\u2079\u207b]+/g, function (m) {
+      return "^" + m.split("").map(function (c) { return SUP[c]; }).join("");
+    }).replace(/[\u2212\u2013]/g, "-").replace(/(\d)[\s\u00a0\u202f'_](?=\d{3}(\D|$))/g, "$1");
+    var m = s.match(/(-?)\s*(\d[\d.,]*)(?:\s*(?:[\u00b7\u00d7x*]\s*10\s*\^\s*(-?\d+)|[eE]\s*([+-]?\d+)))?/);
+    if (!m) return null;
+    var digits = m[2].replace(/[.,]$/, ""), dot = digits.indexOf(".") >= 0, comma = digits.indexOf(",") >= 0;
+    if (dot && comma) digits = digits.lastIndexOf(",") > digits.lastIndexOf(".") ? digits.replace(/\./g, "").replace(",", ".") : digits.replace(/,/g, "");
+    else if (comma) digits = /^[1-9]\d{0,2}(,\d{3})+$/.test(digits) && (lang === "en" || /,.*,/.test(digits)) ? digits.replace(/,/g, "") : digits.replace(",", ".");
+    else if (dot && /^[1-9]\d{0,2}(\.\d{3})+$/.test(digits) && (lang !== "en" || /\..*\./.test(digits))) digits = digits.replace(/\./g, "");
+    var v = parseFloat(digits);
+    if (isNaN(v)) return null;
+    var exp = m[3] != null ? m[3] : m[4];
+    if (exp != null) v = v * Math.pow(10, parseInt(exp, 10));
+    return m[1] ? -v : v;
+  }
+  function norm(text) { return String(text == null ? "" : text).trim().toLowerCase().replace(/\s+/g, " ").replace(/[.!]$/, ""); }
+  // A learner's text against the accepted answers: equal words, or the same number.
+  function matches(value, answers) {
+    var v = norm(value);
+    if (!v) return false;
+    return answers.some(function (a) {
+      if (norm(a) === v) return true;
+      var na = parseNumber(a, "en"), nv = parseNumber(value, userLang);
+      return na != null && nv != null && /^[^a-z]*$/i.test(String(a).replace(/[\s\u00b7\u00d7^-]/g, "")) && Math.abs(na - nv) <= 1e-9 * Math.max(1, Math.abs(na));
+    });
+  }
+  function fmt(n) {
+    if (!isFinite(n)) return String(n);
+    var a = Math.abs(n);
+    var s;
+    if (a !== 0 && (a >= 1e7 || a < 1e-3)) {
+      var parts = n.toExponential(2).split("e");
+      s = String(parseFloat(parts[0])) + " \u00b7 10" + String(parseInt(parts[1], 10)).replace(/./g, function (c) {
+        return "\u2070\u00b9\u00b2\u00b3\u2074\u2075\u2076\u2077\u2078\u2079"["0123456789".indexOf(c)] || "\u207b";
+      });
+    } else s = String(Math.round(n * 1e6) / 1e6);
+    return userLang === "de" ? s.replace(".", ",") : s;
+  }
+  function primaryButton(label) { var b = el("button", "primary", label); b.type = "button"; return b; }
+  function finish(main, actions, q, ok, response, message) {
+    actions.appendChild(el("div", "result " + (ok ? "right" : "wrong"), ok ? t.right : t.wrong));
+    showExplanation(main, q);
+    var result = { correct: ok, response: String(response).slice(0, 2000) };
+    if (!ok && q.misconception) result.misconception = q.misconception;
+    record(result);
+    tellTutor(message).catch(function () {});
+  }
+
+  function renderCloze(main, q) {
+    $("hint").textContent = t.fillGaps;
+    var width = Math.min(16, Math.max(4, q.gaps.reduce(function (w, g) {
+      return Math.max(w, String(g.answer).length, (g.accepted || []).reduce(function (x, a) { return Math.max(x, String(a).length); }, 0));
+    }, 0) + 2));
+    var para = el("p", "cloze"), inputs = [];
+    String(q.text).split(/(\{\{\d+\}\})/).forEach(function (part) {
+      var m = part.match(/^\{\{(\d+)\}\}$/);
+      if (!m) { para.appendChild(document.createTextNode(part)); return; }
+      var gap = q.gaps[parseInt(m[1], 10) - 1];
+      if (!gap) { para.appendChild(document.createTextNode(part)); return; }
+      var input = el("input", "field");
+      input.type = "text"; input.autocomplete = "off"; input.spellcheck = false;
+      input.setAttribute("autocapitalize", "off");
+      input.setAttribute("aria-label", t.gap + " " + m[1]);
+      input.style.width = width + "ch";
+      input.dataset.gap = m[1];
+      inputs.push(input);
+      para.appendChild(input);
+    });
+    main.appendChild(para);
+    var actions = el("div", "actions"), check = primaryButton(t.check);
+    check.disabled = true;
+    actions.appendChild(check);
+    main.appendChild(actions);
+    function ready() { check.disabled = !inputs.some(function (i) { return i.value.trim(); }); }
+    inputs.forEach(function (i) {
+      i.addEventListener("input", ready);
+      i.addEventListener("keydown", function (e) { if (e.key === "Enter" && !check.disabled) check.click(); });
+    });
+    check.addEventListener("click", function () {
+      var ok = true, given = [];
+      inputs.forEach(function (input) {
+        var gap = q.gaps[parseInt(input.dataset.gap, 10) - 1];
+        var right = matches(input.value, [gap.answer].concat(gap.accepted || []));
+        input.disabled = true;
+        input.classList.add(right ? "right" : "wrong");
+        given.push(input.value.trim() || "\u2026");
+        if (!right) { ok = false; input.insertAdjacentElement("afterend", el("span", "fix", gap.answer)); }
+      });
+      check.remove();
+      finish(main, actions, q, ok, given.join(" | "), t.msgResult(q.text.replace(/\{\{\d+\}\}/g, "___"), given.join(", "), ok));
+    });
+    if (inputs[0]) inputs[0].focus({ preventScroll: true });
+  }
+
+  function renderOrdering(main, q) {
+    $("hint").textContent = t.order;
+    main.appendChild(el("p", "q", q.instruction));
+    var order = shuffled(q.items), tries = 0;
+    while (tries++ < 10 && order.join("\u0000") === q.items.join("\u0000")) order = shuffled(q.items);
+    var list = el("ol", "order");
+    main.appendChild(list);
+    function paint() {
+      list.innerHTML = "";
+      order.forEach(function (item, i) {
+        var li = el("li");
+        li.appendChild(el("span", "pos", (i + 1) + "."));
+        li.appendChild(el("span", "txt", item));
+        [["\u2191", t.up, -1], ["\u2193", t.down, 1]].forEach(function (d) {
+          var b = el("button", "move", d[0]);
+          b.type = "button";
+          b.setAttribute("aria-label", d[1] + ": " + item);
+          b.disabled = i + d[2] < 0 || i + d[2] >= order.length;
+          b.addEventListener("click", function () {
+            var j = i + d[2], x = order[i]; order[i] = order[j]; order[j] = x;
+            paint();
+            var again = list.children[j] && list.children[j].querySelectorAll("button.move")[d[2] < 0 ? 0 : 1];
+            if (again && !again.disabled) again.focus(); else if (list.children[j]) list.children[j].querySelector("button.move:not(:disabled)").focus();
+          });
+          li.appendChild(b);
+        });
+        list.appendChild(li);
+      });
+    }
+    paint();
+    var actions = el("div", "actions"), check = primaryButton(t.check);
+    actions.appendChild(check);
+    main.appendChild(actions);
+    check.addEventListener("click", function () {
+      var ok = true;
+      Array.prototype.forEach.call(list.children, function (li, i) {
+        var right = order[i] === q.items[i];
+        if (!right) ok = false;
+        li.classList.add(right ? "right" : "wrong");
+        li.querySelectorAll("button.move").forEach(function (b) { b.remove(); });
+        li.insertBefore(el("span", "mark", right ? "\u2713" : "\u2717"), li.firstChild);
+      });
+      check.remove();
+      if (!ok) {
+        main.insertBefore(el("strong", null, t.rightOrder), actions);
+        var sol = el("ol", "solution");
+        q.items.forEach(function (item) { sol.appendChild(el("li", null, item)); });
+        main.insertBefore(sol, actions);
+      }
+      finish(main, actions, q, ok, order.join(" | "), t.msgResult(q.instruction, order.join(" \u2192 "), ok));
+    });
+  }
+
+  function renderEstimate(main, q) {
+    $("hint").textContent = t.estimate;
+    main.appendChild(el("p", "q", q.question));
+    var row = el("div", "row"), input = el("input", "field");
+    input.type = "text"; input.inputMode = "decimal"; input.autocomplete = "off";
+    input.placeholder = t.yourGuess;
+    input.setAttribute("aria-label", t.yourGuess);
+    row.appendChild(input);
+    if (q.unit) row.appendChild(el("span", "unit", q.unit));
+    main.appendChild(row);
+    var note = el("div", "hint", t.number);
+    main.appendChild(note);
+    var actions = el("div", "actions"), check = primaryButton(t.check);
+    check.disabled = true;
+    actions.appendChild(check);
+    main.appendChild(actions);
+    input.addEventListener("input", function () { check.disabled = parseNumber(input.value, userLang) == null; });
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter" && !check.disabled) check.click(); });
+    check.addEventListener("click", function () {
+      var guess = parseNumber(input.value, userLang);
+      if (guess == null) return;
+      var tol = Math.abs(q.tolerance || 0), ok = Math.abs(guess - q.answer) <= tol + 1e-9 * Math.max(1, Math.abs(q.answer));
+      input.disabled = true;
+      input.classList.add(ok ? "right" : "wrong");
+      check.remove();
+      note.textContent = t.answerIs + ": " + fmt(q.answer) + (q.unit ? " " + q.unit : "") + (tol ? " (" + t.within + fmt(tol) + ")" : "");
+      main.insertBefore(numberLine(q, guess, tol), actions);
+      finish(main, actions, q, ok, fmt(guess) + (q.unit ? " " + q.unit : ""), t.msgResult(q.question, fmt(guess) + (q.unit ? " " + q.unit : ""), ok));
+    });
+    input.focus({ preventScroll: true });
+  }
+
+  // The guess and the answer with its tolerance band on one axis (log axis for scale: log).
+  function numberLine(q, guess, tol) {
+    var log = q.scale === "log" && q.answer > 0 && guess > 0 && q.answer - tol > 0;
+    var f = log ? Math.log10 : function (x) { return x; };
+    var pts = [f(guess), f(q.answer), f(q.answer - tol), f(q.answer + tol)];
+    var lo = Math.min.apply(null, pts), hi = Math.max.apply(null, pts);
+    var pad = (hi - lo) * 0.15 || Math.abs(pts[1]) * 0.2 || 1;
+    lo -= pad; hi += pad;
+    function pos(x) { return ((f(x) - lo) / (hi - lo) * 100).toFixed(2) + "%"; }
+    var box = el("div", "scale");
+    box.setAttribute("aria-hidden", "true");
+    box.appendChild(el("div", "axis"));
+    if (tol) { var band = el("div", "band"); band.style.left = pos(q.answer - tol); band.style.width = "calc(" + pos(q.answer + tol) + " - " + pos(q.answer - tol) + ")"; box.appendChild(band); }
+    [["answer", q.answer], ["guess", guess]].forEach(function (p) {
+      var pin = el("div", "pin " + p[0]); pin.style.left = pos(p[1]); box.appendChild(pin);
+      var lab = el("div", "lab " + p[0], fmt(p[1])); lab.style.left = pos(p[1]); box.appendChild(lab);
+    });
+    return box;
+  }
+
+  function renderGuessNext(main, q) {
+    $("hint").textContent = t.guessNext;
+    main.appendChild(el("p", "q", q.intro));
+    var line = el("div", "prefix"), input = el("input", "field");
+    line.appendChild(el("span", null, q.prefix));
+    input.type = "text"; input.autocomplete = "off"; input.spellcheck = false;
+    input.setAttribute("autocapitalize", "off");
+    input.setAttribute("aria-label", t.guessNext);
+    input.style.width = Math.min(16, Math.max(3, String(q.answer).length + 2)) + "ch";
+    line.appendChild(input);
+    main.appendChild(line);
+    var actions = el("div", "actions"), check = primaryButton(t.check), hintBtn = el("button", "ghost", t.showHint);
+    hintBtn.type = "button";
+    check.disabled = true;
+    actions.appendChild(check);
+    actions.appendChild(hintBtn);
+    main.appendChild(actions);
+    var usedHint = false;
+    hintBtn.addEventListener("click", function () {
+      usedHint = true;
+      var box = el("div", "explain");
+      box.appendChild(el("strong", null, t.hintLabel + " "));
+      box.appendChild(document.createTextNode(q.hint));
+      main.insertBefore(box, actions);
+      hintBtn.remove();
+      input.focus();
+    });
+    input.addEventListener("input", function () { check.disabled = !input.value.trim(); });
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter" && !check.disabled) check.click(); });
+    check.addEventListener("click", function () {
+      var given = input.value.trim(), ok = matches(given, [q.answer].concat(q.accepted || []));
+      input.disabled = true;
+      input.classList.add(ok ? "right" : "wrong");
+      if (!ok) line.appendChild(el("span", "fix", q.answer));
+      check.remove(); hintBtn.remove();
+      finish(main, actions, q, ok, given + (usedHint ? " (hint)" : ""), t.msgResult(q.prefix + "\u2026", given + (usedHint ? " (" + t.hintLabel.replace(":", "") + ")" : ""), ok));
+    });
+    input.focus({ preventScroll: true });
+  }
+
+  // Step values: the same number within 2 %, or the same text.
+  function stepMatches(value, expected) {
+    var e = parseNumber(expected, "en"), v = parseNumber(value, userLang);
+    if (e != null && v != null) return Math.abs(v - e) <= Math.max(Math.abs(e) * 0.02, 1e-12);
+    return norm(value).replace(/\s/g, "") === norm(expected).replace(/\s/g, "");
+  }
+
+  // A worked example the learner completes step by step: the last column of each row is theirs to fill.
+  function renderSteps(main, q) {
+    $("hint").textContent = t.steps;
+    main.appendChild(el("p", "q", q.title));
+    main.appendChild(el("p", null, q.intro)).style.margin = "0";
+    var cols = q.columns, last = cols.length - 1, list = el("div", "steps"), right = 0, given = [];
+    main.appendChild(list);
+    var actions = el("div", "actions");
+    main.appendChild(actions);
+    function step(i) {
+      if (i >= q.rows.length) return done();
+      var r = q.rows[i], box = el("div", "step");
+      box.appendChild(el("div", "label", (i + 1) + ". " + (r[0] || "")));
+      for (var c = 1; c < last; c++) if (r[c]) box.appendChild(el("div", "expr", (cols[c] ? cols[c] + ": " : "") + r[c]));
+      var row = el("div", "row"), input = el("input", "field"), go = primaryButton(t.checkStep), show = el("button", "ghost", t.reveal);
+      input.type = "text"; input.inputMode = "decimal"; input.autocomplete = "off";
+      input.placeholder = cols[last] || t.stepValue;
+      input.setAttribute("aria-label", (r[0] || "") + ": " + (cols[last] || t.stepValue));
+      show.type = "button";
+      go.disabled = true;
+      row.appendChild(input); row.appendChild(go); row.appendChild(show);
+      box.appendChild(row);
+      list.appendChild(box);
+      input.addEventListener("input", function () { go.disabled = !input.value.trim(); });
+      input.addEventListener("keydown", function (e) { if (e.key === "Enter" && !go.disabled) go.click(); });
+      function settle(revealed) {
+        var ok = !revealed && stepMatches(input.value, r[last]);
+        if (ok) right++;
+        given.push(revealed ? "(" + t.revealed + ")" : input.value.trim());
+        input.disabled = true;
+        input.classList.add(ok ? "right" : "wrong");
+        go.remove(); show.remove();
+        var mark = el("span", ok ? "fix" : "result wrong", (ok ? "\u2713 " : "\u2192 ") + r[last]);
+        row.appendChild(mark);
+        step(i + 1);
+      }
+      go.addEventListener("click", function () { settle(false); });
+      show.addEventListener("click", function () { settle(true); });
+      input.focus({ preventScroll: true });
+    }
+    function done() {
+      main.insertBefore(el("div", "total", q.result.label + ": " + q.result.value), actions);
+      var ok = right === q.rows.length;
+      finish(main, actions, q, ok, given.join(" | "), t.msgSteps(q.title, right, q.rows.length, ok));
+    }
+    step(0);
+  }
+
   function fail(msg) {
     var main = $("main");
     main.innerHTML = "";
@@ -263,7 +615,7 @@
 
   // ---------- handshake ----------
   request("ui/initialize", {
-    appInfo: { name: "ptf-quiz", version: "0.1.0" },
+    appInfo: { name: "ptf-quiz", version: "0.2.0" },
     appCapabilities: {},
     protocolVersion: "2026-01-26"
   }).then(function (r) {

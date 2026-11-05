@@ -32,6 +32,18 @@ const show = async (args) => {
 };
 const choice = await show({ element: "ptf:el/demo/counting", question_id: "q2" });
 const freeText = await show({ question: { kind: "free_text", id: "why", level: "child", question: "Why do we count?", explanation: "To know how many." } });
+const guessNext = await show({ element: "ptf:el/demo/counting", question_id: "q1" });
+const estimate = await show({ element: "ptf:el/demo/counting", question_id: "q3" });
+const cloze = await show({ element: "ptf:el/demo/counting", question: { kind: "cloze", id: "c1", level: "child",
+  text: "After 3 comes {{1}}, after 9 comes {{2}}.", gaps: [{ answer: "4", accepted: ["four"] }, { answer: "10", accepted: ["ten"] }],
+  explanation: "Always one more." } });
+const ordering = await show({ question: { kind: "ordering", id: "o1", level: "child", instruction: "Smallest first.",
+  items: ["one", "two", "three", "four"], explanation: "Counting order." } });
+const steps = await show({ question: { kind: "calculation_steps", id: "s1", level: "highschool", title: "Apples", intro: "3 bags with 4 apples, then 2 more.",
+  columns: ["Step", "Expression", "Value"], rows: [["Bags", "3 · 4", "12"], ["Plus two", "12 + 2", "14 apples"]],
+  result: { label: "Apples", value: "14" }, explanation: "Multiply, then add." } });
+const estimateLog = await show({ question: { kind: "estimate_number", id: "e2", level: "highschool", question: "Parameters of GPT-3?",
+  answer: 175000000000, tolerance: 25000000000, unit: "parameters", scale: "log", explanation: "175 billion." } });
 
 const CSP = "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
   "connect-src 'none'; frame-src 'none'; base-uri 'none'";
@@ -107,6 +119,94 @@ try {
   log = await page.evaluate(() => window.log);
   check(log.messages.length === 1 && /wie viele es sind/.test(log.messages[0]), "free-text answer sent to the chat");
   check(!log.calls.some((c) => c.name === "ptf_record_event"), "free text is graded by the tutor, not recorded by the card");
+  const open = async (result, selector) => {
+    current = result;
+    await page.goto(hostUrl);
+    await page.waitForTimeout(300);
+    await appFrame().waitForSelector(selector, { timeout: 5000 });
+  };
+  const answered = async () => {
+    await waitFor(() => window.log.messages.length > 0);
+    const l = await page.evaluate(() => window.log);
+    return { log: l, ev: l.calls.find((c) => c.name === "ptf_record_event") };
+  };
+  let ev;
+
+  // guess_next: hint, then the right answer in another case
+  await open(guessNext, ".prefix input");
+  await appFrame().click("button.ghost");
+  check(/Add one apple/.test(await appFrame().locator(".explain").innerText()), "guess_next shows the hint on request");
+  await appFrame().fill(".prefix input", " 4 ");
+  await appFrame().click("button.primary");
+  ({ log, ev } = await answered());
+  check(ev && ev.arguments.object === "ptf:el/demo/counting#q1" && ev.arguments.result.correct === true, "guess_next checked and recorded");
+  check(/4 \(Hinweis\) \(richtig\)/.test(log.messages[0]), `guess_next tells the tutor about the hint (${log.messages[0]})`);
+
+  // estimate_number: a wrong guess with tolerance 0 keeps the misconception
+  await open(estimate, "input.field");
+  await appFrame().fill("input.field", "25");
+  await appFrame().click("button.primary");
+  ({ log, ev } = await answered());
+  check(ev && ev.arguments.result.correct === false && ev.arguments.result.misconception === "counting-skips", "estimate outside the tolerance is wrong");
+  check((await appFrame().locator(".scale .pin").count()) === 2, "estimate shows guess and answer on a number line");
+  check(/Lösung: 26/.test(await appFrame().locator("main .hint").innerText()), "estimate shows the answer");
+
+  // estimate_number on a log scale, German number format
+  await open(estimateLog, "input.field");
+  await appFrame().fill("input.field", "1,6e11");
+  await appFrame().click("button.primary");
+  ({ log, ev } = await answered());
+  check(/\(richtig\)$/.test(log.messages[0]), `estimate reads 1,6e11 and accepts it within the tolerance (${log.messages[0]})`);
+  check((await appFrame().locator(".scale .band").count()) === 1, "tolerance band drawn");
+
+  // cloze: one accepted word, one wrong number
+  await open(cloze, ".cloze input");
+  const gaps = appFrame().locator(".cloze input");
+  check((await gaps.count()) === 2, "cloze shows two gaps");
+  await gaps.nth(0).fill("Four");
+  await gaps.nth(1).fill("11");
+  await appFrame().click("button.primary");
+  ({ log, ev } = await answered());
+  check(ev && ev.arguments.object === "ptf:el/demo/counting#c1" && ev.arguments.result.correct === false &&
+    ev.arguments.result.response === "Four | 11", "cloze checks each gap and records the answers");
+  check((await appFrame().locator(".cloze input.right").count()) === 1 && /10/.test(await appFrame().locator(".fix").innerText()), "cloze marks gaps and shows the right word");
+
+  // ordering: shuffled, then moved into the right order
+  await open(ordering, ".order li");
+  const texts = async () => appFrame().locator(".order li .txt").allInnerTexts();
+  check((await texts()).join() !== "one,two,three,four", "ordering starts shuffled");
+  for (let target = 0; target < 4; target++) {
+    let at = (await texts()).indexOf(["one", "two", "three", "four"][target]);
+    while (at > target) { await appFrame().locator(".order li").nth(at).locator("button.move").first().click(); at--; }
+  }
+  await appFrame().click("button.primary");
+  ({ log, ev } = await answered());
+  check(ev === undefined && log.messages.length === 1 && /one → two → three → four \(richtig\)/.test(log.messages[0]),
+    `ordering checked; own question without element is not recorded by the card (${log.messages[0]})`);
+  check((await appFrame().locator(".order li.right").count()) === 4, "ordering marks every position");
+
+  // calculation_steps: first step right, second shown
+  await open(steps, ".step input");
+  await appFrame().fill(".step input", "12");
+  await appFrame().locator(".step button.primary").click();
+  await appFrame().waitForSelector(".step:nth-child(2) input", { timeout: 2000 });
+  await appFrame().locator(".step").nth(1).locator("button.ghost").click();
+  ({ log, ev } = await answered());
+  check(/1 von 2 Schritten richtig/.test(log.messages[0]), `calculation_steps counts the steps (${log.messages[0]})`);
+  check(/Apples: 14/.test(await appFrame().locator(".total").innerText()), "calculation_steps shows the result");
+  // PTF_SCREENSHOT_DIR=dir saves each new card answered, at phone width
+  if (process.env.PTF_SCREENSHOT_DIR) {
+    await page.setViewportSize({ width: 390, height: 640 });
+    for (const [name, r, sel, answer] of [["cloze", cloze, ".cloze input", "4"], ["ordering", ordering, ".order li", null],
+      ["estimate", estimateLog, "input.field", "3e11"], ["steps", steps, ".step input", "12"], ["guess", guessNext, ".prefix input", "5"]]) {
+      await open(r, sel);
+      if (answer) await appFrame().locator(sel).first().fill(answer);
+      await appFrame().locator("button.primary").first().click();
+      await page.waitForTimeout(200);
+      await page.screenshot({ path: `${process.env.PTF_SCREENSHOT_DIR}/${name}.png` });
+    }
+  }
+
   check(!errors.some((e) => /Content Security Policy|Refused/.test(e)), `no CSP violations${errors.length ? ": " + errors.join(" | ") : ""}`);
 } finally {
   await browser.close(); appServer.close(); hostServer.close(); await client.close();
