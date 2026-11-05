@@ -261,4 +261,7 @@ test("rounded numbers in calculation steps agree with computed values", async ()
   const q = { kind: "calculation_steps", rows: [["a", "≈ 3.11 h"], ["b", "440 000 km"], ["c", "1,02"]], result: { value: "about 3.1 hours" } };
   assert.deepEqual(compare(q, { rows: [Math.log(0.5) / Math.log(0.8), 440000, 1.02], result: 3.106 }), []);
   assert.equal(compare(q, [3.2, null, null]).length, 1);
+  const r = { kind: "calculation_steps", rows: [["t", "√(112 / 9.81) ≈ 3.38 s"], ["A", "2.83 · 10⁻³ m²"], ["k", "8.48e-4 kg/m"], ["d", "19.6 − 4.9 = 14.7 m"]] };
+  assert.deepEqual(compare(r, [Math.sqrt(112 / 9.81), Math.PI * 0.03 ** 2, 8.482e-4, 14.7]), []);
+  assert.equal(compare(r, [null, 2.9e-3, null, null]).length, 1);
 });

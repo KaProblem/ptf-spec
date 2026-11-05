@@ -376,8 +376,10 @@ Numbers and claims in the text (Core, Key facts, level texts) are checked
 the same way with `fact(text, fn)`, where `fn` returns `true` or uses
 `ptf.assert`; a fact that does not hold is an error.
 
-A number agrees with a text when the text's first number is the computed
-value rounded to the digits shown ("≈ 3.11 h" agrees with 3.1063). The
+A number agrees with a text when the number the text states (the first
+number after its last `=` or `≈`, else its first number) is the computed
+value rounded to the digits shown: "≈ 3.11 h" agrees with 3.1063,
+"19.6 − 4.9 = 14.7 m" with 14.7, "2.83 · 10⁻³ m²" with 0.002827. The
 script computes from the problem, not from the stored answer: test the
 claim of each option, count, simulate, or solve the equation, so a mistake
 in the block shows up as a difference.

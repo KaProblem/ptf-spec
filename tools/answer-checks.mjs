@@ -13,15 +13,29 @@ export const COMPUTED_KINDS = new Set(["estimate_number", "calculation_steps"]);
 
 const NUM = /[−-]?\d{1,3}(?:[   ]\d{3})+(?:[.,]\d+)?(?:e[−-]?\d+)?|[−-]?\d+(?:[.,]\d+)?(?:e[−-]?\d+)?/i;
 
-// The first number in a text: "≈ 3.11 h" → 3.11, "440 000 km" → 440000, "1,02" → 1.02.
-// Returns { value, decimals } or null.
+const SUP = { "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9", "⁻": "-" };
+const POW10 = /^\s*[·×*]\s*10(?:\^\(?([−-]?\d+)\)?|(⁻?[⁰¹²³⁴⁵⁶⁷⁸⁹]+))/;
+
+// The number a text states: the first number after its last "=" or "≈" if there is one,
+// else its first number. "≈ 3.11 h" → 3.11, "19.6 − 4.9 = 14.7 m" → 14.7,
+// "440 000 km" → 440000, "1,02" → 1.02, "2.83 · 10⁻³ m²" → 0.00283.
+// Returns { value, decimals, exp } or null; the last shown digit is 10^(exp − decimals).
 export function parseNumber(text) {
-  if (typeof text === "number") return { value: text, decimals: decimalsOf(text) };
-  const m = String(text ?? "").match(NUM);
+  if (typeof text === "number") return { value: text, decimals: decimalsOf(text), exp: 0 };
+  let t = String(text ?? "");
+  const cut = Math.max(t.lastIndexOf("="), t.lastIndexOf("≈"));
+  if (cut >= 0 && NUM.test(t.slice(cut + 1))) t = t.slice(cut + 1);
+  const m = t.match(NUM);
   if (!m) return null;
+  const p = t.slice(m.index + m[0].length).match(POW10);
+  if (p) {
+    const base = parseNumber(m[0]);
+    const exp = Number(p[1] ? p[1].replace("−", "-") : [...p[2]].map((c) => SUP[c]).join(""));
+    return { value: base.value * 10 ** exp, decimals: base.decimals, exp: base.exp + exp };
+  }
   const s = m[0].replace(/[   ]/g, "").replace(/−/g, "-").replace(",", ".");
-  const [mant] = s.toLowerCase().split("e");
-  return { value: Number(s), decimals: mant.includes(".") ? mant.split(".")[1].length : 0 };
+  const [mant, e = "0"] = s.toLowerCase().split("e");
+  return { value: Number(s), decimals: mant.includes(".") ? mant.split(".")[1].length : 0, exp: Number(e.replace("−", "-")) };
 }
 
 function decimalsOf(n) {
@@ -35,7 +49,7 @@ function decimalsOf(n) {
 function agrees(printed, computed, tol = 0) {
   const p = parseNumber(printed);
   if (!p || !Number.isFinite(p.value)) return false;
-  const half = 0.5 * 10 ** -p.decimals;
+  const half = 0.5 * 10 ** (p.exp - p.decimals);
   return Math.abs(p.value - computed) <= Math.max(half, tol) * (1 + 1e-9) + 1e-12;
 }
 
