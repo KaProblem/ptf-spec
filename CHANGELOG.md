@@ -6,6 +6,7 @@ before 1.0, minor versions may break compatibility.
 ## [Unreleased]
 
 ### Added
+- Answer checks (SPEC.md §7.1): `checks/<element>.js` recomputes the answers of an element's questions; `ptf-check` runs it in a sandboxed `node:vm` context, reports every difference as an error and warns about computed answers (`estimate_number`, `calculation_steps`, numeric `cloze` and `guess_next`) without a check. The author skill requires them. The minimal example has one.
 - Quiz card (`mcp/src/quiz.html`): cards for `cloze`, `ordering`, `estimate_number`, `guess_next` and `calculation_steps`. The card checks and records them like `multiple_choice`; numbers are read in the learner's locale (`1,5`, `1.5e9`, `2.83 · 10⁻³`). `estimate_number` shows the guess against the answer and its tolerance band; `calculation_steps` lets the learner work out each step's value in turn. `show_question` accepts every kind.
 - `vendor/`: allowlisted build `chess.js@1.4.0` (BSD-2-Clause, global `ChessJS`, 37 KB) for board simulators that check legal moves, check and mate. Rules only; an engine such as Stockfish stays out of simulators (WebAssembly is blocked by the CSP).
 
