@@ -229,6 +229,43 @@ test("catalog schema rejects bad ids, auth and digests", () => {
   assert.match(r.stdout, /\/packages\/0\/digest must match pattern/);
 });
 
+test("answer checks catch wrong answers and missing checks", () => {
+  const lib = copyExample();
+  const el = join(lib, "bundles/demo/elements/counting.md");
+  writeFileSync(el, readFileSync(el, "utf8").replace('"answer": 26', '"answer": 25').replace('{ "text": "8", "correct": false', '{ "text": "8", "correct": true'));
+  let r = run(lib);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /q3: answer 25 but the check computes 26/);
+  assert.match(r.stdout, /q2: option 2 "8" is marked correct but the check says wrong/);
+
+  const checks = join(lib, "bundles/demo/checks/counting.js");
+  writeFileSync(checks, 'check("q2", (q) => q.options.map((o) => o.correct));\ncheck("nope", () => 1);\nfact("1 + 1 = 3", () => 1 + 1 === 3);\n');
+  r = run(lib);
+  assert.match(r.stdout, /fact "1 \+ 1 = 3" does not hold/);
+  assert.match(r.stdout, /check for unknown question id "nope"/);
+  assert.match(r.stdout, /computed answers without a check in checks\/counting\.js: q1, q3/);
+});
+
+test("answer checks run without node APIs and with a time limit", () => {
+  const lib = copyExample();
+  const checks = join(lib, "bundles/demo/checks/counting.js");
+  writeFileSync(checks, 'check("q1", () => typeof require + typeof process + typeof fetch);\ncheck("q3", () => eval("26"));\ncheck("q2", () => { for (;;) {} });\n');
+  const r = run(lib);
+  assert.match(r.stdout, /q1: answer "4" but the check computes "undefinedundefinedundefined"/);
+  assert.match(r.stdout, /q3: check threw: Code generation from strings disallowed/);
+  assert.match(r.stdout, /q2: check threw: Script execution timed out/);
+});
+
+test("rounded numbers in calculation steps agree with computed values", async () => {
+  const { compare } = await import("../tools/answer-checks.mjs");
+  const q = { kind: "calculation_steps", rows: [["a", "≈ 3.11 h"], ["b", "440 000 km"], ["c", "1,02"]], result: { value: "about 3.1 hours" } };
+  assert.deepEqual(compare(q, { rows: [Math.log(0.5) / Math.log(0.8), 440000, 1.02], result: 3.106 }), []);
+  assert.equal(compare(q, [3.2, null, null]).length, 1);
+  const r = { kind: "calculation_steps", rows: [["t", "√(112 / 9.81) ≈ 3.38 s"], ["A", "2.83 · 10⁻³ m²"], ["k", "8.48e-4 kg/m"], ["d", "19.6 − 4.9 = 14.7 m"]] };
+  assert.deepEqual(compare(r, [Math.sqrt(112 / 9.81), Math.PI * 0.03 ** 2, 8.482e-4, 14.7]), []);
+  assert.equal(compare(r, [null, 2.9e-3, null, null]).length, 1);
+});
+
 test("checks figures: format rules, references and translations", () => {
   const lib = copyExample();
   const figs = join(lib, "bundles/demo/figures");

@@ -17,6 +17,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import semver from "semver";
 import YAML from "yaml";
+import { COMPUTED_KINDS, runChecks } from "./answer-checks.mjs";
 import { checkFigure, figureFiles } from "./ptf-figure.mjs";
 
 const SPEC_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -343,12 +344,13 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
     const qIds = new Set();
     const checkLevels = new Set();
     const covered = new Set();   // "<level> <objective>"
+    const questions = new Map();
     for (const m of fm.body.matchAll(/```ptf-question\s*\n([\s\S]*?)```/g)) {
       let q;
       try { q = JSON.parse(m[1]); } catch (e) { err(f, `ptf-question block is not valid JSON: ${e.message}`); continue; }
       const where = `${f}#${q.id ?? "?"}`;
       for (const e of schemaErrors("question-block", q)) err(where, e);
-      if (q.id) { if (qIds.has(q.id)) err(where, "duplicate question id"); qIds.add(q.id); }
+      if (q.id) { if (qIds.has(q.id)) err(where, "duplicate question id"); qIds.add(q.id); questions.set(q.id, q); }
       if (["check", "probe"].includes(q.purpose ?? "check") && q.level) {
         checkLevels.add(q.level);
         for (const o of q.objectives ?? []) covered.add(`${q.level} ${o}`);
@@ -362,6 +364,8 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
         if (n !== q.gaps.length) err(where, `cloze has ${n} gaps in text but ${q.gaps.length} in gaps`);
       }
     }
+
+    checkAnswers(bundleDir, rel, f, questions);
 
     for (const l of d.levels ?? []) if (!checkLevels.has(l)) warn(f, `level "${l}" has no \`check\` or \`probe\` question; every level tests the whole concept at its depth (SPEC.md §5.2)`);
     if (objIds.size) {
@@ -440,6 +444,23 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
     }
   }
   return elements.length + paths.length;
+}
+
+// SPEC.md §7.1: checks/<element>.js recomputes the answers of the element's questions.
+const isNumeric = (a) => /^\s*[−-]?[\d\s.,]*\d\s*$/.test(String(a ?? ""));
+function checkAnswers(bundleDir, rel, f, questions) {
+  const name = rel.split(sep).pop().replace(/\.md$/, "");
+  const file = join(bundleDir, "checks", `${name}.js`);
+  let checked = new Set();
+  if (existsSync(file)) {
+    const r = runChecks(readFileSync(file, "utf8"), file, questions);
+    for (const p of r.problems) err(p.id ? `${file}#${p.id}` : file, p.msg);
+    checked = r.checked;
+  }
+  const missing = [...questions.values()].filter((q) => !checked.has(q.id) && (COMPUTED_KINDS.has(q.kind)
+    || (q.kind === "cloze" && (q.gaps ?? []).some((g) => isNumeric(g.answer)))
+    || (q.kind === "guess_next" && isNumeric(q.answer))));
+  if (missing.length) warn(f, `computed answers without a check in checks/${name}.js: ${missing.map((q) => q.id).join(", ")} (SPEC.md §7.1)`);
 }
 
 // ---------- figures (SPEC.md §6.8) ----------

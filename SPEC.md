@@ -79,6 +79,7 @@ library/
     log.md                # optional: OKF update history
     ptf.lock              # optional: pinned simulator and lab versions (§9)
     elements/<name>.md    # type: Learning Element
+    checks/<name>.js      # answer checks for elements/<name>.md (§7.1)
     figures/<id>.svg      # optional: figures (§6.8), translations <id>.<lang>.svg
     figures/src/          # optional: the scripts that generate the figures
     paths/<name>.md       # type: Learning Path
@@ -422,6 +423,53 @@ The kinds are a catalog, as in generative-UI systems: a model fills in a
 known component instead of inventing UI, and each host renders the kinds
 with its own components.
 
+### 7.1 Answer checks
+
+Every answer that someone has to work out MUST be recomputed by a script,
+so that no wrong number reaches a learner. The script for
+`elements/<name>.md` is `checks/<name>.js` in the bundle. It is a classic
+JavaScript script without imports, calls `check(id, fn)` once per question
+and may use the helpers in `ptf` (`num(text)` reads the first number of a
+text, `near(a, b, tol)`, `assert(cond, msg)`, `round(x, digits)`). `fn`
+receives a copy of the question block and returns:
+
+| Kind | `fn` returns | Compared with |
+| --- | --- | --- |
+| `estimate_number` | the number | `answer`, up to its rounding or half the `tolerance` |
+| `multiple_choice` | one `true`/`false` per option | each option's `correct` |
+| `cloze` | one value per gap (`null` skips a gap) | the gap's `answer` or `accepted` |
+| `guess_next` | the value | `answer` or `accepted` |
+| `calculation_steps` | one value per row (`null` skips), or `{ rows, result }` | the last cell of each row, `result.value` |
+| any kind | `true` after its own `ptf.assert` calls | nothing more |
+
+Numbers and claims in the text (Core, Key facts, level texts) are checked
+the same way with `fact(text, fn)`, where `fn` returns `true` or uses
+`ptf.assert`; a fact that does not hold is an error.
+
+A number agrees with a text when the number the text states (the first
+number after its last `=` or `≈`, else its first number) is the computed
+value rounded to the digits shown: "≈ 3.11 h" agrees with 3.1063,
+"19.6 − 4.9 = 14.7 m" with 14.7, "2.83 · 10⁻³ m²" with 0.002827. The
+script computes from the problem, not from the stored answer: test the
+claim of each option, count, simulate, or solve the equation, so a mistake
+in the block shows up as a difference.
+
+`estimate_number` and `calculation_steps` questions, and `cloze` and
+`guess_next` questions with a numeric answer, are computed answers;
+`ptf-check` runs the scripts, reports every difference as an error and
+lists computed answers without a check as a warning. Checks run without
+network or file access and within one second; hosts never run them.
+
+```js
+// checks/counting.js
+check("q3", () => {            // How many numbers from 17 to 42?
+  let n = 0;
+  for (let k = 17; k <= 42; k++) n++;
+  return n;
+});
+fact("42 − 17 + 1 = 26", () => 42 - 17 + 1 === 26);
+```
+
 ---
 
 ## 8. Learning path
@@ -549,7 +597,8 @@ A PTF v0.1 bundle is conformant if:
 3. Every learning element validates against its schema and has `# Core` and
    `# Misconceptions`.
 4. Every `ptf-question` block validates against its schema.
-5. Every `simulators[].ref` and `code[].ref` resolves to an existing version,
+5. Every answer check in `checks/` agrees with its question block (§7.1).
+6. Every `simulators[].ref` and `code[].ref` resolves to an existing version,
    every `code[].step` exists, and every package validates against
    SIMULATOR-SPEC.md §2 or CODE-SPEC.md §2 with matching `integrity`.
 6. Every `figures[].id` has a file `figures/<id>.svg`, and every file in
