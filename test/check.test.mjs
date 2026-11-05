@@ -239,8 +239,9 @@ test("answer checks catch wrong answers and missing checks", () => {
   assert.match(r.stdout, /q2: option 2 "8" is marked correct but the check says wrong/);
 
   const checks = join(lib, "bundles/demo/checks/counting.js");
-  writeFileSync(checks, 'check("q2", (q) => q.options.map((o) => o.correct));\ncheck("nope", () => 1);\n');
+  writeFileSync(checks, 'check("q2", (q) => q.options.map((o) => o.correct));\ncheck("nope", () => 1);\nfact("1 + 1 = 3", () => 1 + 1 === 3);\n');
   r = run(lib);
+  assert.match(r.stdout, /fact "1 \+ 1 = 3" does not hold/);
   assert.match(r.stdout, /check for unknown question id "nope"/);
   assert.match(r.stdout, /computed answers without a check in checks\/counting\.js: q1, q3/);
 });

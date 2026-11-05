@@ -42,7 +42,8 @@ What matters is that a tutor can teach from it (SPEC.md §6.7):
   "knows it" from "sounds familiar".
 - **Answer checks** (SPEC.md §7.1): every worked-out answer (numbers,
   calculation steps, options that state a value or property) is recomputed
-  in `checks/<element>.js` from the problem itself; `ptf-check` must pass.
+  in `checks/<element>.js` from the problem itself, and every number in
+  Core and Key facts with `fact()`; `ptf-check` must pass.
 - **Levels are depths** (SPEC.md §5.2): every level covers every objective.
   Level texts are optional; each stands alone and starts with something to
   try.

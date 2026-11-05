@@ -1,5 +1,6 @@
 // Answer checks (SPEC.md §7.1): a script per element recomputes the answers of its
-// question blocks, and ptf-check compares them with what the blocks claim.
+// question blocks, and ptf-check compares them with what the blocks claim. `fact`
+// entries check numbers and claims in the element's text.
 //
 // The script is a classic script without imports. It runs in a fresh node:vm context
 // that holds only the ECMAScript built-ins, `check` and `ptf`; code generation from
@@ -130,9 +131,10 @@ function helpers() {
 // Returns { problems: [{ id, msg }], checked: Set of ids }.
 export function runChecks(source, filename, questions) {
   const registered = [];
+  const facts = [];
   const problems = [];
   const context = vm.createContext(
-    { check: (id, fn) => registered.push({ id, fn }), ptf: helpers() },
+    { check: (id, fn) => registered.push({ id, fn }), fact: (text, fn) => facts.push({ text, fn }), ptf: helpers() },
     { codeGeneration: { strings: false, wasm: false } },
   );
   try {
@@ -158,6 +160,18 @@ export function runChecks(source, filename, questions) {
       continue;
     }
     for (const msg of compare(q, got)) problems.push({ id, msg });
+  }
+  // fact(text, fn): a number or claim in the element's text; fn returns true or uses ptf.assert.
+  for (const { text, fn } of facts) {
+    let got;
+    try {
+      context.__fn = fn;
+      got = typeof fn === "function" ? new vm.Script("__fn()").runInContext(context, { timeout: 1000 }) : fn;
+    } catch (e) {
+      problems.push({ id: null, msg: `fact "${text}" threw: ${e.message}` });
+      continue;
+    }
+    if (got !== true && got !== undefined) problems.push({ id: null, msg: `fact "${text}" does not hold` });
   }
   return { problems, checked };
 }

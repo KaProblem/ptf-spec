@@ -372,6 +372,10 @@ receives a copy of the question block and returns:
 | `calculation_steps` | one value per row (`null` skips), or `{ rows, result }` | the last cell of each row, `result.value` |
 | any kind | `true` after its own `ptf.assert` calls | nothing more |
 
+Numbers and claims in the text (Core, Key facts, level texts) are checked
+the same way with `fact(text, fn)`, where `fn` returns `true` or uses
+`ptf.assert`; a fact that does not hold is an error.
+
 A number agrees with a text when the text's first number is the computed
 value rounded to the digits shown ("≈ 3.11 h" agrees with 3.1063). The
 script computes from the problem, not from the stored answer: test the
@@ -391,6 +395,7 @@ check("q3", () => {            // How many numbers from 17 to 42?
   for (let k = 17; k <= 42; k++) n++;
   return n;
 });
+fact("42 − 17 + 1 = 26", () => 42 - 17 + 1 === 26);
 ```
 
 ---

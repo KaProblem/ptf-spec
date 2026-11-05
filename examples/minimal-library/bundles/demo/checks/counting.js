@@ -12,3 +12,6 @@ check("q3", () => {
   for (let k = 17; k <= 42; k++) n++;
   return n;
 });
+
+// A number from the explanation text.
+fact("42 − 17 + 1 = 26", () => 42 - 17 + 1 === 26);
