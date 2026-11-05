@@ -17,6 +17,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import semver from "semver";
 import YAML from "yaml";
+import { checkFigure, figureFiles } from "./ptf-figure.mjs";
 
 const SPEC_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_LEVELS = ["child", "highschool", "college", "expert"];
@@ -297,6 +298,9 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
     else if (fm.data.type === "Learning Path") paths.push({ f, rel, fm });
   }
 
+  const figures = checkFigures(bundleDir);
+  const usedFigures = new Set();
+
   for (const { f, rel, fm } of elements) {
     const d = fm.data;
     for (const e of schemaErrors("learning-element", d)) err(f, e);
@@ -376,6 +380,20 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
       for (const l of s.levels ?? []) if (!(m.levels ?? []).includes(l)) warn(f, `simulator ${r.id}@${r.best} does not list level "${l}"`);
     }
 
+    for (const fig of d.figures ?? []) {
+      if (!fig?.id) continue;
+      usedFigures.add(fig.id);
+      if (!figures.has(fig.id)) {
+        if (!existsSync(join(bundleDir, "figures", `${fig.id}.svg`))) err(f, `figure "${fig.id}" not found: expected figures/${fig.id}.svg (SPEC.md §6.8)`);
+        continue;
+      }
+      for (const o of fig.objectives ?? []) if (objIds.size && !objIds.has(o)) err(f, `figure "${fig.id}" names objective "${o}", which is not an objective id of this element`);
+      for (const l of fig.levels ?? []) if (!(d.levels ?? []).includes(l)) warn(f, `figure "${fig.id}" level "${l}" is not in the element's levels`);
+    }
+    for (const m of fm.body.matchAll(/figures\/([a-z0-9][a-z0-9-]*)(?:\.[a-z-]+)?\.svg/gi)) {
+      if (!(d.figures ?? []).some((x) => x?.id === m[1])) warn(f, `body mentions figures/${m[1]}.svg but frontmatter \`figures\` does not list it, so tutors will not find it (SPEC.md §6.8)`);
+    }
+
     for (const c of d.code ?? []) {
       if (!c.ref || !c.ref.includes("@")) continue;
       const r = resolveRef(c.ref, codeIndex);
@@ -401,6 +419,8 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
     void rel;
   }
 
+  for (const id of figures.keys()) if (!usedFigures.has(id)) warn(join(bundleDir, "figures", `${id}.svg`), "no element lists this figure in `figures`");
+
   for (const { f, fm } of paths) for (const e of schemaErrors("learning-path", fm.data)) err(f, e);
 
   const lockFile = join(bundleDir, "ptf.lock");
@@ -420,6 +440,37 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
     }
   }
   return elements.length + paths.length;
+}
+
+// ---------- figures (SPEC.md §6.8) ----------
+
+/** Checks figures/ of a bundle; returns the set of figure ids that have a valid canonical file. */
+function checkFigures(bundleDir) {
+  const dir = join(bundleDir, "figures");
+  const ok = new Map();
+  if (!existsSync(dir)) return ok;
+  const { figures, misnamed } = figureFiles(dir, readdirSync(dir).filter((n) => !n.startsWith(".") && statSync(join(dir, n)).isFile()));
+  for (const n of misnamed) err(join(dir, n), "figures/ holds only <id>.svg and translations <id>.<lang>.svg (SPEC.md §6.8)");
+  for (const [id, entry] of figures) {
+    const results = new Map();
+    for (const file of [entry.file, ...entry.langs.values()].filter(Boolean)) {
+      const r = checkFigure(readFileSync(file, "utf8"));
+      for (const e of r.errors) err(file, e);
+      for (const w of r.warnings) warn(file, w);
+      results.set(file, r);
+    }
+    if (!entry.file) { err(join(dir, `${id}.svg`), `translations exist (${[...entry.langs.keys()].join(", ")}) but the canonical figures/${id}.svg is missing`); continue; }
+    const canon = results.get(entry.file);
+    if (canon.errors.length) continue;
+    ok.set(id, canon.info);
+    const steps = canon.info.steps.length;
+    for (const [lang, file] of entry.langs) {
+      const t = results.get(file);
+      if (t.info && t.info.steps.length !== steps) err(file, `has ${t.info.steps.length} step(s), the canonical figure ${steps}; a translation changes words only`);
+      if (t.info && (t.info.width !== canon.info.width || t.info.height !== canon.info.height)) warn(file, `viewBox differs from the canonical figure (${lang})`);
+    }
+  }
+  return ok;
 }
 
 function findBundles(root) {

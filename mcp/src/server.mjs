@@ -19,12 +19,14 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import Ajv2020 from "ajv/dist/2020.js";
 import * as z from "zod";
-import { PLAYER_HTML, QUESTION_SCHEMA, QUIZ_HTML, TUTOR_GUIDE, VERSION } from "./assets.mjs";
+import { FIGURE_HTML, PLAYER_HTML, QUESTION_SCHEMA, QUIZ_HTML, TUTOR_GUIDE, VERSION } from "./assets.mjs";
+import { checkFigure, hostSvg } from "../../tools/ptf-figure.mjs";
 import { LearnerRecord } from "./learner.mjs";
 import { Library, onlyLevel, parseSimRef } from "./library.mjs";
 
 const PLAYER_URI = "ui://ptf/player.html";
 const QUIZ_URI = "ui://ptf/quiz.html";
+const FIGURE_URI = "ui://ptf/figure.html";
 const APP_MIME = "text/html;profile=mcp-app";
 const DEFAULT_URL = "https://github.com/KaProblem/ptf-library.git";
 const LEVEL = z.string().regex(/^[a-z][a-z0-9-]*$/).describe("Level ID: child, highschool, college, expert or a bundle's custom level");
@@ -97,6 +99,13 @@ server.registerResource("ptf-quiz", QUIZ_URI, {
   _meta: { ui: { prefersBorder: false } },
 }, async (uri) => ({ contents: [{ uri: uri.href, mimeType: APP_MIME, text: QUIZ_HTML, _meta: { ui: { prefersBorder: false } } }] }));
 
+server.registerResource("ptf-figure", FIGURE_URI, {
+  title: "PTF figure",
+  description: "Shows one PTF figure (SPEC.md §6.8) step by step.",
+  mimeType: APP_MIME,
+  _meta: { ui: { prefersBorder: false } },
+}, async (uri) => ({ contents: [{ uri: uri.href, mimeType: APP_MIME, text: FIGURE_HTML, _meta: { ui: { prefersBorder: false } } }] }));
+
 // ---------- library ----------
 
 server.registerTool("list_library", {
@@ -118,7 +127,7 @@ server.registerTool("get_element", {
   title: "Read a learning element",
   description: "Returns a learning element (ptf:el/<bundle>/<name>) or learning path (ptf:path/<bundle>/<name>) as Markdown with frontmatter. " +
     "`objectives`, Core, Key facts and Misconceptions are binding: teach towards the objectives and never contradict the rest. " +
-    "Level texts, examples, questions and simulators are offers to adapt; `# Tutor notes` are the author's wishes and must be followed. " +
+    "Level texts, examples, questions, figures (show_figure) and simulators are offers to adapt; `# Tutor notes` are the author's wishes and must be followed. " +
     "Pass `level` to drop the level texts for other levels; every level covers the whole concept at its depth, so the learner never needs another level to complete the element.",
   inputSchema: { id: z.string().regex(/^ptf:(el|path)\//), level: LEVEL.optional() },
   annotations: { readOnlyHint: true },
@@ -200,6 +209,53 @@ server.registerTool("show_question", {
     if (object) lines.push(`Then call record_progress with verb answered, object ${object} and result.score (0 to 1).`);
   }
   return { content: [text(lines.join("\n"))], structuredContent: { question: q, element: element ?? null, object, lang } };
+}));
+
+// ---------- figures (SPEC.md §6.8) ----------
+
+/** Reads and checks a figure; refuses one that breaks the format rules. */
+function loadFigure(element, figure, lang) {
+  const hit = lib().figure(element, figure, lang);
+  const raw = readFileSync(hit.file, "utf8");
+  const { errors, info } = checkFigure(raw);
+  if (errors.length) throw new Error(`Figure ${figure} of ${element} breaks the figure rules, so it is not shown: ${errors.join("; ")}`);
+  return { ...hit, info, svg: hostSvg(raw) };
+}
+
+server.registerTool("show_figure", {
+  title: "Show a figure",
+  description: "Shows a figure of a learning element (its `figures` list) inline in the chat as a card that builds up step by step: " +
+    "the learner taps Next and sees one part and its caption at a time. Use it when a picture explains better than words " +
+    "(see the entry's `use_when`), e.g. before an explanation or to repair a misconception. You never see the picture itself: " +
+    "the result gives you its description and the caption of every step. Say first what to look at, let the learner go through the " +
+    "steps, and ask what they notice before you explain.",
+  inputSchema: {
+    element: z.string().regex(/^ptf:el\//).describe("Learning element the figure belongs to"),
+    figure: z.string().describe("Figure ID from the element's `figures` list"),
+    lang: z.string().optional().describe("Language of the labels; default: the learner's preferred language when a translation exists"),
+    step: z.number().int().min(1).optional().describe("Step to start at; default 1"),
+  },
+  _meta: { ui: { resourceUri: FIGURE_URI }, "ui/resourceUri": FIGURE_URI },
+}, guarded(async ({ element, figure, lang, step }) => {
+  const f = loadFigure(element, figure, lang ?? learner.profile()?.preferred_lang ?? null);
+  const steps = f.info.steps;
+  const object = `${element}#figure:${f.id}`;
+  const level = f.entry?.levels?.length === 1 ? f.entry.levels[0] : null;
+  const lines = [
+    `Showing the figure "${f.info.title}" (${f.id}, labels in ${f.lang ?? "the element's language"}) to the learner` +
+      (steps.length > 1 ? `, starting at step ${Math.min(step ?? 1, steps.length)} of ${steps.length}.` : "."),
+    `What it shows: ${f.info.desc}`,
+    ...(steps.length ? ["Steps (the learner taps Next to reveal each one):", ...steps.map((s) => `${s.n}. ${s.caption ?? "(no caption)"}`)] : []),
+    ...(f.entry?.objectives?.length ? [`It supports the objective(s) ${f.entry.objectives.join(", ")}.`] : []),
+    "Say in a sentence what to look at, let the learner go through the steps, and ask what they notice before you explain. " +
+      "Do not describe parts the learner has not revealed yet. You receive the step they are on.",
+  ];
+  return {
+    content: [text(lines.join("\n"))],
+    structuredContent: { figure: { id: f.id, element, lang: f.lang, title: f.info.title, desc: f.info.desc, steps, width: f.info.width, height: f.info.height },
+      step: step ?? 1, object, level },
+    _meta: { "ptf/svg": f.svg },
+  };
 }));
 
 // ---------- simulators ----------
@@ -331,14 +387,25 @@ server.registerTool("ptf_sim_source", {
   return { content: [text(`${hit.manifest.id}@${hit.manifest.version}`)], structuredContent: { html: lib().inlineSim(hit) } };
 }));
 
+server.registerTool("ptf_figure_source", {
+  title: "Figure source (figure card)",
+  description: "Used by the figure card: returns the checked SVG of a figure.",
+  inputSchema: { element: z.string().regex(/^ptf:el\//), figure: z.string(), lang: z.string().optional() },
+  annotations: { readOnlyHint: true },
+  _meta: APP_ONLY,
+}, guarded(async ({ element, figure, lang }) => {
+  const f = loadFigure(element, figure, lang);
+  return { content: [text(`${element} figure ${f.id} (${f.lang})`)], structuredContent: { svg: f.svg } };
+}));
+
 server.registerTool("ptf_record_event", {
-  title: "Record a learning event (player, quiz)",
-  description: "Used by the simulator player and the quiz: appends a learning event to the local learner record.",
+  title: "Record a learning event (player, quiz, figure)",
+  description: "Used by the simulator player, the quiz and the figure card: appends a learning event to the local learner record.",
   inputSchema: {
     verb: z.string(), object: z.string(), level: LEVEL.optional(), element: z.string().optional(),
     result: z.object({ correct: z.boolean().optional(), score: z.number().min(0).max(1).optional(),
       response: z.string().max(2000).optional(), misconception: z.string().max(100).optional() }).optional(),
-    via: z.enum(["simulator", "quiz"]).optional(),
+    via: z.enum(["simulator", "quiz", "figure"]).optional(),
   },
   _meta: APP_ONLY,
 }, guarded(async ({ via, ...args }) => ok(learner.record({ ...args, context: { via: via ?? "simulator" } }, elementInfo))));

@@ -46,6 +46,7 @@ describes the atmosphere to create; this skill is the short version.
 | `get_learner({ course })` | Details of the course or element you work on: placement, steps done, completed stations, open misconceptions, last note. |
 | `search_library`, `get_element` | Find material; read a path or an element at the learner's level. |
 | `show_question` | A question card of any kind (from the element or your own block). Ask every check, probe, warmup and review question this way, not in the chat; keep chat questions for open "why" talk. The card checks and records every kind except `free_text`, which you grade against the rubric. |
+| `show_figure` | Show a figure from the element's `figures` list as a card that builds up step by step (`element`, `figure`). You get its description and the caption of every step, never the picture: say what to look at, let the learner step through, ask what they notice, then explain. |
 | `show_simulator` | Open a station (`element`, `level`, `station`); it opens focused, one idea at a time. |
 | `record_progress` | Every checkable answer (`answered` with `correct`, `misconception`, and `objectives` when you asked your own question); `completed` with the `level` once every objective has a correct answer at that level (the server checks it and says what is missing); `skipped`; `assessed` placement scores; `consented` / `withdrew`; and what the learner says (`understood`, `deeper`, `rephrase`, `stuck`, `asked`). Pass `path` inside a course. `note` at the end of a session, `keep` when an explanation clicked. |
 | `update_learner_profile` | Language, level, `style.explain` and goals, whenever the learner tells you. |
@@ -90,6 +91,7 @@ Use your judgment; this is the default shape.
    concept one level up), "explain differently" (a new angle, not more
    words) or "next".
 6. **Media.** Pick the simplest that works: conversation, a worked example,
+   a figure (when a picture explains better than words; see its `use_when`),
    a question card (pick the kind that fits: `estimate_number` for orders of
    magnitude, `ordering` for sequences, `cloze` for terms, `calculation_steps`
    for procedures, `guess_next` for predictions), a simulator station (only when changing something and

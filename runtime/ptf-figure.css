@@ -1,0 +1,46 @@
+/* PTF figures (SPEC.md §6.8): the classes a figure uses, mapped to theme tokens.
+   Hosts include this stylesheet in the page that shows a figure. It expects the
+   tokens of SIMULATOR-SPEC.md §4.5 (--bg, --surface, --ink, --muted, --line,
+   --accent, --warn, --f-body) plus --good, and derives the soft fills from them.
+   Steps hidden by the host carry the class ptf-hidden. */
+.ptf-figure-stage {
+  --fig-accent-soft: color-mix(in srgb, var(--accent) 22%, var(--bg));
+  --fig-warn-soft: color-mix(in srgb, var(--warn, #b5560f) 22%, var(--bg));
+  --fig-good-soft: color-mix(in srgb, var(--good, #1d7a3a) 22%, var(--bg));
+  --fig-math: "Source Serif 4", "Cambria Math", Cambria, Georgia, "Times New Roman", serif;
+  padding: 12px;
+  background: color-mix(in srgb, var(--surface) 60%, var(--bg));
+}
+/* On a phone every pixel goes to the figure: a 360-unit viewBox keeps 14-unit text at 12 px in a 320 px card. */
+@media (max-width: 400px) { .ptf-figure-stage { padding: 4px; } }
+.ptf-figure-stage svg { display: block; width: 100%; height: auto; max-width: 100%; margin: 0 auto; overflow: visible; }
+svg[data-ptf-figure] text { font: 16px var(--f-body); fill: var(--ink); }
+svg[data-ptf-figure] .t { font-size: 16px; }
+svg[data-ptf-figure] .t-s { font-size: 14px; }
+svg[data-ptf-figure] .t-l { font-size: 20px; }
+svg[data-ptf-figure] .bold { font-weight: 600; }
+svg[data-ptf-figure] .math { font-family: var(--fig-math); font-style: italic; }
+svg[data-ptf-figure] :is(line, path, polyline, polygon, rect, circle, ellipse):not([class*="f-"]) { fill: none; }
+svg[data-ptf-figure] .s-ink { stroke: var(--ink); }
+svg[data-ptf-figure] .s-muted { stroke: var(--muted); }
+svg[data-ptf-figure] .s-line { stroke: var(--line); }
+svg[data-ptf-figure] .s-accent { stroke: var(--accent); }
+svg[data-ptf-figure] .s-warn { stroke: var(--warn, #b5560f); }
+svg[data-ptf-figure] .s-good { stroke: var(--good, #1d7a3a); }
+svg[data-ptf-figure] .f-ink { fill: var(--ink); }
+svg[data-ptf-figure] .f-muted { fill: var(--muted); }
+svg[data-ptf-figure] .f-surface { fill: var(--bg); }
+svg[data-ptf-figure] .f-accent { fill: var(--accent); }
+svg[data-ptf-figure] .f-warn { fill: var(--warn, #b5560f); }
+svg[data-ptf-figure] .f-good { fill: var(--good, #1d7a3a); }
+svg[data-ptf-figure] .f-accent-soft { fill: var(--fig-accent-soft); }
+svg[data-ptf-figure] .f-warn-soft { fill: var(--fig-warn-soft); }
+svg[data-ptf-figure] .f-good-soft { fill: var(--fig-good-soft); }
+svg[data-ptf-figure] .f-none { fill: none; }
+svg[data-ptf-figure] .w1 { stroke-width: 1; }
+svg[data-ptf-figure] .w2 { stroke-width: 2; }
+svg[data-ptf-figure] .w3 { stroke-width: 3; }
+svg[data-ptf-figure] .dash { stroke-dasharray: 4 4; }
+svg[data-ptf-figure] [data-step] { transition: opacity .35s ease; }
+svg[data-ptf-figure] [data-step].ptf-hidden { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { svg[data-ptf-figure] [data-step] { transition: none; } }

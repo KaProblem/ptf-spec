@@ -25,8 +25,12 @@ code:
     step: count
     levels: [highschool]
     note: Let the learner change the number and run it again.
+figures:
+  - id: count-apples
+    objectives: [next-one]
+    use_when: before explaining why the next number is one more
 status: draft
-version: 0.4.0
+version: 0.5.0
 license: CC-BY-SA-4.0
 ---
 

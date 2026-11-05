@@ -10,8 +10,9 @@ MCP client) teach you from a PTF library:
   (LEARNER-RECORD.md). Nothing is uploaded; the only network access is the
   `git clone`/`git pull` of the library.
 
-It comes with two skills: **ptf-tutor** (how to teach from the library) and
-**ptf-author** (how to improve lessons and propose them as pull requests).
+It comes with three skills: **ptf-tutor** (how to teach from the library),
+**ptf-author** (how to improve lessons and propose them as pull requests) and
+**ptf-figure** (how to draw a figure for a lesson and check it at phone width).
 
 ## Requirements
 
@@ -45,7 +46,9 @@ run it.
    verstehen, wie ein LLM funktioniert."* Optionally, also upload
    `skills/ptf-tutor` as a skill under *Settings → Capabilities*.
 
-When the tutor calls `show_simulator`, the simulator appears in the chat. Its
+When the tutor calls `show_figure`, a figure appears in the chat as a card
+that builds up step by step (Back, Next, Show all). When it calls
+`show_simulator`, the simulator appears in the chat. Its
 toolbar lets you change level and station, and has two buttons that write to
 the tutor for you: **I'm stuck** and **Doesn't work**. What you do in the
 simulator is logged to your learner record, and the tutor sees a short

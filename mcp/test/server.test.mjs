@@ -154,7 +154,7 @@ test("reports completed simulator stations so the tutor does not restart them", 
   assert.deepEqual(ans.event.result.objectives, ["count", "next-one"], "objectives come from the question block");
   const done = json(await client.callTool({ name: "record_progress", arguments: { verb: "completed", object: "ptf:el/demo/counting", level: "child" } }));
   assert.deepEqual(done.event.result.evidence, [ans.event.id]);
-  assert.equal(done.event.context.version, "0.4.0");
+  assert.equal(done.event.context.version, "0.5.0");
   assert.equal(done.event.context.catalog, "org.example.minimal-library");
   await client.callTool({ name: "record_progress", arguments: { verb: "deeper", object: "ptf:el/demo/counting", level: "highschool" } });
   const l = json(await client.callTool({ name: "get_learner", arguments: { course: "ptf:path/demo/count-to-ten" } }));
@@ -204,4 +204,32 @@ test("self-reports such as understood never change mastery", async () => {
 test("offers the tutor prompt", async () => {
   const p = await client.getPrompt({ name: "ptf-tutor", arguments: { goal: "Zählen" } });
   assert.match(p.messages[0].content.text, /Evidence, not claims/);
+});
+
+test("show_figure serves the checked SVG, its description and step captions", async () => {
+  const card = await client.readResource({ uri: "ui://ptf/figure.html" });
+  assert.match(card.contents[0].text, /svg\[data-ptf-figure\] \.s-ink/);
+  assert.doesNotMatch(card.contents[0].text, /PTF_FIGURE_CSS/);
+  const { tools } = await client.listTools();
+  assert.equal(tools.find((t) => t.name === "show_figure")._meta.ui.resourceUri, "ui://ptf/figure.html");
+
+  const r = await client.callTool({ name: "show_figure", arguments: { element: "ptf:el/demo/counting", figure: "count-apples", lang: "en" } });
+  assert.ok(!r.isError, r.content[0].text);
+  assert.match(r.content[0].text, /What it shows: Three apples in a row/);
+  assert.match(r.content[0].text, /3\. One more apple/);
+  assert.equal(r.structuredContent.figure.steps.length, 3);
+  assert.equal(r.structuredContent.object, "ptf:el/demo/counting#figure:count-apples");
+  assert.match(r._meta["ptf/svg"], /^<svg[^>]+data-ptf-figure="1"/);
+
+  const de = await client.callTool({ name: "show_figure", arguments: { element: "ptf:el/demo/counting", figure: "count-apples", lang: "de-AT" } });
+  assert.equal(de.structuredContent.figure.lang, "de");
+  assert.match(de.structuredContent.figure.title, /Äpfel zählen/);
+  const fr = await client.callTool({ name: "show_figure", arguments: { element: "ptf:el/demo/counting", figure: "count-apples", lang: "fr" } });
+  assert.equal(fr.structuredContent.figure.lang, "en");
+
+  const missing = await client.callTool({ name: "show_figure", arguments: { element: "ptf:el/demo/counting", figure: "nope" } });
+  assert.ok(missing.isError);
+  assert.match(missing.content[0].text, /has no figure nope\. Figures: count-apples/);
+  const src = await client.callTool({ name: "ptf_figure_source", arguments: { element: "ptf:el/demo/counting", figure: "count-apples" } });
+  assert.match(src.structuredContent.svg, /<title id="count-apples-t">/);
 });
