@@ -16,7 +16,7 @@
       "title": "Demo bundle",
       "summary": "The smallest useful PTF bundle, used by the tests.",
       "path": "bundles/demo",
-      "digest": "sha256-fOl/I1EIhJYMfL+vuhD67spbWUmuWDXVY3FCgDLXt2w="
+      "digest": "sha256-j00Sp7z4CHO8JWQOC+3JeV7mtWeoKjZltkSZIO4F+JU="
     },
     {
       "kind": "sim",

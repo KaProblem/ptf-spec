@@ -2,6 +2,19 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/KaProblem/ptf-spec/schemas/question-block.schema.json",
   "title": "PTF Question Block",
+  "properties": {
+    "media": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "ID of an entry in the element's `media` list played with the question (SPEC.md §6.9)."
+    },
+    "plays": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9,
+      "description": "How often the learner may play the media; default unlimited."
+    }
+  },
   "oneOf": [
     {
       "type": "object",

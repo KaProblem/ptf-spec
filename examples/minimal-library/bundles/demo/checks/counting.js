@@ -13,5 +13,9 @@ check("q3", () => {
   return n;
 });
 
+// Listening: three apples, two more, one eaten.
+check("q5", (q) => q.options.map((o) => ptf.num(o.text) === 3 + 2 - 1));
+fact("3 + 2 = 5 apples, and Sam eats one, so 5 − 1 = 4 are left.", () => 3 + 2 === 5 && 5 - 1 === 4);
+
 // A number from the explanation text.
 fact("42 − 17 + 1 = 26", () => 42 - 17 + 1 === 26);

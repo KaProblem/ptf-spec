@@ -35,6 +35,22 @@ figures:
   - id: count-apples
     objectives: [next-one]
     use_when: before explaining why the next number is one more
+media:
+  - id: sam-apples
+    kind: audio
+    title: Sam's apples
+    src: media/sam-apples.mp3
+    sha256: dc2eee8a6c49b60c93cfbfb3a3f4ca61c269ec48f01a78b676f8c42b4c51ebd1
+    bytes: 73053
+    duration_s: 12.1
+    transcript: media/sam-apples.txt
+    language: en-US
+    speakers: [narrator]
+    generator: { tool: piper, voice: en-us-amy-low }
+    license: CC-BY-SA-4.0
+    objectives: [count]
+    levels: [child]
+    use_when: the learner should count from listening, without seeing the apples
 status: draft
 version: 0.6.0
 license: CC-BY-SA-4.0
@@ -125,6 +141,44 @@ adding one each time, so every number from 17 to 42 is counted exactly once:
   "rubric": ["Says that counting adds one each time", "Says that 99 + 1 = 100"],
   "sample_answer": "Counting always adds one, and 99 plus one is 100.",
   "explanation": "The next number in counting is always one more than the last one."
+}
+```
+
+```ptf-question
+{
+  "kind": "multiple_choice",
+  "id": "q5",
+  "level": "child",
+  "purpose": "check",
+  "objectives": ["count"],
+  "media": "sam-apples",
+  "plays": 2,
+  "question": "How many apples are left on the table?",
+  "options": [
+    { "text": "4", "correct": true, "feedback": "Yes: three, two more makes five, and one eaten leaves four." },
+    { "text": "5", "correct": false, "feedback": "Five were on the table, but Sam ate one." },
+    { "text": "6", "correct": false, "feedback": "Three and two make five, not six. Then one is eaten." }
+  ],
+  "explanation": "3 + 2 = 5 apples, and Sam eats one, so 5 − 1 = 4 are left."
+}
+```
+
+```ptf-question
+{
+  "kind": "multiple_choice",
+  "id": "q6",
+  "level": "child",
+  "purpose": "check",
+  "objectives": ["count"],
+  "media": "sam-apples",
+  "plays": 2,
+  "question": "Who brings the two extra apples?",
+  "options": [
+    { "text": "Sam's sister", "correct": true, "feedback": "Yes, his sister brings two more." },
+    { "text": "Sam", "correct": false, "feedback": "Sam puts the first three on the table." },
+    { "text": "Sam's dad", "correct": false, "feedback": "Sam's dad is not in the story." }
+  ],
+  "explanation": "The story says: his sister brings two more apples."
 }
 ```
 

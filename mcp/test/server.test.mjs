@@ -258,3 +258,36 @@ test("show_figure serves the checked SVG, its description and step captions", as
   const src = await client.callTool({ name: "ptf_figure_source", arguments: { element: "ptf:el/demo/counting", figure: "count-apples" } });
   assert.match(src.structuredContent.svg, /<title id="count-apples-t">/);
 });
+
+test("show_question plays the media of a listening set and keeps the transcript out of structuredContent", async () => {
+  const r = await client.callTool({ name: "show_question", arguments: { element: "ptf:el/demo/counting", question_ids: ["q5", "q6"] } });
+  assert.ok(!r.isError, r.content[0].text);
+  const sc = r.structuredContent;
+  assert.deepEqual(sc.questions.map((q) => q.id), ["q5", "q6"]);
+  assert.deepEqual(sc.objects, { q5: "ptf:el/demo/counting#q5", q6: "ptf:el/demo/counting#q6" });
+  assert.equal(sc.media.id, "sam-apples");
+  assert.equal(sc.media.plays, 2);
+  assert.equal(sc.media.mime, "audio/mpeg");
+  assert.equal(sc.media.url, null);
+  assert.ok(!JSON.stringify(sc).includes("Sam is hungry"), "transcript is not in structuredContent");
+  assert.match(r._meta["ptf/transcript"], /His sister brings two more apples/);
+  assert.match(r.content[0].text, /play it 2 time\(s\)/);
+  assert.match(r.content[0].text, /for you only: do not read it out/);
+  assert.match(r.content[0].text, /arrives once all of them are answered/);
+
+  const mixed = await client.callTool({ name: "show_question", arguments: { element: "ptf:el/demo/counting", question_ids: ["q2", "q5"] } });
+  assert.ok(mixed.isError);
+  assert.match(mixed.content[0].text, /must share the same media/);
+
+  const src = await client.callTool({ name: "ptf_media_source", arguments: { element: "ptf:el/demo/counting", media: "sam-apples" } });
+  assert.ok(!src.isError, src.content[0].text);
+  assert.equal(src.structuredContent.mime, "audio/mpeg");
+  assert.equal(Buffer.from(src.structuredContent.data, "base64").length, 73053);
+
+  const play = await client.callTool({ name: "show_media", arguments: { element: "ptf:el/demo/counting", media: "sam-apples" } });
+  assert.ok(!play.isError, play.content[0].text);
+  assert.equal(play.structuredContent.object, "ptf:el/demo/counting#media:sam-apples");
+  assert.equal(play.structuredContent.level, "child");
+  const none = await client.callTool({ name: "show_media", arguments: { element: "ptf:el/demo/counting", media: "nope" } });
+  assert.match(none.content[0].text, /no media nope\. Media: sam-apples/);
+});

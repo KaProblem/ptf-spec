@@ -19,6 +19,7 @@ import semver from "semver";
 import YAML from "yaml";
 import { COMPUTED_KINDS, runChecks } from "./answer-checks.mjs";
 import { checkFigure, figureFiles } from "./ptf-figure.mjs";
+import { MAX_MEDIA_BYTES, MEDIA_TYPES, extOf, probeDuration, sha256Hex, sniffMedia, transcriptText, wordCount } from "./ptf-media.mjs";
 
 const SPEC_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_LEVELS = ["child", "highschool", "college", "expert"];
@@ -292,6 +293,7 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
     const name = f.split(sep).pop();
     if (name === "index.md" || name === "log.md") continue;
     const rel = relative(bundleDir, f);
+    if (rel.split(sep)[0] === "media") continue;   // transcripts and media scripts, not documents
     const fm = parseFrontmatter(readFileSync(f, "utf8"));
     if (!fm) { err(f, "no YAML frontmatter (OKF requires it)"); continue; }
     if (!fm.data.type) { err(f, "frontmatter has no type (OKF requires it)"); continue; }
@@ -301,6 +303,7 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
 
   const figures = checkFigures(bundleDir);
   const usedFigures = new Set();
+  const usedMedia = new Set();   // files under media/ that an element lists
 
   for (const { f, rel, fm } of elements) {
     const d = fm.data;
@@ -342,6 +345,8 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
     const misIds = new Set([...misText.matchAll(/\*\*([a-z0-9][a-z0-9-]*)\*\*/g)].map((m) => m[1]));
     if (misText && misIds.size === 0) warn(f, "misconceptions have no **id** markers (SPEC.md §6.4)");
 
+    const mediaIds = checkElementMedia(bundleDir, f, d, objIds, usedMedia);
+
     const qIds = new Set();
     const checkLevels = new Set();
     const covered = new Set();   // "<level> <objective>"
@@ -360,6 +365,8 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
       for (const o of q.objectives ?? []) if (!objIds.has(o)) err(where, `objective "${o}" is not an objective id of this element`);
       if (q.level && !(d.levels ?? []).includes(q.level)) warn(where, `question level "${q.level}" is not in the element's levels`);
       if (q.misconception && !misIds.has(q.misconception)) err(where, `misconception "${q.misconception}" is not defined under # Misconceptions`);
+      if (q.media && !mediaIds.has(q.media)) err(where, `media "${q.media}" is not in the element's \`media\` list (SPEC.md §6.9)`);
+      if (q.plays && !q.media) warn(where, "`plays` without `media` has no effect");
       if (q.kind === "cloze" && q.text && q.gaps) {
         const n = (q.text.match(/\{\{\d+\}\}/g) ?? []).length;
         if (n !== q.gaps.length) err(where, `cloze has ${n} gaps in text but ${q.gaps.length} in gaps`);
@@ -425,6 +432,13 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
   }
 
   for (const id of figures.keys()) if (!usedFigures.has(id)) warn(join(bundleDir, "figures", `${id}.svg`), "no element lists this figure in `figures`");
+  const mediaDir = join(bundleDir, "media");
+  if (existsSync(mediaDir)) {
+    for (const file of walk(mediaDir)) {
+      const r = relative(bundleDir, file).split(sep).join("/");
+      if (!r.startsWith("media/src/") && !usedMedia.has(r)) warn(file, "no element lists this file in `media` (as src or transcript)");
+    }
+  }
 
   for (const { f, fm } of paths) for (const e of schemaErrors("learning-path", fm.data)) err(f, e);
 
@@ -445,6 +459,55 @@ function checkBundle(bundleDir, simIndex, codeIndex = {}) {
     }
   }
   return elements.length + paths.length;
+}
+
+// ---------- media (SPEC.md §6.9) ----------
+
+/** Checks the `media` list of an element; returns the ids of its entries. */
+function checkElementMedia(bundleDir, f, d, objIds, usedMedia) {
+  const ids = new Set();
+  for (const m of d.media ?? []) {
+    if (!m?.id) continue;
+    const where = `${f}#media:${m.id}`;
+    if (ids.has(m.id)) err(where, "duplicate media id");
+    ids.add(m.id);
+    for (const o of m.objectives ?? []) if (objIds.size && !objIds.has(o)) err(where, `objective "${o}" is not an objective id of this element`);
+    for (const l of m.levels ?? []) if (!(d.levels ?? []).includes(l)) warn(where, `level "${l}" is not in the element's levels`);
+    const type = m.src ? MEDIA_TYPES[extOf(m.src)] : null;
+    if (m.src && !type) err(where, `src must end in ${Object.keys(MEDIA_TYPES).map((e) => "." + e).join(", ")}`);
+    else if (type && m.kind && type.kind !== m.kind) err(where, `src is ${type.kind} (.${extOf(m.src)}) but kind is ${m.kind}`);
+    if (m.kind === "video" && m.transcript && !m.transcript.endsWith(".vtt")) err(where, "a video needs captions as a .vtt transcript");
+    if (m.src?.startsWith("media/")) {
+      usedMedia.add(m.src);
+      const file = join(bundleDir, m.src);
+      if (!existsSync(file)) err(where, `file ${m.src} not found`);
+      else {
+        const buf = readFileSync(file);
+        if (buf.length > MAX_MEDIA_BYTES) err(where, `${m.src} has ${(buf.length / 1048576).toFixed(1)} MiB; files over 10 MiB go to an https URL (SPEC.md §6.9)`);
+        if (m.bytes != null && buf.length !== m.bytes) err(where, `bytes is ${m.bytes}, the file has ${buf.length}`);
+        if (m.sha256 && sha256Hex(buf) !== m.sha256) err(where, `sha256 does not match ${m.src}; recompute it after changing the file`);
+        if (type && !sniffMedia(buf, extOf(m.src))) err(where, `${m.src} is not an ${extOf(m.src).toUpperCase()} file`);
+        const dur = probeDuration(file);
+        if (dur != null && m.duration_s != null && Math.abs(dur - m.duration_s) > Math.max(1, dur * 0.02)) err(where, `duration_s is ${m.duration_s}, the file plays ${dur.toFixed(1)} s`);
+      }
+    }
+    if (m.transcript) {
+      usedMedia.add(m.transcript);
+      const tf = join(bundleDir, m.transcript);
+      if (!existsSync(tf)) err(where, `transcript ${m.transcript} not found`);
+      else {
+        const raw = readFileSync(tf, "utf8");
+        if (m.transcript.endsWith(".vtt") && !/^\uFEFF?WEBVTT/.test(raw)) err(where, `${m.transcript} does not start with WEBVTT`);
+        const words = wordCount(transcriptText(raw, m.transcript));
+        if (!words) err(where, `transcript ${m.transcript} is empty`);
+        else if (m.duration_s > 0) {
+          const wpm = words / (m.duration_s / 60);
+          if (wpm < 40 || wpm > 240) warn(where, `transcript has ${words} words for ${m.duration_s} s (${Math.round(wpm)} words per minute); does it match the file?`);
+        }
+      }
+    }
+  }
+  return ids;
 }
 
 // SPEC.md §7.1: checks/<element>.js recomputes the answers of the element's questions.

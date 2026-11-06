@@ -166,6 +166,7 @@ Pick the simplest medium that serves the objective.
 | Conversation | Definitions, reasons, history, connecting ideas, repairing a misconception |
 | Worked example | Procedures and calculations, for novices |
 | Figure | Shapes, graphs, quantities side by side, a construction or proof that builds up step by step; anything one picture shows better than words |
+| Audio, video | Listening comprehension, pronunciation, dialogues, a demonstration that needs sound or motion; always with a transcript |
 | Question card | Predictions, checks, reviews |
 | Simulator station | Cause and effect that is hard to imagine, a parameter to vary, many fast trials, processes in time or space |
 | Code lab | Learners who want to build it themselves, usually `college` and above |

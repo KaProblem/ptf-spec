@@ -15,7 +15,7 @@ question blocks, figures, simulators and code labs.
 
 | Document | Defines |
 | --- | --- |
-| SPEC.md (this file) | Bundles, learning elements, levels, questions, figures, paths, IDs, versioning |
+| SPEC.md (this file) | Bundles, learning elements, levels, questions, figures, media, paths, IDs, versioning |
 | [PEDAGOGY.md](PEDAGOGY.md) | How a tutor teaches: the learning atmosphere PTF is built for |
 | [SIMULATOR-SPEC.md](SIMULATOR-SPEC.md) | Simulator packages, the host contract, security |
 | [CODE-SPEC.md](CODE-SPEC.md) | Code labs: runnable code the learner builds on locally |
@@ -58,6 +58,7 @@ such as IMS QTI; its question blocks are small and convertible.
 | Learning path (course) | An ordered sequence of elements towards a goal. |
 | Question block | One quiz item of a known kind, as JSON. |
 | Figure | A still or step-by-step SVG picture of an element (§6.8). |
+| Media | An audio or video file of an element with its transcript (§6.9). |
 | Simulator | A versioned, sandboxed HTML package to explore a concept. |
 | Code lab | A versioned package of runnable code in steps (CODE-SPEC.md). |
 | Level | How deep a concept is taught (§5). |
@@ -82,6 +83,8 @@ library/
     checks/<name>.js      # answer checks for elements/<name>.md (§7.1)
     figures/<id>.svg      # optional: figures (§6.8), translations <id>.<lang>.svg
     figures/src/          # optional: the scripts that generate the figures
+    media/                # optional: audio, video and transcripts (§6.9)
+    media/src/            # optional: the scripts that generate the media
     paths/<name>.md       # type: Learning Path
     sims/, code/          # optional: bundle-local packages
 ```
@@ -209,6 +212,15 @@ figures:                                 # §6.8
   - id: softmax-bars                     # figures/softmax-bars.svg of the bundle
     objectives: [larger-score]
     use_when: before the learner computes softmax by hand
+media:                                   # §6.9
+  - id: shop-dialogue
+    kind: audio
+    src: media/shop-dialogue.mp3
+    sha256: 9f2c…                        # hex SHA-256 of the file
+    bytes: 1843200
+    duration_s: 151.4
+    transcript: media/shop-dialogue.txt
+    license: CC-BY-SA-4.0
 sources:                                 # provenance only, never cited to the learner
   - { id: karpathy-gpt, resource: https://www.youtube.com/watch?v=kCc8FmEb1nY, title: "Let's build GPT" }
 generated: { by: claude/opus, at: 2026-10-26T12:00:00Z }
@@ -378,6 +390,47 @@ Figures are written in a script that computes the coordinates, never by eye,
 and are checked in a rendered screenshot at phone width
 (`tools/ptf-figure.mjs shot`); `ptf-check` checks the rules above.
 
+### 6.9 Media
+
+Audio and video are part of the content, like figures. The **author makes
+them once** and is responsible for them; hosts only play the files and never
+generate speech or video while teaching. How a file was made does not matter:
+a recording, a text-to-speech model, several voices for a dialogue.
+
+**Listing.** An element lists its media in `media` (§6.1):
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `id`, `kind` | yes | `audio` or `video` |
+| `src` | yes | `media/<file>` in the bundle (`.mp3`, `.m4a` or `.mp4`, at most 10 MiB), or an `https://` URL for larger files |
+| `sha256`, `bytes`, `duration_s` | yes | Hex SHA-256 and size of the file, length in seconds |
+| `transcript` | yes | `media/<file>.txt`, or captions `media/<file>.vtt` (required for video) |
+| `license` | yes | As for text |
+| `title`, `language`, `speakers` | no | `language` as `en-GB`; `speakers` names the roles of a dialogue |
+| `generator` | no | Provenance: tool, model and voice, or who recorded it |
+| `objectives`, `levels`, `use_when` | no | As for figures |
+
+`tools/ptf-media.mjs entry <bundle> <file>` prints `sha256`, `bytes` and
+`duration_s` for a file. Speech needs little: a mono MP3 at 48 to 64 kbit/s
+is about 0.4 MB a minute. The script a file was generated from MAY be kept
+in `media/src/`.
+
+**Transcripts.** The tutor never hears the file; the transcript is what it
+knows. It also serves learners who cannot listen, and a listening task shows
+it after the answer.
+
+**Questions.** A question block names the media it is about with `media`
+(§7) and MAY limit how often it can be played with `plays`, as a listening
+exam does. Several questions on one recording share the same `media`; a host
+SHOULD be able to show them together.
+
+**Showing.** A host plays a file only when its bytes match `sha256`. It gives
+the tutor the transcript, which the tutor MUST NOT read out or hint at before
+the learner has answered, and shows it to the learner after the answer (or
+on request when no question is asked). Playing a medium to the end records
+`experienced` with the object `ptf:el/<bundle>/<element>#media:<id>`. In the
+MCP server these are the tools `show_media` and `show_question`.
+
 ---
 
 ## 7. Question blocks
@@ -395,6 +448,7 @@ Library questions are reviewed examples; a tutor MAY ask its own.
 | `objectives` | for `check`, `probe` | IDs of the element's objectives the question checks. |
 | `misconception` | no | The misconception ID it targets. |
 | `hints` | no | One to three hints, from a nudge to almost the answer, given one at a time after a wrong or missing answer and before the solution. |
+| `media`, `plays` | no | ID of an entry in the element's `media` played with the question, and how often it may be played (§6.9). |
 | `explanation` | yes | Why the answer is right, shown afterwards. |
 
 | Kind | Learner does | Specific fields |
@@ -615,8 +669,11 @@ A PTF v0.1 bundle is conformant if:
 6. Every `simulators[].ref` and `code[].ref` resolves to an existing version,
    every `code[].step` exists, and every package validates against
    SIMULATOR-SPEC.md §2 or CODE-SPEC.md §2 with matching `integrity`.
-6. Every `figures[].id` has a file `figures/<id>.svg`, and every file in
+7. Every `figures[].id` has a file `figures/<id>.svg`, and every file in
    `figures/` follows §6.8.
+8. Every `media[]` entry follows §6.9: a file in the bundle matches its
+   `sha256` and `bytes`, is at most 10 MiB and has a transcript; every
+   question's `media` names an entry of its element.
 
 `tools/ptf-check` checks all of this. Consumers MUST tolerate unknown types,
 keys and levels and missing optional sections.

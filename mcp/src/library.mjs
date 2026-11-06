@@ -6,6 +6,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import semver from "semver";
 import YAML from "yaml";
+import { MAX_MEDIA_BYTES, mimeOf, sha256Hex, transcriptText } from "../../tools/ptf-media.mjs";
 
 const DATA_TYPES = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
   ".svg": "image/svg+xml", ".webp": "image/webp", ".woff2": "font/woff2", ".woff": "font/woff", ".mp3": "audio/mpeg" };
@@ -197,6 +198,44 @@ export class Library {
     return { id: figureId, file: join(base, `${figureId}.svg`), lang: d.meta.lang ?? null, entry: listed.find((x) => x.id === figureId) ?? null };
   }
 
+  /**
+   * A media entry of an element (SPEC.md §6.9) with its transcript. A file in the bundle is
+   * read and checked against sha256; an https src is passed on as url. Returns
+   * { id, entry, mime, file, url, transcript }.
+   */
+  media(elementId, mediaId) {
+    const d = this.doc(elementId);
+    if (!d || d.type !== "Learning Element") throw new Error(`Unknown element ${elementId}.`);
+    const listed = (d.meta.media ?? []).filter((m) => m && m.id);
+    const entry = listed.find((m) => m.id === mediaId);
+    if (!entry) throw new Error(`Element ${elementId} has no media ${mediaId}. Media: ${listed.map((m) => m.id).join(", ") || "none"}`);
+    const dir = this.bundles.get(d.bundle)?.dir;
+    const inBundle = (rel) => {
+      if (!dir || !/^media\/[a-z0-9][a-z0-9._-]*$/.test(String(rel))) return null;
+      const f = join(dir, rel);
+      return existsSync(f) ? f : null;
+    };
+    const tf = inBundle(entry.transcript);
+    if (!tf) throw new Error(`Media ${mediaId} of ${elementId} has no transcript file ${entry.transcript}, so it is not shown.`);
+    const transcript = transcriptText(readFileSync(tf, "utf8"), tf);
+    const src = String(entry.src ?? "");
+    const mime = mimeOf(src);
+    if (!mime) throw new Error(`Media ${mediaId} of ${elementId}: src must be an .mp3, .m4a or .mp4 file.`);
+    if (/^https:\/\//.test(src)) return { id: mediaId, entry, mime, file: null, url: src, transcript };
+    const file = inBundle(src);
+    if (!file) throw new Error(`Media ${mediaId} of ${elementId}: file ${src} not found.`);
+    return { id: mediaId, entry, mime, file, url: null, transcript };
+  }
+
+  /** The bytes of a media file in the bundle, checked against its entry. */
+  mediaBytes(hit) {
+    if (!hit.file) throw new Error(`Media ${hit.id} is hosted at ${hit.url}; the card loads it from there.`);
+    const buf = readFileSync(hit.file);
+    if (buf.length > MAX_MEDIA_BYTES) throw new Error(`Media ${hit.id} is over 10 MiB.`);
+    if (hit.entry.sha256 && sha256Hex(buf) !== hit.entry.sha256) throw new Error(`Media ${hit.id}: the file does not match its sha256, so it is not played.`);
+    return buf;
+  }
+
   /** Picks the version for a simulator or code lab: lockfile of the given bundle, else highest match (non-deprecated first). */
   #pick(id, range, bundleId, kind = "simulators") {
     const versions = (kind === "code" ? this.labs : this.sims).get(id);
@@ -283,5 +322,6 @@ function summary(d) {
     ...(m.steps ? { steps: m.steps.map((s) => s.element) } : {}),
     ...(m.simulators ? { simulators: m.simulators.map((s) => ({ ref: s.ref, station: s.station, levels: s.levels, role: s.role, use_when: s.use_when })) } : {}),
     ...(m.code ? { code: m.code.map((c) => ({ ref: c.ref, step: c.step, levels: c.levels })) } : {}),
-    ...(m.figures ? { figures: m.figures.map((f) => ({ id: f.id, objectives: f.objectives, levels: f.levels, use_when: f.use_when })) } : {}) };
+    ...(m.figures ? { figures: m.figures.map((f) => ({ id: f.id, objectives: f.objectives, levels: f.levels, use_when: f.use_when })) } : {}),
+    ...(m.media ? { media: m.media.map((x) => ({ id: x.id, kind: x.kind, title: x.title, duration_s: x.duration_s, objectives: x.objectives, levels: x.levels, use_when: x.use_when })) } : {}) };
 }

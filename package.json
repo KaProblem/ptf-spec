@@ -9,7 +9,8 @@
     "ptf-selftest": "tools/ptf-selftest.mjs",
     "ptf-codetest": "tools/ptf-codetest.mjs",
     "ptf-vendor": "tools/ptf-vendor.mjs",
-    "ptf-figure": "tools/ptf-figure.mjs"
+    "ptf-figure": "tools/ptf-figure.mjs",
+    "ptf-media": "tools/ptf-media.mjs"
   },
   "scripts": {
     "check": "node tools/ptf-check.mjs",
