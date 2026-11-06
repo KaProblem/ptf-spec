@@ -7,7 +7,7 @@ title: Demo bundle
 description: The smallest useful PTF bundle, used by the tests.
 lang: en
 license: CC-BY-SA-4.0
-version: 0.3.0
+version: 0.4.0
 ---
 
 # Contents

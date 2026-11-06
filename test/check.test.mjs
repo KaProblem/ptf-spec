@@ -192,7 +192,7 @@ test("catalog lists every package with its digest and catches drift", () => {
   const file = join(lib, "ptf-catalog.json");
   const catalog = JSON.parse(readFileSync(file, "utf8"));
   assert.deepEqual(catalog.packages.map((p) => `${p.kind} ${p.id}@${p.version} ${p.path}`), [
-    "bundle demo@0.3.0 bundles/demo",
+    "bundle demo@0.4.0 bundles/demo",
     "sim ptf:sim/counter@1.0.0 sims/counter/1.0.0",
     "code ptf:code/counting@1.0.0 code/counting/1.0.0",
   ]);
@@ -203,7 +203,7 @@ test("catalog lists every package with its digest and catches drift", () => {
   writeFileSync(sim, readFileSync(sim, "utf8").replace('"version": "1.0.0"', '"version": "1.0.1"'));
   let r = run(lib);
   assert.equal(r.status, 1);
-  assert.match(r.stdout, /bundle demo@0\.3\.0: digest differs from the files/);
+  assert.match(r.stdout, /bundle demo@0\.4\.0: digest differs from the files/);
   assert.match(r.stdout, /sim ptf:sim\/counter@1\.0\.1 is not listed/);
 
   r = run("catalog", "--write", lib);
@@ -297,4 +297,34 @@ test("a translated figure must keep the steps of the canonical one", () => {
   const r = run(lib);
   assert.equal(r.status, 1);
   assert.match(r.stdout, /has 2 step\(s\), the canonical figure 3/);
+});
+
+test("checks media: hash, size, file type, transcript and references", () => {
+  const lib = copyExample();
+  const el = join(lib, "bundles/demo/elements/counting.md");
+  const mp3 = join(lib, "bundles/demo/media/sam-apples.mp3");
+  writeFileSync(mp3, Buffer.concat([readFileSync(mp3), Buffer.from("x")]));
+  writeFileSync(join(lib, "bundles/demo/media/stray.mp3"), "ID3");
+  writeFileSync(join(lib, "bundles/demo/media/sam-apples.txt"), "");
+  writeFileSync(el, readFileSync(el, "utf8").replace('"media": "sam-apples",\n  "plays": 2,\n  "question": "Who', '"media": "nope",\n  "question": "Who')
+    .replace("kind: audio\n    title", "kind: video\n    title"));
+  const r = run(lib);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /bytes is 73053, the file has 73054/);
+  assert.match(r.stdout, /sha256 does not match media\/sam-apples\.mp3/);
+  assert.match(r.stdout, /src is audio \(\.mp3\) but kind is video/);
+  assert.match(r.stdout, /a video needs captions as a \.vtt transcript/);
+  assert.match(r.stdout, /transcript media\/sam-apples\.txt is empty/);
+  assert.match(r.stdout, /media "nope" is not in the element's `media` list/);
+  assert.match(r.stdout, /stray\.mp3: no element lists this file in `media`/);
+});
+
+test("media over 10 MiB and wrong file types are rejected", () => {
+  const lib = copyExample();
+  const mp3 = join(lib, "bundles/demo/media/sam-apples.mp3");
+  writeFileSync(mp3, Buffer.alloc(11 * 1024 * 1024));
+  const r = run(lib);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /has 11\.0 MiB; files over 10 MiB go to an https URL/);
+  assert.match(r.stdout, /media\/sam-apples\.mp3 is not an MP3 file/);
 });

@@ -71,6 +71,16 @@
   .step .expr { color: var(--muted); }
   .step input.field { flex: 1; min-width: 8em; }
   .total { font-weight: 600; }
+  .media { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 8px; background: var(--surface); }
+  .media .title { font-weight: 600; }
+  .media video { width: 100%; border-radius: 6px; background: #000; }
+  .bar { flex: 1; min-width: 80px; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .bar .fill { height: 100%; width: 0; background: var(--accent); }
+  .time { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .transcript { white-space: pre-wrap; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 0; }
+  .item { display: grid; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .item:first-of-type { border-top: 0; padding-top: 0; }
+  .num { color: var(--muted); font-size: 13px; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -95,7 +105,12 @@
       answerIs: "Answer", within: "counts as right within \u00b1", guessNext: "What comes next?", showHint: "Show hint", hintLabel: "Hint:",
       steps: "Work out each step.", stepValue: "Your value", checkStep: "Check step", reveal: "Show step", revealed: "shown",
       msgResult: function (task, a, ok) { return "My answer to \u201c" + task + "\u201d: " + a + " (" + (ok ? "correct" : "wrong") + ")"; },
-      msgSteps: function (title, n, total, ok) { return "Worked steps \u201c" + title + "\u201d: " + n + " of " + total + " steps right" + (ok ? " (correct)" : ""); } },
+      msgSteps: function (title, n, total, ok) { return "Worked steps \u201c" + title + "\u201d: " + n + " of " + total + " steps right" + (ok ? " (correct)" : ""); },
+      listening: "Listening", video: "Video", play: "Play", pause: "Pause", playsLeft: function (n) { return n === 1 ? "1 play left" : n + " plays left"; },
+      noPlays: "No plays left", slower: "Slower", transcript: "Transcript", showTranscript: "Show transcript", loadingMedia: "Loading audio…",
+      mediaFailed: "The audio could not be played: ", answerAll: function (n) { return "Answer all " + n + " questions."; },
+      question: "Question", msgSet: function (n, title) { return "My answers" + (title ? " to \u201c" + title + "\u201d" : "") + " (" + n + " questions):"; },
+      msgListened: function (title) { return "I have listened to \u201c" + title + "\u201d."; } },
     de: { badge: "Frage", loading: "Frage wird geladen…", check: "Prüfen", send: "Antwort senden", pickOne: "Wähle eine Antwort.",
       pickMany: "Wähle alle Antworten, die stimmen.", write: "Antworte in eigenen Worten.", placeholder: "Deine Antwort…",
       right: "Richtig!", wrong: "Nicht ganz.", explanation: "Warum:", sent: "Gesendet. Dein Tutor sieht sich deine Antwort an.",
@@ -107,7 +122,12 @@
       answerIs: "Lösung", within: "zählt als richtig innerhalb \u00b1", guessNext: "Was kommt als Nächstes?", showHint: "Hinweis zeigen", hintLabel: "Hinweis:",
       steps: "Rechne jeden Schritt aus.", stepValue: "Dein Wert", checkStep: "Schritt prüfen", reveal: "Schritt zeigen", revealed: "gezeigt",
       msgResult: function (task, a, ok) { return "Meine Antwort auf \u201e" + task + "\u201c: " + a + " (" + (ok ? "richtig" : "falsch") + ")"; },
-      msgSteps: function (title, n, total, ok) { return "Rechenweg \u201e" + title + "\u201c: " + n + " von " + total + " Schritten richtig" + (ok ? " (richtig)" : ""); } }
+      msgSteps: function (title, n, total, ok) { return "Rechenweg \u201e" + title + "\u201c: " + n + " von " + total + " Schritten richtig" + (ok ? " (richtig)" : ""); },
+      listening: "Hören", video: "Video", play: "Abspielen", pause: "Pause", playsLeft: function (n) { return n === 1 ? "noch 1-mal" : "noch " + n + "-mal"; },
+      noPlays: "Nicht mehr abspielbar", slower: "Langsamer", transcript: "Transkript", showTranscript: "Transkript zeigen", loadingMedia: "Audio wird geladen…",
+      mediaFailed: "Das Audio konnte nicht abgespielt werden: ", answerAll: function (n) { return "Beantworte alle " + n + " Fragen."; },
+      question: "Frage", msgSet: function (n, title) { return "Meine Antworten" + (title ? " zu \u201e" + title + "\u201c" : "") + " (" + n + " Fragen):"; },
+      msgListened: function (title) { return "Ich habe \u201e" + title + "\u201c angehört."; } }
   };
   var t = TEXT.en;
   var userLang = "en";
@@ -184,9 +204,10 @@
   }).observe(document.documentElement);
 
   // ---------- talking to the tutor ----------
-  function record(result) {
-    if (!data.object) return;
-    callTool("ptf_record_event", { verb: "answered", object: data.object, level: data.question.level, result: result, via: "quiz" })
+  function record(result, q) {
+    var object = (data.objects && data.objects[q.id]) || (q === data.question ? data.object : null);
+    if (!object) return;
+    callTool("ptf_record_event", { verb: "answered", object: object, level: q.level, result: result, via: "quiz" })
       .catch(function () { /* recording is best effort */ });
   }
   function tellTutor(textForTutor) {
@@ -199,15 +220,114 @@
     return Promise.reject(new Error("host cannot receive messages"));
   }
 
+  // One question: its message goes to the tutor at once. Several: the card sends one message once all are answered.
+  var answers = {};
+  function answered(q, message) {
+    var qs = data.questions || [data.question];
+    if (qs.length < 2) { revealTranscript(); return tellTutor(message); }
+    answers[q.id] = message;
+    if (!qs.every(function (x) { return answers[x.id] != null; })) return Promise.resolve();
+    revealTranscript();
+    return tellTutor(t.msgSet(qs.length, data.media && data.media.title) + "\n" + qs.map(function (x, i) { return (i + 1) + ". " + answers[x.id]; }).join("\n"));
+  }
+
+  // ---------- media (SPEC.md §6.9) ----------
+  var transcript = null, transcriptBox = null;
+  function clock(s) { s = Math.max(0, Math.round(s || 0)); return Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2); }
+  function revealTranscript() {
+    if (!transcriptBox || !transcript || transcriptBox.childNodes.length) return;
+    transcriptBox.appendChild(el("div", "num", t.transcript));
+    transcriptBox.appendChild(el("p", "transcript", transcript));
+  }
+  function renderMedia(main, m, alone) {
+    var box = el("div", "media");
+    box.appendChild(el("div", "title", m.title));
+    var player = document.createElement(m.kind === "video" ? "video" : "audio");
+    player.preload = "auto";
+    player.setAttribute("playsinline", "");
+    if (m.language) player.setAttribute("lang", m.language);
+    if (m.kind !== "video") player.hidden = true;   // audio has its own controls below
+    box.appendChild(player);
+    var row = el("div", "row");
+    var btn = primaryButton(t.loadingMedia);
+    btn.disabled = true;
+    var bar = el("div", "bar"), fill = el("div", "fill");
+    bar.appendChild(fill);
+    var time = el("span", "time", "0:00 / " + clock(m.duration_s));
+    row.appendChild(btn); row.appendChild(bar); row.appendChild(time);
+    box.appendChild(row);
+    var left = m.plays || null, slow = null, started = false, heard = false;
+    if (!m.plays) {
+      slow = el("button", "ghost", t.slower);
+      slow.type = "button";
+      slow.setAttribute("aria-pressed", "false");
+      slow.addEventListener("click", function () {
+        var on = slow.getAttribute("aria-pressed") !== "true";
+        slow.setAttribute("aria-pressed", String(on));
+        player.playbackRate = on ? 0.85 : 1;
+      });
+      row.appendChild(slow);
+    }
+    var info = el("div", "hint");
+    box.appendChild(info);
+    transcriptBox = el("div");
+    box.appendChild(transcriptBox);
+    main.appendChild(box);
+    function label() {
+      if (!player.paused) { btn.textContent = t.pause; return; }
+      btn.textContent = "\u25b6 " + t.play;
+      if (left !== null) info.textContent = left > 0 ? t.playsLeft(left) : t.noPlays;
+      btn.disabled = left !== null && left <= 0 && !started;
+    }
+    btn.addEventListener("click", function () {
+      if (!player.paused) { player.pause(); return; }
+      if (!started) {
+        if (left !== null && left <= 0) return;
+        started = true;
+        if (left !== null) left--;
+        player.currentTime = 0;
+      }
+      if (slow) player.playbackRate = slow.getAttribute("aria-pressed") === "true" ? 0.85 : 1;
+      var p = player.play();
+      if (p && p.catch) p.catch(function (e) { info.textContent = t.mediaFailed + e.message; });
+    });
+    player.addEventListener("play", label);
+    player.addEventListener("pause", label);
+    player.addEventListener("timeupdate", function () {
+      var d = player.duration || m.duration_s || 1;
+      fill.style.width = Math.min(100, 100 * player.currentTime / d) + "%";
+      time.textContent = clock(player.currentTime) + " / " + clock(d);
+    });
+    player.addEventListener("ended", function () {
+      started = false;
+      label();
+      if (heard) return;
+      heard = true;
+      if (alone) {
+        var show = el("button", "ghost", t.showTranscript);
+        show.type = "button";
+        show.addEventListener("click", function () { show.remove(); revealTranscript(); });
+        row.appendChild(show);
+        if (data.object) callTool("ptf_record_event", { verb: "experienced", object: data.object, level: data.level || undefined, via: "media" }).catch(function () {});
+        tellTutor(t.msgListened(m.title)).catch(function () {});
+      }
+    });
+    player.addEventListener("error", function () { info.textContent = t.mediaFailed + ((player.error && player.error.message) || "error"); });
+    function ready(src) {
+      player.src = src;
+      btn.disabled = false;
+      label();
+    }
+    if (m.url) ready(m.url);
+    else callTool("ptf_media_source", { element: data.element, media: m.id }).then(function (r) {
+      var sc = r.structuredContent || {};
+      if (!sc.data) throw new Error("no media data");
+      ready("data:" + (sc.mime || m.mime) + ";base64," + sc.data);
+    }).catch(function (e) { btn.textContent = "\u25b6 " + t.play; info.textContent = t.mediaFailed + e.message; });
+  }
+
   // ---------- rendering ----------
-  function onToolResult(result) {
-    var sc = result.structuredContent;
-    if (!sc || !sc.question) { fail(((result.content || [])[0] || {}).text || "no question in tool result"); return; }
-    data = sc;
-    if (sc.lang) $("main").setAttribute("lang", sc.lang);
-    var main = $("main");
-    main.innerHTML = "";
-    var q = sc.question;
+  function renderQuestion(main, q) {
     if (q.kind === "multiple_choice") renderChoice(main, q);
     else if (q.kind === "free_text") renderFreeText(main, q);
     else if (q.kind === "cloze") renderCloze(main, q);
@@ -216,6 +336,29 @@
     else if (q.kind === "guess_next") renderGuessNext(main, q);
     else if (q.kind === "calculation_steps") renderSteps(main, q);
     else fail("unsupported kind " + q.kind);
+  }
+  function onToolResult(result) {
+    var sc = result.structuredContent;
+    if (!sc || !(sc.question || sc.media)) { fail(((result.content || [])[0] || {}).text || "no question in tool result"); return; }
+    data = sc;
+    answers = {};
+    transcript = (result._meta && result._meta["ptf/transcript"]) || null;
+    if (sc.lang) $("main").setAttribute("lang", sc.lang);
+    var main = $("main");
+    main.innerHTML = "";
+    var qs = sc.questions || (sc.question ? [sc.question] : []);
+    if (sc.media) {
+      document.querySelector(".badge").textContent = sc.media.kind === "video" ? t.video : t.listening;
+      renderMedia(main, sc.media, !qs.length);
+    }
+    if (qs.length === 1) { renderQuestion(main, qs[0]); return; }
+    qs.forEach(function (q, i) {
+      var item = el("section", "item");
+      item.appendChild(el("div", "num", t.question + " " + (i + 1)));
+      main.appendChild(item);
+      renderQuestion(item, q);
+    });
+    if (qs.length) $("hint").textContent = t.answerAll(qs.length);
   }
 
   function shuffled(list) {
@@ -279,8 +422,8 @@
       showExplanation(main, q);
       var result = { correct: ok, response: picked.join(" | ").slice(0, 2000) };
       if (!ok && q.misconception) result.misconception = q.misconception;
-      record(result);
-      tellTutor(t.msgChoice(q.question, picked.join(", "), ok)).catch(function () {});
+      record(result, q);
+      answered(q, t.msgChoice(q.question, picked.join(", "), ok)).catch(function () {});
     });
   }
 
@@ -302,7 +445,7 @@
       var answer = area.value.trim();
       if (!answer) return;
       btn.disabled = true; area.disabled = true;
-      tellTutor(t.msgText(q.question, answer)).then(function () {
+      answered(q, t.msgText(q.question, answer)).then(function () {
         btn.remove();
         actions.appendChild(el("span", "hint", t.sent));
       }, function (e) { btn.disabled = false; area.disabled = false; actions.appendChild(el("span", "result wrong", e.message)); });
@@ -357,8 +500,8 @@
     showExplanation(main, q);
     var result = { correct: ok, response: String(response).slice(0, 2000) };
     if (!ok && q.misconception) result.misconception = q.misconception;
-    record(result);
-    tellTutor(message).catch(function () {});
+    record(result, q);
+    answered(q, message).catch(function () {});
   }
 
   function renderCloze(main, q) {
