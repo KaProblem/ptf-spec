@@ -188,6 +188,9 @@ levels: [highschool, college]            # REQUIRED (§5.1)
 objectives:                              # RECOMMENDED: what the learner can do afterwards
   - id: probabilities
     text: Turn a list of scores into probabilities and explain why they sum to 1.
+    criteria:                            # optional: what counts as shown, per level
+      highschool: Computes the shares for three scores and says why they add up to 1.
+      college: Writes the formula, computes it and explains the role of the exponential.
   - id: larger-score
     text: Predict how a larger score changes the distribution.
 about:                                   # RECOMMENDED: Wikidata items (§6.6)
@@ -235,6 +238,10 @@ license: CC-BY-SA-4.0
   learner has shown (LEARNER-RECORD.md §5). Keep IDs stable; removing or
   renaming one is a major version. Plain strings without an ID are still
   accepted; `ptf-check` warns about them and about missing objectives.
+  An objective is the same at every level (§5.2); `criteria` MAY say, per
+  level, what counts as having shown it ("describes", "computes",
+  "derives"), so the tutor and the author of a question know what a check at
+  that depth asks for. Keys are level IDs of the element.
 - `requires`: what the learner should know first. An entry from another
   library carries the URL of that library's catalog, so a host can offer to
   connect it.
@@ -440,6 +447,7 @@ Library questions are reviewed examples; a tutor MAY ask its own.
 | `purpose` | no | `warmup` (guess before learning), `check` (default: tests an objective), `transfer` (apply in a new situation), `probe` (sorts "knows it" from "sounds familiar" before a course; also counts as a `check`). |
 | `objectives` | for `check`, `probe` | IDs of the element's objectives the question checks. |
 | `misconception` | no | The misconception ID it targets. |
+| `hints` | no | One to three hints, from a nudge to almost the answer, given one at a time after a wrong or missing answer and before the solution. |
 | `media`, `plays` | no | ID of an entry in the element's `media` played with the question, and how often it may be played (§6.9). |
 | `explanation` | yes | Why the answer is right, shown afterwards. |
 
@@ -458,6 +466,12 @@ Every objective SHOULD have a `check` or `probe` question at every level
 of the element; `ptf-check` lists the gaps. A tutor's own questions name
 objectives the same way when it records the answer. Wrong options SHOULD be
 real misconceptions with `feedback`.
+
+After a wrong answer the feedback names what was right, what exactly went
+wrong and the next step; then comes a hint and a new attempt, and only then
+the solution. An answer given after the solution was shown is recorded with
+`result.assistance: solution` and does not count as evidence
+(LEARNER-RECORD.md §5); one given after a hint counts, marked `hint`.
 
 ```ptf-question
 {

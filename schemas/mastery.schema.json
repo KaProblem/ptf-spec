@@ -107,6 +107,19 @@
           "skipped": {
             "type": "boolean",
             "description": "The learner chose to leave the element out; does not count as completed."
+          },
+          "suspected_misconceptions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]*$"
+            },
+            "description": "Named by one wrong answer, not yet confirmed (LEARNER-RECORD.md \u00a76)."
+          },
+          "stability_days": {
+            "type": "number",
+            "minimum": 0,
+            "description": "The reference estimate's stability (LEARNER-RECORD.md \u00a76)."
           }
         }
       }

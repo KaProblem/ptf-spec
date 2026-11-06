@@ -81,8 +81,12 @@ test("checks that questions name existing objectives and cover each one per leve
   assert.equal(r.status, 0, r.stdout);
   assert.match(r.stdout, /objectives without a check question: highschool: next-one/);
   assert.match(r.stdout, /check question without `objectives`/);
-  writeFileSync(el, src.replace("  - id: count\n    text: Count", "  - Count"));
+  writeFileSync(el, src.replace(/  - id: count\n    text: (Count[^\n]*)\n    criteria:\n(?: {6}[^\n]*\n)*/, "  - $1\n"));
   assert.match(run(lib).stdout, /objectives without `id`/);
+  writeFileSync(el, src.replace("      highschool: Works out", "      college: Works out"));
+  r = run(lib);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /objective "count": criteria for "college", which is not a level of this element/);
 });
 
 test("rejects invalid question blocks", () => {

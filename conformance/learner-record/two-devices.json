@@ -1,5 +1,5 @@
 {
-  "description": "Two copies of one record (a laptop and a web host) changed independently, then synced. Every host that merges device_a and device_b by event id must derive `expected` (LEARNER-RECORD.md §9).",
+  "description": "Two copies of one record (a laptop and a web host) changed independently, then synced. Every host that merges device_a and device_b by event id must derive `expected` (LEARNER-RECORD.md §9). Also: one wrong answer makes a misconception suspected, a second one open; a correct answer given after the solution was shown is no evidence for a completion (LEARNER-RECORD.md §5, §6).",
   "device_a": [
     {
       "id": "01JC0000000000000000000000",
@@ -119,6 +119,23 @@
       "context": {
         "path": "ptf:path/demo/count-to-ten"
       }
+    },
+    {
+      "id": "01JC0000000000000000000013",
+      "at": "2026-11-02T11:00:00Z",
+      "verb": "answered",
+      "object": "ptf:el/demo/counting#q3",
+      "level": "highschool",
+      "result": {
+        "correct": false,
+        "objectives": [
+          "count"
+        ],
+        "misconception": "counting-skips"
+      },
+      "context": {
+        "path": "ptf:path/demo/count-to-ten"
+      }
     }
   ],
   "device_b": [
@@ -201,6 +218,60 @@
       "context": {
         "path": "ptf:path/demo/count-to-ten"
       }
+    },
+    {
+      "id": "01JC0000000000000000000014",
+      "at": "2026-11-02T12:00:00Z",
+      "verb": "answered",
+      "object": "ptf:el/demo/counting#q3",
+      "level": "highschool",
+      "result": {
+        "correct": false,
+        "objectives": [
+          "count"
+        ],
+        "misconception": "counting-skips"
+      },
+      "context": {
+        "path": "ptf:path/demo/count-to-ten"
+      }
+    },
+    {
+      "id": "01JC0000000000000000000015",
+      "at": "2026-11-02T12:05:00Z",
+      "verb": "answered",
+      "object": "ptf:el/demo/counting#q3",
+      "level": "highschool",
+      "result": {
+        "correct": true,
+        "objectives": [
+          "count",
+          "next-one"
+        ],
+        "assistance": "solution"
+      },
+      "context": {
+        "path": "ptf:path/demo/count-to-ten"
+      }
+    },
+    {
+      "id": "01JC0000000000000000000016",
+      "at": "2026-11-02T12:10:00Z",
+      "verb": "completed",
+      "object": "ptf:el/demo/counting",
+      "level": "highschool",
+      "result": {
+        "objectives": [
+          "count",
+          "next-one"
+        ],
+        "evidence": [
+          "01JC0000000000000000000015"
+        ]
+      },
+      "context": {
+        "path": "ptf:path/demo/count-to-ten"
+      }
     }
   ],
   "expected": {
@@ -232,7 +303,8 @@
           }
         ],
         "skipped": false,
-        "open_misconceptions": []
+        "open_misconceptions": [],
+        "suspected_misconceptions": []
       },
       "ptf:el/demo/counting": {
         "completed": [
@@ -249,17 +321,21 @@
           }
         ],
         "skipped": false,
-        "open_misconceptions": [],
+        "open_misconceptions": [
+          "counting-skips"
+        ],
         "versions_seen": {
           "element": "0.4.0"
         },
         "target_level": "highschool",
-        "keep": "Counting is adding one finger at a time."
+        "keep": "Counting is adding one finger at a time.",
+        "suspected_misconceptions": []
       },
       "ptf:el/demo/other": {
         "completed": [],
         "skipped": true,
-        "open_misconceptions": []
+        "open_misconceptions": [],
+        "suspected_misconceptions": []
       }
     },
     "consents": {
@@ -278,12 +354,13 @@
       "ptf:path/demo/count-to-ten": {
         "status": "active",
         "started": "2026-11-01T10:00:00Z",
-        "last_activity": "2026-11-02T10:00:00Z",
+        "last_activity": "2026-11-02T12:10:00Z",
         "last_note": null
       }
     },
     "rejected": [
-      "01JC0000000000000000000009"
+      "01JC0000000000000000000009",
+      "01JC0000000000000000000016"
     ]
   }
 }

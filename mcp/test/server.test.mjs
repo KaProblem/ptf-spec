@@ -115,12 +115,18 @@ test("records events and mastery in the learner record", async () => {
     element: "ptf:el/demo/counting", result: { correct: true } } });
   const r = json(await client.callTool({ name: "record_progress", arguments: { verb: "answered",
     object: "ptf:el/demo/counting#q1", result: { correct: false, misconception: "off-by-one" } } }));
-  assert.deepEqual(r.mastery.open_misconceptions, ["off-by-one"]);
+  assert.deepEqual(r.mastery.suspected_misconceptions, ["off-by-one"], "one wrong answer only suspects a misconception");
+  assert.deepEqual(r.mastery.open_misconceptions, []);
+  const again = json(await client.callTool({ name: "record_progress", arguments: { verb: "answered",
+    object: "ptf:el/demo/counting#q1", result: { correct: false, misconception: "off-by-one" } } }));
+  assert.deepEqual(again.mastery.open_misconceptions, ["off-by-one"], "the second wrong answer opens it");
+  assert.deepEqual(again.mastery.suspected_misconceptions, []);
+  assert.equal(again.mastery.stability_days, 1, "a wrong answer brings the element back after a day");
   const l = json(await client.callTool({ name: "get_learner", arguments: {} }));
   assert.equal(l.profile.preferred_lang, "de");
   assert.equal(l.mastery, undefined, "the overview stays small");
   const detail = json(await client.callTool({ name: "get_learner", arguments: { course: "ptf:el/demo/counting" } }));
-  assert.equal(detail.recent_events.length, 2);
+  assert.equal(detail.recent_events.length, 3);
   assert.ok(existsSync(join(learnerDir, "events.jsonl")));
   assert.match(readFileSync(join(learnerDir, "profile.md"), "utf8"), /^---\ntype: Learner Profile/);
 });
@@ -129,12 +135,31 @@ test("records a prior-knowledge placement with an early first review", async () 
   const el = "ptf:el/demo/placement";
   const r = json(await client.callTool({ name: "record_progress", arguments: { verb: "assessed", object: el, level: "highschool",
     result: { score: 0.9 } } }));
-  assert.equal(r.mastery.mastery, 0.9);
+  assert.equal(r.mastery.mastery, 1, "right after an answer the estimate is the full retrievability");
   assert.equal(r.mastery.interval_days, 3);
   assert.deepEqual(r.mastery.completed, [], "a placement score alone completes nothing");
   const after = json(await client.callTool({ name: "record_progress", arguments: { verb: "answered", object: `${el}#q1`,
     result: { correct: true } } }));
-  assert.equal(after.mastery.interval_days, 6);
+  assert.equal(after.mastery.stability_days, 7.5, "a correct answer without help grows the stability by 2.5");
+  assert.equal(after.mastery.interval_days, 8);
+  const hinted = json(await client.callTool({ name: "record_progress", arguments: { verb: "answered", object: `${el}#q1`,
+    result: { correct: true, assistance: "hint" } } }));
+  assert.equal(hinted.mastery.stability_days, 11.25, "after a hint it grows by 1.5");
+  const shown = json(await client.callTool({ name: "record_progress", arguments: { verb: "answered", object: `${el}#q1`,
+    result: { correct: true, assistance: "solution" } } }));
+  assert.equal(shown.mastery.stability_days, 11.25, "an answer after the solution changes nothing");
+});
+
+test("an answer given after the solution was shown is no evidence for a completion", async () => {
+  const el = "ptf:el/demo/solution-shown";
+  await client.callTool({ name: "record_progress", arguments: { verb: "answered", object: `${el}#q1`, level: "child",
+    result: { correct: true, assistance: "solution" } } });
+  const r = await client.callTool({ name: "record_progress", arguments: { verb: "completed", object: el, level: "child" } });
+  assert.ok(r.isError);
+  assert.match(r.content[0].text, /without the solution shown first/);
+  await client.callTool({ name: "record_progress", arguments: { verb: "answered", object: `${el}#q2`, level: "child", result: { correct: true } } });
+  const ok = json(await client.callTool({ name: "record_progress", arguments: { verb: "completed", object: el, level: "child" } }));
+  assert.deepEqual(ok.mastery.completed.map((c) => c.level), ["child"]);
 });
 
 test("keeps explanation preferences on partial updates", async () => {

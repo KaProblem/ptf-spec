@@ -32,14 +32,17 @@ fork first without write access, and branch `content/<bundle>-<topic>`.
 What matters is that a tutor can teach from it (SPEC.md §6.7):
 
 - **Objectives**: two to four things the learner can do afterwards, each
-  `{ id, text }` with a stable ID.
+  `{ id, text }` with a stable ID and, where the levels ask for different
+  performances, `criteria` per level (describe, compute, derive).
 - **Core and Key facts**: short and correct; verify every number.
 - **Misconceptions**: real wrong beliefs, `**<id>**: wrong → right`.
 - **Questions**: a few good ones; every `check` and `probe` question names
   the `objectives` it checks, and every objective has one at every level
   (`ptf-check` lists the gaps); wrong
   options are misconceptions with feedback; one `probe` question that sorts
-  "knows it" from "sounds familiar".
+  "knows it" from "sounds familiar"; `hints` (one to three, from a nudge to
+  almost the answer) on questions that need working out; a `transfer`
+  question per objective for reviews.
 - **Answer checks** (SPEC.md §7.1): every worked-out answer (numbers,
   calculation steps, options that state a value or property) is recomputed
   in `checks/<element>.js` from the problem itself, and every number in

@@ -418,7 +418,9 @@ helps (PEDAGOGY.md §5), so it is small, focused and honest.
    prediction is judged after the result and reported as `answered` (with
    `result.misconception` when wrong). Explanations that give the answer away
    stay hidden until then. A station ends with a one-line takeaway, so it is
-   framed even without a tutor.
+   framed even without a tutor. The prediction is for learners who have
+   something to predict with; a station that teaches a procedure to novices
+   MAY show one worked case first and ask for the prediction on the next.
 6. **Self-contained.** No references to external videos or texts.
 7. **Theme tokens** from §4.5 with fallbacks; light and dark mode.
 8. **Mobile first.** Usable from 320 px, touch targets at least 44 px, no
