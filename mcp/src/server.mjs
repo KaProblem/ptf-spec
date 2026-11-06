@@ -158,57 +158,121 @@ const validQuestion = new Ajv2020({ allErrors: true, strict: false }).compile(QU
 
 function questionErrors(q) {
   if (validQuestion(q)) return [];
-  // oneOf reports every branch; keep the errors of the branch for the given kind.
+  // oneOf reports every branch; keep the errors of the branch for the given kind and the shared fields.
   const kinds = QUESTION_SCHEMA.oneOf.map((b) => b.properties.kind.const);
   const branch = kinds.indexOf(q?.kind);
   if (branch < 0) return [`kind must be one of ${kinds.join(", ")}`];
-  return (validQuestion.errors ?? []).filter((e) => e.schemaPath.startsWith(`#/oneOf/${branch}/`))
+  return (validQuestion.errors ?? []).filter((e) => e.schemaPath.startsWith(`#/oneOf/${branch}/`) || e.schemaPath.startsWith("#/properties/"))
     .map((e) => `${e.instancePath || "question"} ${e.message}`);
 }
 
+/** What a card needs to play a media entry (SPEC.md §6.9); the transcript goes to the card in _meta only. */
+function mediaCard(hit, plays) {
+  const e = hit.entry;
+  return { id: hit.id, kind: e.kind, title: e.title ?? hit.id, mime: hit.mime, url: hit.url, plays: plays ?? null,
+    duration_s: e.duration_s ?? null, bytes: e.bytes ?? null, language: e.language ?? null, speakers: e.speakers ?? [] };
+}
+const mediaLine = (hit, plays) => `${hit.entry.kind === "video" ? "Video" : "Audio"} "${hit.entry.title ?? hit.id}" (${Math.round(hit.entry.duration_s ?? 0)} s` +
+  `${hit.entry.speakers?.length ? `, ${hit.entry.speakers.join(", ")}` : ""})` + (plays ? `, the learner may play it ${plays} time(s).` : ".");
+const transcriptBlock = (hit) => `Transcript, for you only: do not read it out, quote it or hint at it before the learner has answered. ` +
+  `The card shows it to the learner afterwards.\n<<<\n${hit.transcript}\n>>>`;
+
 server.registerTool("show_question", {
   title: "Show a quiz question",
-  description: "Shows one question to the learner as an interactive card inline in the chat, instead of asking it in plain text. " +
-    "Either take a question from a learning element (`element` + `question_id`, from its # Questions section) or write your own " +
-    "`question` as a PTF question block (SPEC.md §7, schema question-block.schema.json). Kinds shown as a card: " + QUIZ_KINDS.join(", ") + ". " +
+  description: "Shows a question to the learner as an interactive card inline in the chat, instead of asking it in plain text. " +
+    "Either take questions from a learning element (`element` + `question_id`, or `question_ids` for several questions in one card, " +
+    "e.g. all items of a listening task) or write your own `question` as a PTF question block (SPEC.md §7, schema question-block.schema.json). " +
+    "Kinds shown as a card: " + QUIZ_KINDS.join(", ") + ". " +
+    "A question with `media` plays its audio or video in the card (as often as `plays` allows) and shows the transcript after the answer. " +
     "Use it for every check, probe, warmup or review question rather than asking in the chat. The card checks every kind itself " +
     "except free_text, which you grade with the rubric. The learner's answer arrives as their next message.",
   inputSchema: {
     element: z.string().regex(/^ptf:el\//).optional().describe("Learning element the question belongs to; answers count towards its mastery"),
     question_id: z.string().optional().describe("ID of a question block in the element"),
+    question_ids: z.array(z.string()).min(1).max(15).optional().describe("Several question IDs of the element, shown together in one card (they must share the same media, or have none)"),
     question: z.record(z.string(), z.unknown()).optional().describe("A question block you wrote, e.g. {kind: multiple_choice, id, level, question, options[{text, correct, feedback}], explanation}"),
   },
   _meta: { ui: { resourceUri: QUIZ_URI }, "ui/resourceUri": QUIZ_URI },
-}, guarded(async ({ element, question_id, question }) => {
-  if (!question === !question_id) throw new Error("Pass either question_id (with element) or question.");
-  let q = question;
+}, guarded(async ({ element, question_id, question_ids, question }) => {
+  if ([question, question_id, question_ids].filter(Boolean).length !== 1) throw new Error("Pass exactly one of question_id, question_ids (both with element) or question.");
+  let qs = question ? [question] : null;
   let lang = null;
   if (element) {
     const d = lib().doc(element);
     if (!d) throw new Error(`Unknown element ${element}.`);
     lang = d.meta.lang ?? null;
   }
-  if (question_id) {
-    if (!element) throw new Error("question_id needs element.");
+  if (!qs) {
+    if (!element) throw new Error("question_id and question_ids need element.");
     const all = lib().questions(element);
-    q = all.find((x) => x.id === question_id);
-    if (!q) throw new Error(`Element ${element} has no question ${question_id}. Questions: ${all.map((x) => `${x.id} (${x.kind})`).join(", ") || "none"}`);
+    qs = (question_ids ?? [question_id]).map((id) => {
+      const q = all.find((x) => x.id === id);
+      if (!q) throw new Error(`Element ${element} has no question ${id}. Questions: ${all.map((x) => `${x.id} (${x.kind})`).join(", ") || "none"}`);
+      return q;
+    });
   }
-  const errors = questionErrors(q);
-  if (errors.length) throw new Error(`Not a valid PTF question block: ${errors.join("; ")}`);
-  const object = element ? `${element}#${q.id}` : null;
-  const lines = [`Showing question ${q.id} (${q.kind}) to the learner. Do not give away the answer; wait for their reply.`];
-  if (q.kind !== "free_text") {
-    lines.push("The card checks the answer, shows the right answer and the explanation" + (object ? `, and records it as ${object}.` : "."),
-      object ? "Then talk about the answer: why it is right or which misconception it shows."
+  for (const q of qs) {
+    const errors = questionErrors(q);
+    if (errors.length) throw new Error(`Not a valid PTF question block${qs.length > 1 ? ` (${q.id})` : ""}: ${errors.join("; ")}`);
+  }
+  const mediaIds = [...new Set(qs.map((q) => q.media ?? null))];
+  if (mediaIds.length > 1) throw new Error(`Questions in one card must share the same media; got ${mediaIds.map((m) => m ?? "none").join(", ")}.`);
+  let hit = null;
+  let plays = null;
+  if (mediaIds[0]) {
+    if (!element) throw new Error("A question with media needs element: the media belongs to the element.");
+    hit = lib().media(element, mediaIds[0]);
+    const p = qs.map((q) => q.plays).filter(Boolean);
+    plays = p.length ? Math.min(...p) : null;
+  }
+  const objects = Object.fromEntries(qs.map((q) => [q.id, element ? `${element}#${q.id}` : null]));
+  const many = qs.length > 1;
+  const lines = [many ? `Showing ${qs.length} questions (${qs.map((q) => `${q.id} ${q.kind}`).join(", ")}) in one card. Do not give away the answers; wait for the learner's reply.`
+    : `Showing question ${qs[0].id} (${qs[0].kind}) to the learner. Do not give away the answer; wait for their reply.`];
+  if (hit) lines.push(mediaLine(hit, plays) + " The card plays it; say in one sentence what to listen for, without giving away an answer.");
+  const graded = qs.filter((q) => q.kind !== "free_text");
+  const own = qs.filter((q) => q.kind === "free_text");
+  if (graded.length) {
+    lines.push("The card checks the answer" + (many ? "s" : "") + ", shows the right answer and the explanation" + (element ? (many ? ", and records each answer." : `, and records it as ${objects[qs[0].id]}.`) : "."),
+      element ? "Then talk about the answer: why it is right or which misconception it shows."
         : "Then record it with record_progress (verb answered, correct, objectives) and talk about the answer.");
-  } else {
-    lines.push("Grade the answer the learner sends against this rubric, give short feedback, then show or summarise the sample answer if it helps.");
+    if (many) lines.push("In a card with several questions the learner's message arrives once all of them are answered.");
+  }
+  for (const q of own) {
+    lines.push(`Grade the answer to ${q.id} the learner sends against this rubric, give short feedback, then show or summarise the sample answer if it helps.`);
     if (q.rubric?.length) lines.push(`Rubric:\n${q.rubric.map((r) => `- ${r}`).join("\n")}`);
     if (q.sample_answer) lines.push(`Sample answer: ${q.sample_answer}`);
-    if (object) lines.push(`Then call record_progress with verb answered, object ${object} and result.score (0 to 1).`);
+    if (objects[q.id]) lines.push(`Then call record_progress with verb answered, object ${objects[q.id]} and result.score (0 to 1).`);
   }
-  return { content: [text(lines.join("\n"))], structuredContent: { question: q, element: element ?? null, object, lang } };
+  if (hit) lines.push(transcriptBlock(hit));
+  const structuredContent = { question: qs[0], questions: qs, element: element ?? null, object: objects[qs[0].id], objects, lang,
+    ...(hit ? { media: mediaCard(hit, plays) } : {}) };
+  return { content: [text(lines.join("\n"))], structuredContent, ...(hit ? { _meta: { "ptf/transcript": hit.transcript } } : {}) };
+}));
+
+// ---------- media (SPEC.md §6.9) ----------
+
+server.registerTool("show_media", {
+  title: "Play audio or video",
+  description: "Plays an audio or video of a learning element (its `media` list) inline in the chat, without a question, e.g. a dialogue to " +
+    "listen to before you talk about it. The learner can open the transcript after listening once. For listening tasks with questions use " +
+    "show_question with the questions that name this media instead. You never hear the file: the result gives you its transcript.",
+  inputSchema: {
+    element: z.string().regex(/^ptf:el\//).describe("Learning element the media belongs to"),
+    media: z.string().describe("Media ID from the element's `media` list"),
+    plays: z.number().int().min(1).max(9).optional().describe("How often the learner may play it; default unlimited"),
+  },
+  _meta: { ui: { resourceUri: QUIZ_URI }, "ui/resourceUri": QUIZ_URI },
+}, guarded(async ({ element, media, plays }) => {
+  const hit = lib().media(element, media);
+  const level = hit.entry.levels?.length === 1 ? hit.entry.levels[0] : null;
+  const lines = [`Playing ${mediaLine(hit, plays ?? null)}`.replace("Playing Audio", "Playing the audio").replace("Playing Video", "Playing the video"),
+    ...(hit.entry.objectives?.length ? [`It supports the objective(s) ${hit.entry.objectives.join(", ")}.`] : []),
+    "Say in one sentence what to listen for, then ask what the learner understood before you explain. The learner can open the transcript once they have listened.",
+    transcriptBlock(hit)];
+  return { content: [text(lines.join("\n"))],
+    structuredContent: { media: mediaCard(hit, plays ?? null), element, object: `${element}#media:${hit.id}`, level, lang: hit.entry.language ?? lib().doc(element)?.meta.lang ?? null },
+    _meta: { "ptf/transcript": hit.transcript } };
 }));
 
 // ---------- figures (SPEC.md §6.8) ----------
@@ -398,14 +462,26 @@ server.registerTool("ptf_figure_source", {
   return { content: [text(`${element} figure ${f.id} (${f.lang})`)], structuredContent: { svg: f.svg } };
 }));
 
+server.registerTool("ptf_media_source", {
+  title: "Media source (quiz card)",
+  description: "Used by the quiz card: returns a checked media file of an element as base64.",
+  inputSchema: { element: z.string().regex(/^ptf:el\//), media: z.string() },
+  annotations: { readOnlyHint: true },
+  _meta: APP_ONLY,
+}, guarded(async ({ element, media }) => {
+  const hit = lib().media(element, media);
+  const buf = lib().mediaBytes(hit);
+  return { content: [text(`${element} media ${hit.id} (${buf.length} bytes)`)], structuredContent: { mime: hit.mime, data: buf.toString("base64") } };
+}));
+
 server.registerTool("ptf_record_event", {
   title: "Record a learning event (player, quiz, figure)",
-  description: "Used by the simulator player, the quiz and the figure card: appends a learning event to the local learner record.",
+  description: "Used by the simulator player, the quiz, the figure card and media: appends a learning event to the local learner record.",
   inputSchema: {
     verb: z.string(), object: z.string(), level: LEVEL.optional(), element: z.string().optional(),
     result: z.object({ correct: z.boolean().optional(), score: z.number().min(0).max(1).optional(),
       response: z.string().max(2000).optional(), misconception: z.string().max(100).optional() }).optional(),
-    via: z.enum(["simulator", "quiz", "figure"]).optional(),
+    via: z.enum(["simulator", "quiz", "figure", "media"]).optional(),
   },
   _meta: APP_ONLY,
 }, guarded(async ({ via, ...args }) => ok(learner.record({ ...args, context: { via: via ?? "simulator" } }, elementInfo))));

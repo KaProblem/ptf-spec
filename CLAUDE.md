@@ -14,7 +14,7 @@ the simulator/host runtimes and the validator. Content lives in the separate
 - Run before committing: `npm test` and `node tools/ptf-check.mjs examples/minimal-library`.
   `node tools/ptf-selftest.mjs examples/minimal-library/sims/counter/1.0.0` needs Playwright.
 - `mcp/` is the local MCP server. After changing `mcp/src/`, `mcp/skills/ptf-tutor/`, `runtime/ptf-host.js`, `runtime/ptf-figure.css`,
-  `tools/ptf-figure.mjs` or `schemas/question-block.schema.json`,
+  `tools/ptf-figure.mjs`, `tools/ptf-media.mjs` or `schemas/question-block.schema.json`,
   run `npm run build --prefix mcp` and commit `mcp/dist/ptf-mcp.mjs`; run `npm test --prefix mcp`
-  and `node mcp/test/player.browser.mjs`, `node mcp/test/quiz.browser.mjs` and `node mcp/test/figure.browser.mjs` (Playwright).
+  and `node mcp/test/player.browser.mjs`, `node mcp/test/quiz.browser.mjs`, `node mcp/test/figure.browser.mjs` and `node mcp/test/media.browser.mjs` (Playwright).
 - Figures (SPEC.md §6.8): look at the screenshots of `node tools/ptf-figure.mjs shot <svg>` at 320 px, light and dark, before committing one.

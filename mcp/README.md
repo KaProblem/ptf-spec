@@ -47,7 +47,10 @@ run it.
    `skills/ptf-tutor` as a skill under *Settings → Capabilities*.
 
 When the tutor calls `show_figure`, a figure appears in the chat as a card
-that builds up step by step (Back, Next, Show all). When it calls
+that builds up step by step (Back, Next, Show all). Audio and video of an
+element play in the question card (`show_media`, or `show_question` for a
+listening task), with a play limit when the task has one and the transcript
+after the answer. When it calls
 `show_simulator`, the simulator appears in the chat. Its
 toolbar lets you change level and station, and has two buttons that write to
 the tutor for you: **I'm stuck** and **Doesn't work**. What you do in the

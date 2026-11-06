@@ -253,6 +253,99 @@
         }
       }
     },
+    "media": {
+      "type": "array",
+      "description": "Audio and video of this element (SPEC.md §6.9). The course author makes the files once; hosts only play them.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "src",
+          "sha256",
+          "bytes",
+          "duration_s",
+          "transcript",
+          "license"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "kind": {
+            "enum": [
+              "audio",
+              "video"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "src": {
+            "type": "string",
+            "pattern": "^(media/[a-z0-9][a-z0-9._-]*\\.(mp3|m4a|mp4)|https://\\S+)$",
+            "description": "media/<file> in the bundle (at most 10 MiB), or an https URL for larger files."
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "Hex SHA-256 of the file."
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "duration_s": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "transcript": {
+            "type": "string",
+            "pattern": "^media/[a-z0-9][a-z0-9._-]*\\.(txt|vtt)$",
+            "description": "Transcript (.txt) or captions (.vtt, required for video) in the bundle."
+          },
+          "language": {
+            "type": "string",
+            "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]+)*$"
+          },
+          "speakers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "generator": {
+            "type": "object",
+            "description": "Provenance: how the file was made (tool, model, voice) or recorded_by."
+          },
+          "license": {
+            "type": "string",
+            "minLength": 1
+          },
+          "objectives": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*$"
+            }
+          },
+          "use_when": {
+            "type": "string",
+            "minLength": 1,
+            "description": "When the tutor should play it."
+          }
+        }
+      }
+    },
     "sources": {
       "type": "array",
       "items": {

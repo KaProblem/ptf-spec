@@ -57,6 +57,13 @@ What matters is that a tutor can teach from it (SPEC.md §6.7):
   construction), draw it with the `ptf-figure` skill: a script computes it,
   `ptf-figure shot` renders it at phone width, and you look at every
   screenshot before you list it in `figures`.
+- **Audio and video** (SPEC.md §6.9): make them once while writing the
+  course, never per learner. Write the script first (speakers, accent,
+  pace), generate or record the file, save it as a mono MP3 at 48 to 64
+  kbit/s in `media/`, keep the exact text as `media/<id>.txt` (or captions
+  as `.vtt`), and list it in `media` with the fields that
+  `node tools/ptf-media.mjs entry <bundle> media/<file>` prints. Listen to
+  the whole file before you list it: the transcript must match what is said.
 - **Anything the tutor must do a certain way** goes in `# Tutor notes`.
 - **Changes** keep all IDs, say what problem they fix, bump `version`
   (patch wording, minor additions, major when Core changes meaning or IDs
