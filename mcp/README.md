@@ -14,6 +14,13 @@ It comes with three skills: **ptf-tutor** (how to teach from the library),
 **ptf-author** (how to improve lessons and propose them as pull requests) and
 **ptf-figure** (how to draw a figure for a lesson and check it at phone width).
 
+A fourth, **ptf-learn**, is for remote PTF hosts such as
+[Personal Tutor](https://personal-tutor.org): a short entry point that makes
+Claude use the connector whenever the learner wants to learn, loads the
+host's current teaching method with `get_tutor_guide` and says what to do when
+the connector is missing. Hosts offer it as a download next to their connector
+setup; it carries no copy of the method, so it does not go stale.
+
 ## Requirements
 
 - Node.js 20 or newer
